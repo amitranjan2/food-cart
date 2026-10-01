@@ -1,0 +1,1 @@
+package in.foodcart.data; import org.springframework.data.mongodb.repository.MongoRepository; import java.util.*; public interface VendorRepository extends MongoRepository<VendorEntity,String>{Optional<VendorEntity> findBySlug(String slug);Optional<VendorEntity> findByMobile(String mobile);List<VendorEntity> findByStatusOrderByNameAsc(in.foodcart.domain.VendorStatus status);}

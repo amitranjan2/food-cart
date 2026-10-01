@@ -1,0 +1,1 @@
+package in.foodcart.data; import org.springframework.data.mongodb.repository.MongoRepository; import java.util.*; public interface MenuCategoryRepository extends MongoRepository<MenuCategoryEntity,String>{List<MenuCategoryEntity> findByVendorIdOrderBySortOrder(String vendorId);}

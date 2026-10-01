@@ -1,0 +1,3 @@
+package in.foodcart.api;
+import in.foodcart.data.*;import in.foodcart.service.AuthService;import org.springframework.web.bind.annotation.*;
+@RestController @RequestMapping("/api/vendor/menu/items") public class VendorMenuAdminController {private final AuthService auth;private final MenuItemRepository items;public VendorMenuAdminController(AuthService a,MenuItemRepository i){auth=a;items=i;}@DeleteMapping("/{id}") public void delete(@RequestHeader("Authorization") String h,@PathVariable String id){String vendor=auth.actor(h,"VENDOR");MenuItemEntity item=items.findByIdAndVendorId(id,vendor).orElseThrow(()->new SecurityException("Item not found"));items.delete(item);}}

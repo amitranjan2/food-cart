@@ -1,0 +1,3 @@
+package in.foodcart.data;
+import in.foodcart.domain.VendorStatus; import org.springframework.data.annotation.Id; import org.springframework.data.mongodb.core.index.Indexed; import org.springframework.data.mongodb.core.mapping.Document; import java.time.Instant;
+@Document("vendors") public class VendorEntity { @Id public String id; @Indexed(unique=true) public String slug; @Indexed public String mobile; public String name,description,address,logoUrl,coverImageUrl,themeColor="#102820"; public VendorStatus status=VendorStatus.OPEN; public Instant createdAt=Instant.now(),updatedAt=Instant.now(); }
