@@ -9,6 +9,6 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class CorsConfig implements WebMvcConfigurer {
   @Value("${app.cors-origin}") private String origin;
   @Override public void addCorsMappings(CorsRegistry registry) {
-    registry.addMapping("/api/**").allowedOrigins(origin).allowedMethods("GET","POST","PUT","PATCH","OPTIONS").allowedHeaders("Authorization","Content-Type").maxAge(3600);
+    registry.addMapping("/api/**").allowedOrigins(origin, "http://localhost:3000", "http://localhost:3001").allowedMethods("GET","POST","PUT","PATCH","OPTIONS").allowedHeaders("Authorization","Content-Type").maxAge(3600);
   }
 }

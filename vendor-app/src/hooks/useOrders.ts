@@ -1,0 +1,83 @@
+import { useCallback, useState } from 'react';
+import { getVendorOrders, patchOrderStatus } from '../api/orders';
+import { isAuthFailure } from '../api/client';
+import { useAuth } from '../state/AuthContext';
+import type { Order, OrderStatus } from '../types';
+import { NEXT_ORDER_STATUS } from '../utils/orderStatus';
+
+export function useOrders() {
+  const { token, logout } = useAuth();
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState('');
+
+  const refresh = useCallback(
+    async (silent = false) => {
+      if (!token) return;
+      if (!silent) setLoading(true);
+      else setRefreshing(true);
+      setError('');
+      try {
+        const next = await getVendorOrders(token);
+        setOrders(next);
+      } catch (e) {
+        if (isAuthFailure(e)) {
+          await logout();
+          return;
+        }
+        setError(e instanceof Error ? e.message : 'Could not load orders');
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [token, logout],
+  );
+
+  const advanceStatus = useCallback(
+    async (order: Order, target?: OrderStatus) => {
+      if (!token) return;
+      const next = target ?? NEXT_ORDER_STATUS[order.status];
+      if (!next || next === order.status) return;
+      try {
+        const saved = await patchOrderStatus(token, order.id, next);
+        const latest = await getVendorOrders(token);
+        setOrders(latest);
+        return { patched: saved, fetched: latest.find(item => item.id === order.id), reconciled: false };
+      } catch (e) {
+        const latest = await getVendorOrders(token).catch(() => null);
+        const fetched = latest?.find(item => item.id === order.id);
+        if (latest && fetched && fetched.status !== order.status) {
+          setOrders(latest);
+          return { patched: undefined, fetched, reconciled: true };
+        }
+        throw e;
+      }
+    },
+    [token],
+  );
+
+  return { orders, loading, refreshing, error, refresh, advanceStatus };
+}
+
+export function filterOrders(
+  orders: Order[],
+  day: Date,
+  status: OrderStatus | 'ALL',
+  query: string,
+) {
+  const needle = query.trim().toLowerCase();
+  return orders.filter(order => {
+    const created = order.createdAt ? new Date(order.createdAt) : new Date();
+    const sameDay =
+      created.getFullYear() === day.getFullYear() &&
+      created.getMonth() === day.getMonth() &&
+      created.getDate() === day.getDate();
+    if (!sameDay) return false;
+    if (status !== 'ALL' && order.status !== status) return false;
+    if (!needle) return true;
+    const haystack = `${order.orderNumber} ${order.customerMobile ?? ''} ${order.items.map(item => item.name).join(' ')}`.toLowerCase();
+    return haystack.includes(needle);
+  });
+}

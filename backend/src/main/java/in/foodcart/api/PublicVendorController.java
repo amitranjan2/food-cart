@@ -1,6 +1,6 @@
 package in.foodcart.api;
 import in.foodcart.data.*; import org.springframework.http.*; import org.springframework.web.bind.annotation.*; import java.util.*;
-@RestController @RequestMapping("/api/public/vendors") @CrossOrigin(origins="${app.cors-origin}")
+@RestController @RequestMapping("/api/public/vendors") @CrossOrigin(origins={"${app.cors-origin}","http://localhost:3000","http://localhost:3001"})
 public class PublicVendorController {
  private final VendorRepository vendors; private final MenuItemRepository items; private final MenuCategoryRepository categories;
  public PublicVendorController(VendorRepository v,MenuItemRepository i,MenuCategoryRepository c){vendors=v;items=i;categories=c;}
