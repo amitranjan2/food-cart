@@ -105,10 +105,17 @@ export function Cart({
   suggestions,
   quantities,
   total,
+  mobile,
+  otp,
   fallbackImage,
   onBack,
   onQuantity,
   onAdd,
+  onMobileChange,
+  onOtpChange,
+  onPay,
+  paying,
+  payError,
 }: {
   lines: CartLine[];
   suggestions: MenuItem[];
@@ -122,6 +129,9 @@ export function Cart({
   onAdd: (item: MenuItem) => void;
   onMobileChange: (mobile: string) => void;
   onOtpChange: (otp: string) => void;
+  onPay: () => void;
+  paying?: boolean;
+  payError?: string;
 }) {
   const [plan, setPlan] = useState<Plan>('once');
   const [fulfillment, setFulfillment] = useState<Fulfillment>('pickup');
@@ -383,6 +393,15 @@ export function Cart({
         </footer>
       ) : (
       <>
+      <section className="cart-auth" aria-label="Confirm mobile">
+        <label className="cart-field">
+          <input inputMode="numeric" autoComplete="tel" placeholder="Mobile number" value={mobile} onChange={event => onMobileChange(event.target.value)} />
+        </label>
+        <label className="cart-field">
+          <input inputMode="numeric" autoComplete="one-time-code" placeholder="OTP" value={otp} onChange={event => onOtpChange(event.target.value)} />
+        </label>
+        {payError ? <p className="cart-pay-error">{payError}</p> : null}
+      </section>
       {billOpen && <div className="bill-backdrop" aria-hidden="true" onClick={() => setBillOpen(false)} />}
       <div className={'bill-dock' + (billOpen ? ' open' : '')}>
         <section className="bill-sheet" id="cart-bill" aria-label="Bill details" aria-hidden={!billOpen}>
@@ -413,7 +432,7 @@ export function Cart({
             </svg>
             <strong aria-live="polite">{formatRupee(grandTotal)}</strong>
           </button>
-          <button type="button" className="customizer-add">Pay</button>
+          <button type="button" className="customizer-add" disabled={paying || !mobile.trim() || !otp.trim()} onClick={onPay}>{paying ? '…' : 'Pay'}</button>
         </footer>
       </div>
       </>

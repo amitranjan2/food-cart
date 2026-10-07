@@ -29,6 +29,10 @@ export default function Store({ params }: { params: { slug: string } }) {
   const [otp, setOtp] = useState('');
   const [order, setOrder] = useState<PlacedOrder>();
   const [query, setQuery] = useState('');
+  const [paying, setPaying] = useState(false);
+  const [payError, setPayError] = useState('');
+  const [chromeHeight, setChromeHeight] = useState(130);
+  const chromeRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let active = true;
@@ -48,6 +52,19 @@ export default function Store({ params }: { params: { slug: string } }) {
   }, [params.slug]);
 
   useEffect(() => () => clearTimeout(closeTimer.current), []);
+
+  useEffect(() => {
+    if (open) return;
+    const node = chromeRef.current;
+    if (!node) return;
+    const update = () => {
+      if (node.offsetHeight > 0) setChromeHeight(node.offsetHeight);
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [open, vendor]);
 
   const linked = useMemo(() => linkItemsToCategories(categories, items), [categories, items]);
   const customizing = linked.find(item => item.id === customizingId) ?? null;
@@ -116,41 +133,57 @@ export default function Store({ params }: { params: { slug: string } }) {
     document.getElementById('menu-category-' + id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  // Checkout stays unwired until OTP and payment exist.
   async function place() {
-    const session = await request<{ token: string }>('/api/auth/customer/verify-otp', {
-      method: 'POST',
-      body: JSON.stringify({ mobile, otp }),
-    });
-    const placed = await request<PlacedOrder>('/api/orders', {
-      method: 'POST',
-      body: JSON.stringify({
-        vendorId: store.id,
-        type: 'PICKUP',
-        items: chosen.map(item => {
-          // Orders only accept catalog HALF/FULL prices. Add-on and Large
-          // amounts stay on the cart until the order API grows modifiers.
-          const half = configs[item.id]?.sizeId === 'half' && item.halfPrice != null && item.halfAvailable !== false;
-          return {
-            menuItemId: item.id,
-            quantity: cart[item.id],
-            portion: half ? 'HALF' : 'FULL',
-            displayedPrice: half ? item.halfPrice : item.price,
-          };
+    setPaying(true);
+    setPayError('');
+    try {
+      const session = await request<{ token: string }>('/api/auth/customer/verify-otp', {
+        method: 'POST',
+        body: JSON.stringify({ mobile, otp }),
+      });
+      const placed = await request<PlacedOrder>('/api/orders', {
+        method: 'POST',
+        body: JSON.stringify({
+          vendorId: store.id,
+          type: 'PICKUP',
+          items: chosen.map(item => {
+            const config = configs[item.id];
+            return {
+              menuItemId: item.id,
+              quantity: cart[item.id],
+              portion: config?.portion ?? 'FULL',
+              sizeId: config?.sizeId,
+              options: config?.options ?? [],
+              displayedPrice: config?.unitPrice ?? item.price,
+            };
+          }),
         }),
-      }),
-    }, session.token);
-    setOrder(placed);
+      }, session.token);
+      setOrder(placed);
+    } catch (error) {
+      setPayError(error instanceof Error ? error.message : 'Could not place the order.');
+    } finally {
+      setPaying(false);
+    }
   }
 
   if (order) return <OrderConfirmation vendor={store} order={order} />;
 
-  const cartOpen = open && !customizing;
+  const sheet = customizing && (
+    <ItemCustomizer
+      item={customizing}
+      inset={chromeHeight}
+      onClose={closeCustomizer}
+      onAdd={configuration => addConfigured(customizing, configuration)}
+    />
+  );
+
+  const underlay = customizing ? 'customizer-underlay' : undefined;
 
   return (
-    <main className={'storefront' + (customizing ? ' customizing' : '') + (customizing && closingCustomizer ? ' closing' : '') + (cartOpen ? ' cart-open' : '')}>
-      {open && (
-        <div className={customizing ? 'cart-parked' : undefined}>
+    <main className={'storefront' + (customizing ? ' customizing' : '') + (customizing && closingCustomizer ? ' closing' : '') + (open ? ' cart-open' : '')}>
+      {open ? (
+        <div className={underlay} aria-hidden={customizing ? true : undefined}>
           <Cart
             lines={chosen.map(item => ({
               item,
@@ -169,46 +202,29 @@ export default function Store({ params }: { params: { slug: string } }) {
             onAdd={item => openCustomizer(item.id)}
             onMobileChange={setMobile}
             onOtpChange={setOtp}
+            onPay={place}
+            paying={paying}
+            payError={payError}
           />
         </div>
-      )}
-      {(!open || customizing) && (
-      <>
-      <StoreHeader
-        query={query}
-        onQueryChange={setQuery}
-        onClose={customizing ? closeCustomizer : undefined}
-      >
-        <VendorInfo vendor={store} />
-      </StoreHeader>
+      ) : (
+      <div className={underlay} aria-hidden={customizing ? true : undefined}>
+      <div className="store-chrome" ref={chromeRef}>
+        <StoreHeader query={query} onQueryChange={setQuery}>
+          <VendorInfo vendor={store} />
+        </StoreHeader>
+      </div>
       <div className="store-body">
-        {customizing && (
-          <button type="button" className="customizer-close" onClick={closeCustomizer} aria-label="Close customization">
-            <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-              <path d="M3 3l8 8M11 3 3 11" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-            </svg>
-          </button>
-        )}
-        <div className={customizing ? 'menu-underlay' : undefined} aria-hidden={customizing ? true : undefined}>
-          <Menu
-            items={shown}
-            categories={categories}
-            quantities={cart}
-            onAdd={item => openCustomizer(item.id)}
-            onQuantity={changeQuantity}
-            searching={needle.length > 0}
-            fallbackImage={store.coverImageUrl}
-            nav={<CategoryNav categories={shownCategories} selectedId={categoryId} onSelect={selectCategory} />}
-          />
-        </div>
-        {customizing && (
-          <ItemCustomizer
-            item={customizing}
-            fallbackImage={store.coverImageUrl}
-            onClose={closeCustomizer}
-            onAdd={configuration => addConfigured(customizing, configuration)}
-          />
-        )}
+        <Menu
+          items={shown}
+          categories={categories}
+          quantities={cart}
+          onAdd={item => openCustomizer(item.id)}
+          onQuantity={changeQuantity}
+          searching={needle.length > 0}
+          fallbackImage={store.coverImageUrl}
+          nav={<CategoryNav categories={shownCategories} selectedId={categoryId} onSelect={selectCategory} />}
+        />
       </div>
       {!customizing && chosen.length > 0 && (
         <CartBar
@@ -226,8 +242,9 @@ export default function Store({ params }: { params: { slug: string } }) {
           onSelect={selectCategory}
         />
       )}
-      </>
+      </div>
       )}
+      {sheet}
     </main>
   );
 }

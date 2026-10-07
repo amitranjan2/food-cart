@@ -96,7 +96,8 @@ export function OrderDetailsScreen({ navigation, route }: Props) {
             <View style={styles.items}>
               {order.items?.map((item, index) => (
                 <Text key={`${item.menuItemId ?? 'line'}-${index}`} style={styles.item}>
-                  {item.quantity}x {item.name} ({item.portion || 'FULL'}) · {rupees(item.lineTotal)}
+                  {item.quantity}x {item.name} ({item.portion || 'FULL'})
+                  {item.summary ? ` · ${item.summary}` : ''} · {rupees(item.lineTotal)}
                 </Text>
               ))}
             </View>

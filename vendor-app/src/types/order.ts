@@ -13,7 +13,8 @@ export type Portion = 'FULL' | 'HALF';
 export type OrderItem = {
   menuItemId?: string | null;
   name: string;
-  portion?: Portion;
+  portion?: string;
+  summary?: string | null;
   price: number;
   lineTotal: number;
   quantity: number;
