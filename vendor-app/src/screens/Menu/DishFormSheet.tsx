@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
 import {
   Image,
   KeyboardAvoidingView,
@@ -10,17 +10,17 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { createMenuItem, uploadMenuImage } from '../../api/menu';
+import { createMenuItem, updateMenuItem, uploadMenuImage } from '../../api/menu';
 import { isAuthFailure, mediaUrl } from '../../api/client';
 import { useAuth } from '../../state/AuthContext';
 import { colors } from '../../theme';
-import type { FoodType, MenuCategory, MenuItem } from '../../types';
+import type { CustomVariant, FoodType, MenuCategory, MenuItem, MenuItemInput, SelectionMode, SizeOption } from '../../types';
 
-const FOOD_TYPES: { value: FoodType; label: string }[] = [
+const FOOD_TYPES: { value: Exclude<FoodType, 'OTHER'>; label: string }[] = [
+  { value: 'VEGAN', label: 'Vegan' },
   { value: 'VEG', label: 'Veg' },
-  { value: 'NON_VEG', label: 'Non-veg' },
+  { value: 'NON_VEG', label: 'Non-Veg' },
   { value: 'EGG', label: 'Egg' },
-  { value: 'OTHER', label: 'Other' },
 ];
 
 export type DishFormMode = 'add' | 'edit';
@@ -33,32 +33,74 @@ type Props = {
   onSaved: () => void;
 };
 
+type SizeDraft = {
+  key: string;
+  id?: string;
+  name: string;
+  price: string;
+};
+
+type OptionDraft = {
+  key: string;
+  id?: string;
+  name: string;
+  foodType: Exclude<FoodType, 'OTHER'>;
+  price: string;
+};
+
+type VariantDraft = {
+  key: string;
+  id?: string;
+  name: string;
+  enabled: boolean;
+  required: boolean;
+  selection: SelectionMode;
+  priceIncreases: boolean;
+  options: OptionDraft[];
+};
+
+type Picker =
+  | null
+  | { kind: 'category' }
+  | { kind: 'food' }
+  | { kind: 'option'; key: string };
+
 export function DishFormSheet({ mode, item, categories, onClose, onSaved }: Props) {
   const { token, logout } = useAuth();
+  const keepIds = mode === 'edit';
   const startingCategory = categories.find(entry => entry.id === item?.categoryId);
   const [name, setName] = useState(item?.name ?? '');
   const [categoryLabel, setCategoryLabel] = useState(startingCategory?.name ?? '');
-  const [categoryId, setCategoryId] = useState<string | null>(item?.categoryId ?? null);
-  const [categoryOpen, setCategoryOpen] = useState(false);
+  const [categoryId, setCategoryId] = useState<string | null>(startingCategory ? item?.categoryId ?? null : null);
   const [description, setDescription] = useState(item?.description ?? '');
   const [price, setPrice] = useState(item ? String(item.price) : '');
   const [foodType, setFoodType] = useState<FoodType>(item?.foodType ?? 'VEG');
-  const [typeOpen, setTypeOpen] = useState(false);
   const [imageUrl, setImageUrl] = useState(item?.imageUrl ?? '');
+  const [sizeVariant, setSizeVariant] = useState(Boolean(item?.sizes?.length));
+  const [sizes, setSizes] = useState<SizeDraft[]>(() => draftsFromSizes(item?.sizes));
+  const [variants, setVariants] = useState<VariantDraft[]>(() => draftsFromVariants(item?.variants));
+  const [picker, setPicker] = useState<Picker>(null);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
-  const [sizeVariant, setSizeVariant] = useState(item ? item.halfPrice != null : true);
-  const [halfPrice, setHalfPrice] = useState(item?.halfPrice != null ? String(item.halfPrice) : '');
-  const [customVariant, setCustomVariant] = useState(false);
-  const [customOption, setCustomOption] = useState('');
-  const [customType, setCustomType] = useState('');
-  const [customPrice, setCustomPrice] = useState('');
 
   useEffect(() => {
     if (!item?.categoryId || categoryLabel) return;
     const category = categories.find(entry => entry.id === item.categoryId);
-    if (category) setCategoryLabel(category.name);
+    if (!category) return;
+    setCategoryLabel(category.name);
+    setCategoryId(category.id);
   }, [categories, item?.categoryId, categoryLabel]);
+
+  function togglePicker(next: Picker) {
+    setPicker(current => (samePicker(current, next) ? null : next));
+  }
+
+  function toggleSizes() {
+    setSizeVariant(on => {
+      if (!on && sizes.length === 0) setSizes([blankSize()]);
+      return !on;
+    });
+  }
 
   async function chooseImage() {
     if (!token) return;
@@ -84,26 +126,29 @@ export function DishFormSheet({ mode, item, categories, onClose, onSaved }: Prop
 
   async function save() {
     if (!token) return;
-    if (!name.trim() || !price.trim()) {
-      setMessage('Add a dish name and price.');
-      return;
-    }
-    if (mode === 'edit') {
-      setMessage('Saving edits is not available yet.');
+    const body = buildInput({
+      name,
+      categoryId,
+      categoryLabel,
+      categories,
+      description,
+      price,
+      foodType,
+      imageUrl,
+      sizeVariant,
+      sizes,
+      variants,
+      keepIds,
+    });
+    if (typeof body === 'string') {
+      setMessage(body);
       return;
     }
     try {
       setBusy(true);
       setMessage('');
-      await createMenuItem(token, {
-        name: name.trim(),
-        description: description.trim(),
-        price: Number(price),
-        halfPrice: sizeVariant && halfPrice.trim() ? Number(halfPrice) : null,
-        foodType,
-        imageUrl,
-        categoryId,
-      });
+      if (mode === 'edit' && item) await updateMenuItem(token, item.id, body);
+      else await createMenuItem(token, body);
       onSaved();
       onClose();
     } catch (e) {
@@ -114,207 +159,299 @@ export function DishFormSheet({ mode, item, categories, onClose, onSaved }: Prop
     }
   }
 
-  const foodLabel = FOOD_TYPES.find(option => option.value === foodType)?.label ?? 'Type';
+  const foodLabel = FOOD_TYPES.find(option => option.value === foodType)?.label ?? (foodType === 'OTHER' ? 'Other' : 'Type');
   const title = mode === 'edit' ? 'EDIT DISH' : 'ADD DISH';
 
   return (
-    <KeyboardAvoidingView
-      style={styles.overlay}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <KeyboardAvoidingView style={styles.overlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Pressable style={styles.backdrop} onPress={onClose} accessibilityRole="button" />
       <View style={styles.sheet}>
-          <View style={styles.handleRow}>
-            <View style={styles.handle} />
-          </View>
-          <ScrollView
-            style={styles.scroller}
-            contentContainerStyle={styles.body}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
-            <Text style={styles.screenTitle}>{title}</Text>
+        <View style={styles.handleRow}>
+          <View style={styles.handle} />
+        </View>
+        <ScrollView
+          style={styles.scroller}
+          contentContainerStyle={styles.body}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <Text style={styles.screenTitle}>{title}</Text>
 
-            <TextInput
-              value={name}
-              onChangeText={setName}
-              placeholder="Name"
-              placeholderTextColor="#98a8b6"
-              style={styles.field}
-            />
+          <TextInput
+            value={name}
+            onChangeText={setName}
+            placeholder="Name"
+            placeholderTextColor="#98a8b6"
+            style={styles.field}
+          />
 
-            <Pressable onPress={() => setCategoryOpen(open => !open)} style={styles.field}>
-              <Text style={categoryLabel ? styles.fieldValue : styles.fieldPlaceholder}>
-                {categoryLabel || 'Category'}
-              </Text>
-            </Pressable>
-            {categoryOpen ? (
-              <View style={styles.menu}>
-                {categories.length === 0 ? (
-                  <Text style={styles.menuEmpty}>No categories yet</Text>
-                ) : (
-                  categories.map(category => (
-                    <Pressable
-                      key={category.id}
-                      onPress={() => {
-                        setCategoryId(category.id);
-                        setCategoryLabel(category.name);
-                        setCategoryOpen(false);
-                      }}
-                      style={styles.menuItem}
-                    >
-                      <Text style={styles.menuItemLabel}>{category.name}</Text>
-                    </Pressable>
-                  ))
-                )}
-              </View>
-            ) : null}
-
-            <TextInput
-              value={description}
-              onChangeText={setDescription}
-              placeholder="Description"
-              placeholderTextColor="#98a8b6"
-              style={styles.field}
-            />
-
-            <View style={styles.splitRow}>
-              <TextInput
-                value={price}
-                onChangeText={setPrice}
-                placeholder="Price"
-                placeholderTextColor="#98a8b6"
-                keyboardType="decimal-pad"
-                style={[styles.field, styles.splitField]}
-              />
-              <Pressable onPress={() => setTypeOpen(open => !open)} style={[styles.field, styles.splitField]}>
-                <Text style={styles.fieldValue}>{foodLabel}</Text>
-              </Pressable>
-            </View>
-            {typeOpen ? (
-              <View style={styles.menu}>
-                {FOOD_TYPES.map(option => (
+          <Pressable onPress={() => togglePicker({ kind: 'category' })} style={styles.field}>
+            <Text style={categoryLabel ? styles.fieldValue : styles.fieldPlaceholder}>{categoryLabel || 'Category'}</Text>
+          </Pressable>
+          {picker?.kind === 'category' ? (
+            <View style={styles.menu}>
+              {categories.length === 0 ? (
+                <Text style={styles.menuEmpty}>No categories yet</Text>
+              ) : (
+                categories.map(category => (
                   <Pressable
-                    key={option.value}
+                    key={category.id}
                     onPress={() => {
-                      setFoodType(option.value);
-                      setTypeOpen(false);
+                      setCategoryId(category.id);
+                      setCategoryLabel(category.name);
+                      setPicker(null);
                     }}
                     style={styles.menuItem}
                   >
-                    <Text style={styles.menuItemLabel}>{option.label}</Text>
+                    {category.imageUrl ? (
+                      <Image source={{ uri: mediaUrl(category.imageUrl) }} style={styles.categoryImage} />
+                    ) : null}
+                    <Text style={styles.menuItemLabel}>{category.name}</Text>
                   </Pressable>
-                ))}
-              </View>
-            ) : null}
-
-            <Pressable onPress={chooseImage} style={styles.imageSlot}>
-              {imageUrl ? (
-                <Image source={{ uri: mediaUrl(imageUrl) }} style={styles.imagePreview} />
-              ) : (
-                <Text style={styles.imagePlus}>+</Text>
+                ))
               )}
-            </Pressable>
-
-            <View style={styles.variantCard}>
-              <Pressable onPress={() => setSizeVariant(on => !on)} style={styles.variantHead}>
-                <View style={styles.variantHeadLeft}>
-                  <Checkbox checked={sizeVariant} />
-                  <Text style={styles.variantTitle}>Size Variant</Text>
-                </View>
-              </Pressable>
-              {sizeVariant ? (
-                <>
-                  <View style={styles.optionRow}>
-                    <View style={styles.optionPill}>
-                      <Text style={styles.optionPillLabel}>Full</Text>
-                    </View>
-                    <TextInput
-                      value={price}
-                      onChangeText={setPrice}
-                      placeholder="Price"
-                      placeholderTextColor="#7f95a8"
-                      keyboardType="decimal-pad"
-                      style={styles.optionInput}
-                    />
-                  </View>
-                  <View style={styles.optionRow}>
-                    <View style={styles.optionPill}>
-                      <Text style={styles.optionPillLabel}>Half</Text>
-                    </View>
-                    <TextInput
-                      value={halfPrice}
-                      onChangeText={setHalfPrice}
-                      placeholder="Price"
-                      placeholderTextColor="#7f95a8"
-                      keyboardType="decimal-pad"
-                      style={styles.optionInput}
-                    />
-                  </View>
-                  <Text style={styles.rowAdd}>+</Text>
-                </>
-              ) : null}
             </View>
+          ) : null}
 
-            <View style={styles.variantCard}>
-              <View style={styles.variantHead}>
-                <Pressable onPress={() => setCustomVariant(on => !on)} style={styles.variantHeadLeft}>
-                  <Checkbox checked={customVariant} />
-                  <Text style={styles.variantTitle}>Custom</Text>
-                </Pressable>
-                <View style={styles.variantTools}>
-                  <Text style={styles.toolIcon}>☰</Text>
-                  <Text style={styles.toolIcon}>↑</Text>
-                </View>
-              </View>
-              {customVariant ? (
-                <>
-                  <View style={styles.optionRow}>
-                    <TextInput
-                      value={customOption}
-                      onChangeText={setCustomOption}
-                      placeholder="Option 1"
-                      placeholderTextColor="#7f95a8"
-                      style={[styles.optionInput, styles.optionWide]}
-                    />
-                    <TextInput
-                      value={customType}
-                      onChangeText={setCustomType}
-                      placeholder="Type"
-                      placeholderTextColor="#7f95a8"
-                      style={styles.optionInput}
-                    />
-                    <TextInput
-                      value={customPrice}
-                      onChangeText={setCustomPrice}
-                      placeholder="Price"
-                      placeholderTextColor="#7f95a8"
-                      keyboardType="decimal-pad"
-                      style={styles.optionInput}
-                    />
-                  </View>
-                  <Text style={styles.rowAdd}>+</Text>
-                </>
-              ) : null}
-            </View>
+          <TextInput
+            value={description}
+            onChangeText={setDescription}
+            placeholder="Description"
+            placeholderTextColor="#98a8b6"
+            style={styles.field}
+          />
 
-            <Pressable style={styles.addVariant}>
-              <Text style={styles.addVariantLabel}>+ Variant</Text>
-            </Pressable>
-
-            {message ? <Text style={styles.error}>{message}</Text> : null}
-          </ScrollView>
-
-          <View style={styles.footer}>
-            <Pressable disabled={busy} onPress={save} style={styles.done}>
-              <Text style={styles.doneLabel}>{busy ? 'Saving…' : 'Done'}</Text>
-            </Pressable>
-            <Pressable onPress={onClose} style={styles.cancel}>
-              <Text style={styles.cancelLabel}>Cancel</Text>
+          <View style={styles.splitRow}>
+            <TextInput
+              value={price}
+              onChangeText={setPrice}
+              placeholder="Price"
+              placeholderTextColor="#98a8b6"
+              keyboardType="decimal-pad"
+              style={[styles.field, styles.splitField]}
+            />
+            <Pressable onPress={() => togglePicker({ kind: 'food' })} style={[styles.field, styles.splitField]}>
+              <Text style={styles.fieldValue}>{foodLabel}</Text>
             </Pressable>
           </View>
+          {picker?.kind === 'food' ? (
+            <View style={styles.menu}>
+              {FOOD_TYPES.map(option => (
+                <Pressable
+                  key={option.value}
+                  onPress={() => {
+                    setFoodType(option.value);
+                    setPicker(null);
+                  }}
+                  style={styles.menuItem}
+                >
+                  <Text style={styles.menuItemLabel}>{option.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
+
+          <Pressable onPress={chooseImage} style={styles.imageSlot} accessibilityLabel="Add dish image">
+            {imageUrl ? (
+              <Image source={{ uri: mediaUrl(imageUrl) }} style={styles.imagePreview} />
+            ) : (
+              <Text style={styles.imagePlus}>+</Text>
+            )}
+          </Pressable>
+
+          <View style={styles.variantCard}>
+            <Pressable onPress={toggleSizes} style={styles.variantHead}>
+              <View style={styles.variantHeadLeft}>
+                <Checkbox checked={sizeVariant} />
+                <Text style={styles.variantTitle}>Size Variant</Text>
+              </View>
+            </Pressable>
+            {sizeVariant ? (
+              <>
+                {sizes.map(size => (
+                  <View key={size.key} style={styles.optionRow}>
+                    <TextInput
+                      value={size.name}
+                      onChangeText={value => setSizes(current => current.map(entry => (entry.key === size.key ? { ...entry, name: value } : entry)))}
+                      placeholder="Size"
+                      placeholderTextColor="#7f95a8"
+                      style={[styles.optionInput, styles.sizeName]}
+                    />
+                    <TextInput
+                      value={size.price}
+                      onChangeText={value => setSizes(current => current.map(entry => (entry.key === size.key ? { ...entry, price: value } : entry)))}
+                      placeholder="Price"
+                      placeholderTextColor="#7f95a8"
+                      keyboardType="decimal-pad"
+                      style={[styles.optionInput, styles.sizePrice]}
+                    />
+                    <Pressable
+                      accessibilityLabel="Remove size"
+                      onPress={() => setSizes(current => current.filter(entry => entry.key !== size.key))}
+                      style={styles.remove}
+                    >
+                      <Text style={styles.removeLabel}>×</Text>
+                    </Pressable>
+                  </View>
+                ))}
+                <Pressable
+                  accessibilityLabel="Add size"
+                  onPress={() => setSizes(current => [...current, blankSize()])}
+                  style={styles.rowAdd}
+                >
+                  <Text style={styles.rowAddLabel}>+</Text>
+                </Pressable>
+              </>
+            ) : null}
+          </View>
+
+          {variants.map(variant => (
+            <View key={variant.key} style={styles.variantCard}>
+              <View style={styles.variantHead}>
+                <Pressable
+                  accessibilityLabel={variant.enabled ? 'Turn off custom variant' : 'Turn on custom variant'}
+                  onPress={() => setVariants(current => current.map(entry => (entry.key === variant.key ? { ...entry, enabled: !entry.enabled } : entry)))}
+                >
+                  <Checkbox checked={variant.enabled} />
+                </Pressable>
+                <TextInput
+                  value={variant.name}
+                  onChangeText={value => setVariants(current => current.map(entry => (entry.key === variant.key ? { ...entry, name: value } : entry)))}
+                  placeholder="Variant name"
+                  placeholderTextColor="#98a8b6"
+                  style={styles.variantName}
+                />
+              </View>
+              {variant.enabled ? (
+                <>
+                  <ToggleRow
+                    label={variant.required ? 'Mandatory' : 'Optional'}
+                    value={variant.required}
+                    onChange={value => setVariants(current => current.map(entry => (entry.key === variant.key ? { ...entry, required: value } : entry)))}
+                  />
+                  <ToggleRow
+                    label={variant.selection === 'MULTIPLE' ? 'Multiple' : 'Single'}
+                    value={variant.selection === 'MULTIPLE'}
+                    onChange={value =>
+                      setVariants(current =>
+                        current.map(entry => (entry.key === variant.key ? { ...entry, selection: value ? 'MULTIPLE' : 'SINGLE' } : entry)),
+                      )
+                    }
+                  />
+                  <ToggleRow
+                    label={variant.priceIncreases ? 'Adds price' : 'No price'}
+                    value={variant.priceIncreases}
+                    onChange={value => setVariants(current => current.map(entry => (entry.key === variant.key ? { ...entry, priceIncreases: value } : entry)))}
+                  />
+                  {variant.options.map(option => (
+                    <View key={option.key}>
+                      <View style={styles.optionRow}>
+                        <TextInput
+                          value={option.name}
+                          onChangeText={value => updateOption(setVariants, variant.key, option.key, { name: value })}
+                          placeholder="Option"
+                          placeholderTextColor="#7f95a8"
+                          style={[styles.optionInput, styles.optionName]}
+                        />
+                        <Pressable
+                          onPress={() => togglePicker({ kind: 'option', key: option.key })}
+                          style={styles.optionType}
+                        >
+                          <Text style={styles.optionTypeLabel} numberOfLines={1}>
+                            {FOOD_TYPES.find(entry => entry.value === option.foodType)?.label}
+                          </Text>
+                        </Pressable>
+                        {variant.priceIncreases ? (
+                          <TextInput
+                            value={option.price}
+                            onChangeText={value => updateOption(setVariants, variant.key, option.key, { price: value })}
+                            placeholder="Price"
+                            placeholderTextColor="#7f95a8"
+                            keyboardType="decimal-pad"
+                            style={[styles.optionInput, styles.optionPrice]}
+                          />
+                        ) : null}
+                        <Pressable
+                          accessibilityLabel="Remove option"
+                          onPress={() =>
+                            setVariants(current =>
+                              current.map(entry =>
+                                entry.key === variant.key ? { ...entry, options: entry.options.filter(row => row.key !== option.key) } : entry,
+                              ),
+                            )
+                          }
+                          style={styles.remove}
+                        >
+                          <Text style={styles.removeLabel}>×</Text>
+                        </Pressable>
+                      </View>
+                      {picker?.kind === 'option' && picker.key === option.key ? (
+                        <View style={styles.menu}>
+                          {FOOD_TYPES.map(entry => (
+                            <Pressable
+                              key={entry.value}
+                              onPress={() => {
+                                updateOption(setVariants, variant.key, option.key, { foodType: entry.value });
+                                setPicker(null);
+                              }}
+                              style={styles.menuItem}
+                            >
+                              <Text style={styles.menuItemLabel}>{entry.label}</Text>
+                            </Pressable>
+                          ))}
+                        </View>
+                      ) : null}
+                    </View>
+                  ))}
+                  <Pressable
+                    accessibilityLabel="Add option"
+                    onPress={() =>
+                      setVariants(current =>
+                        current.map(entry => (entry.key === variant.key ? { ...entry, options: [...entry.options, blankOption()] } : entry)),
+                      )
+                    }
+                    style={styles.rowAdd}
+                  >
+                    <Text style={styles.rowAddLabel}>+</Text>
+                  </Pressable>
+                </>
+              ) : null}
+            </View>
+          ))}
+
+          <Pressable
+            accessibilityLabel="Add variant"
+            onPress={() => setVariants(current => [...current, blankVariant()])}
+            style={styles.addVariant}
+            hitSlop={8}
+          >
+            <Text style={styles.addVariantLabel}>+ Variant</Text>
+          </Pressable>
+
+          {message ? <Text style={styles.error}>{message}</Text> : null}
+        </ScrollView>
+
+        <View style={styles.footer}>
+          <Pressable disabled={busy} onPress={save} style={styles.done}>
+            <Text style={styles.doneLabel}>{busy ? 'Saving…' : 'Done'}</Text>
+          </Pressable>
+          <Pressable onPress={onClose} style={styles.cancel}>
+            <Text style={styles.cancelLabel}>Cancel</Text>
+          </Pressable>
+        </View>
       </View>
     </KeyboardAvoidingView>
+  );
+}
+
+function ToggleRow({ label, value, onChange }: { label: string; value: boolean; onChange: (value: boolean) => void }) {
+  return (
+    <Pressable onPress={() => onChange(!value)} style={styles.toggleRow} accessibilityRole="switch" accessibilityState={{ checked: value }}>
+      <Text style={styles.toggleLabel}>{label}</Text>
+      <View style={[styles.track, value && styles.trackOn]}>
+        <View style={styles.thumb} />
+      </View>
+    </Pressable>
   );
 }
 
@@ -324,6 +461,160 @@ function Checkbox({ checked }: { checked: boolean }) {
       {checked ? <Text style={styles.checkmark}>✓</Text> : null}
     </View>
   );
+}
+
+function updateOption(
+  setVariants: Dispatch<SetStateAction<VariantDraft[]>>,
+  variantKey: string,
+  optionKey: string,
+  patch: Partial<OptionDraft>,
+) {
+  setVariants(current =>
+    current.map(entry =>
+      entry.key === variantKey
+        ? { ...entry, options: entry.options.map(option => (option.key === optionKey ? { ...option, ...patch } : option)) }
+        : entry,
+    ),
+  );
+}
+
+function buildInput(form: {
+  name: string;
+  categoryId: string | null;
+  categoryLabel: string;
+  categories: MenuCategory[];
+  description: string;
+  price: string;
+  foodType: FoodType;
+  imageUrl: string;
+  sizeVariant: boolean;
+  sizes: SizeDraft[];
+  variants: VariantDraft[];
+  keepIds: boolean;
+}): MenuItemInput | string {
+  if (!form.name.trim()) return 'Add a dish name.';
+  const category = form.categories.find(entry => entry.id === form.categoryId)
+    ?? form.categories.find(entry => entry.name.trim().toLowerCase() === form.categoryLabel.trim().toLowerCase());
+  if (!category) return 'Choose a category.';
+  const price = amount(form.price);
+  if (price == null) return 'Add a valid price.';
+  if (!FOOD_TYPES.some(option => option.value === form.foodType)) return 'Choose Vegan, Veg, Non-Veg, or Egg.';
+  if (!form.imageUrl.trim()) return 'Add an image.';
+
+  const sizes: SizeOption[] = [];
+  if (form.sizeVariant) {
+    if (form.sizes.length === 0) return 'Name each size.';
+    for (const size of form.sizes) {
+      const extra = amount(size.price);
+      if (!size.name.trim()) return 'Name each size.';
+      if (extra == null) return 'Add a valid price for each size.';
+      sizes.push({ ...(form.keepIds && size.id ? { id: size.id } : {}), name: size.name.trim(), price: extra });
+    }
+  }
+
+  const variants: CustomVariant[] = [];
+  for (const variant of form.variants.filter(entry => entry.enabled)) {
+    if (!variant.name.trim()) return 'Name each custom variant.';
+    if (variant.options.length === 0) return 'Add at least one option to each variant.';
+    const options = [];
+    for (const option of variant.options) {
+      if (!option.name.trim()) return 'Name each option.';
+      const optionPrice = variant.priceIncreases ? amount(option.price) : 0;
+      if (optionPrice == null) return 'Add a valid price for each option.';
+      options.push({
+        ...(form.keepIds && option.id ? { id: option.id } : {}),
+        name: option.name.trim(),
+        foodType: option.foodType,
+        price: optionPrice,
+      });
+    }
+    variants.push({
+      ...(form.keepIds && variant.id ? { id: variant.id } : {}),
+      name: variant.name.trim(),
+      required: variant.required,
+      selection: variant.selection,
+      priceIncreases: variant.priceIncreases,
+      options,
+    });
+  }
+
+  return {
+    name: form.name.trim(),
+    description: form.description.trim(),
+    price,
+    foodType: form.foodType,
+    imageUrl: form.imageUrl.trim(),
+    categoryId: category.id,
+    sizes,
+    variants,
+  };
+}
+
+function amount(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed) || parsed < 0) return null;
+  return parsed;
+}
+
+function draftsFromSizes(sizes?: MenuItem['sizes']) {
+  return (sizes ?? []).map(size => ({
+    key: size.id ?? draftKey(),
+    id: size.id,
+    name: size.name,
+    price: String(size.price),
+  }));
+}
+
+function draftsFromVariants(variants?: MenuItem['variants']): VariantDraft[] {
+  return (variants ?? []).map(variant => ({
+    key: variant.id ?? draftKey(),
+    id: variant.id,
+    name: variant.name,
+    enabled: true,
+    required: variant.required,
+    selection: variant.selection,
+    priceIncreases: variant.priceIncreases,
+    options: variant.options.map(option => ({
+      key: option.id ?? draftKey(),
+      id: option.id,
+      name: option.name,
+      foodType: option.foodType === 'OTHER' ? 'VEG' : option.foodType,
+      price: variant.priceIncreases ? String(option.price) : '',
+    })),
+  }));
+}
+
+function blankSize(): SizeDraft {
+  return { key: draftKey(), name: '', price: '' };
+}
+
+function blankOption(): OptionDraft {
+  return { key: draftKey(), name: '', foodType: 'VEG', price: '' };
+}
+
+function blankVariant(): VariantDraft {
+  return {
+    key: draftKey(),
+    name: '',
+    enabled: true,
+    required: false,
+    selection: 'SINGLE',
+    priceIncreases: false,
+    options: [blankOption()],
+  };
+}
+
+function draftKey() {
+  return Math.random().toString(36).slice(2);
+}
+
+function samePicker(current: Picker, next: Picker) {
+  if (!current || !next) return false;
+  if (current.kind !== next.kind) return false;
+  if (current.kind === 'option' && next.kind === 'option') return current.key === next.key;
+  return true;
 }
 
 function pickWebImage() {
@@ -418,12 +709,20 @@ const styles = StyleSheet.create({
     color: '#667085',
   },
   menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     paddingHorizontal: 14,
     paddingVertical: 11,
   },
   menuItemLabel: {
     fontSize: 14,
     color: '#3d5366',
+  },
+  categoryImage: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
   },
   imageSlot: {
     width: 56,
@@ -450,14 +749,16 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 12,
     marginBottom: 12,
+    overflow: 'hidden',
   },
   variantHead: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 8,
     marginBottom: 10,
   },
   variantHeadLeft: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
@@ -467,13 +768,49 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#3d5366',
   },
-  variantTools: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  toolIcon: {
+  variantName: {
+    flex: 1,
+    backgroundColor: '#d8ecff',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     fontSize: 14,
-    color: '#667085',
+    fontWeight: '600',
+    color: '#3d5366',
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#d8ecff',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 8,
+  },
+  toggleLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#3d5366',
+  },
+  track: {
+    width: 36,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#c5d4e2',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 2,
+  },
+  trackOn: {
+    backgroundColor: '#3d5366',
+    justifyContent: 'flex-end',
+  },
+  thumb: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: colors.white,
   },
   checkbox: {
     width: 18,
@@ -499,36 +836,59 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 8,
   },
-  optionPill: {
-    backgroundColor: '#d8ecff',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    minWidth: 72,
-    alignItems: 'center',
-  },
-  optionPillLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#3d5366',
-  },
   optionInput: {
     flex: 1,
+    minWidth: 0,
     backgroundColor: '#d8ecff',
     borderRadius: 8,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 10,
     fontSize: 13,
     color: '#3d5366',
   },
-  optionWide: {
-    flex: 1.2,
+  sizeName: {
+    flex: 2.4,
   },
-  rowAdd: {
-    textAlign: 'center',
+  sizePrice: {
+    flex: 1,
+    maxWidth: 96,
+  },
+  optionName: {
+    flex: 2.2,
+  },
+  optionPrice: {
+    flex: 1,
+    maxWidth: 72,
+  },
+  optionType: {
+    width: 84,
+    flexGrow: 0,
+    flexShrink: 0,
+    backgroundColor: '#d8ecff',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+    justifyContent: 'center',
+  },
+  optionTypeLabel: {
+    fontSize: 13,
+    color: '#3d5366',
+  },
+  remove: {
+    width: 22,
+    alignItems: 'center',
+  },
+  removeLabel: {
     fontSize: 18,
     color: '#667085',
-    marginTop: 2,
+  },
+  rowAdd: {
+    alignItems: 'center',
+    paddingTop: 2,
+  },
+  rowAddLabel: {
+    fontSize: 18,
+    color: '#667085',
   },
   addVariant: {
     backgroundColor: colors.white,

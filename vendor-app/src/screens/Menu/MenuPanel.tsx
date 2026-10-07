@@ -30,11 +30,21 @@ import { rupees } from '../../utils/format';
 
 const FOOD_FILTERS: { value: FoodType | 'ALL'; label: string }[] = [
   { value: 'ALL', label: 'ALL' },
+  { value: 'VEGAN', label: 'VEGAN' },
   { value: 'VEG', label: 'VEG' },
   { value: 'NON_VEG', label: 'NON VEG' },
   { value: 'EGG', label: 'EGG' },
   { value: 'OTHER', label: 'OTHER' },
 ];
+
+function typeCount(item: MenuItem) {
+  const defined = [
+    item.sizes?.length ?? 0,
+    ...(item.variants ?? []).map(variant => variant.options?.length ?? 0),
+  ].filter(count => count > 0);
+  if (defined.length === 0) return 1;
+  return defined.reduce((total, count) => total * count, 1);
+}
 
 const STATUS_FILTERS = [
   { value: 'ALL', label: 'All status' },
@@ -218,7 +228,7 @@ export function MenuPanel() {
           contentContainerStyle={styles.list}
           ListEmptyComponent={<EmptyState message="No dishes match these filters." />}
           renderItem={({ item }) => {
-            const types = item.halfPrice != null ? 2 : 1;
+            const types = typeCount(item);
             return (
               <View style={[styles.card, !item.available && styles.cardOff]}>
                 <View style={styles.photoWrap}>

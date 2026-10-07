@@ -1,24 +1,21 @@
 import { mediaUrl, request } from './client';
-import type { MenuItem, VendorMenu } from '../types';
+import type { MenuItem, MenuItemInput, VendorMenu } from '../types';
 
 export function getVendorMenu(token: string) {
   return request<VendorMenu>('/api/vendor/menu', { token });
 }
 
-export function createMenuItem(
-  token: string,
-  body: {
-    name: string;
-    description?: string;
-    price: number;
-    halfPrice?: number | null;
-    foodType: string;
-    imageUrl?: string;
-    categoryId?: string | null;
-  },
-) {
+export function createMenuItem(token: string, body: MenuItemInput) {
   return request<MenuItem>('/api/vendor/menu/items', {
     method: 'POST',
+    token,
+    body,
+  });
+}
+
+export function updateMenuItem(token: string, itemId: string, body: MenuItemInput) {
+  return request<MenuItem>(`/api/vendor/menu/items/${itemId}`, {
+    method: 'PUT',
     token,
     body,
   });
