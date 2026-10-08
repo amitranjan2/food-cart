@@ -9,9 +9,15 @@ import { CategoryNav } from './components/CategoryNav';
 import { ItemCustomizer } from './components/ItemCustomizer';
 import { Menu } from './components/Menu';
 import { OrderConfirmation, type PlacedOrder } from './components/OrderConfirmation';
-import { StoreHeader, StoreSearch } from './components/StoreHeader';
+import { StoreHeader } from './components/StoreHeader';
 import { VendorInfo } from './components/VendorInfo';
-import { defaultConfiguration, requiresCustomization, type StoredConfiguration } from './lib/customization';
+import {
+  autoSelection,
+  configurationFrom,
+  customizationFor,
+  needsCustomization,
+  type StoredConfiguration,
+} from './lib/customization';
 import { linkItemsToCategories } from './lib/menuLinks';
 
 export default function Store({ params }: { params: { slug: string } }) {
@@ -32,17 +38,13 @@ export default function Store({ params }: { params: { slug: string } }) {
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState('');
   const [chromeHeight, setChromeHeight] = useState(130);
-  const headerRef = useRef<HTMLDivElement>(null);
-  const searchRef = useRef<HTMLDivElement>(null);
-  const menuScrollY = useRef(0);
-  const restoreScrollAfterAdd = useRef(false);
+  const menuScroll = useRef(0);
+  const restoreScroll = useRef(false);
 
-  function rememberMenuScroll() {
-    menuScrollY.current = window.scrollY;
-  }
-
-  function applyMenuScroll() {
-    window.scrollTo(0, menuScrollY.current);
+  function captureScroll() {
+    const scroller = document.querySelector('.storefront');
+    if (!scroller) return;
+    menuScroll.current = scroller.scrollTop;
   }
 
   useEffect(() => {
@@ -65,9 +67,33 @@ export default function Store({ params }: { params: { slug: string } }) {
   useEffect(() => () => clearTimeout(closeTimer.current), []);
 
   useEffect(() => {
+    if (!vendor) return;
+    const scroller = document.querySelector('.storefront');
+    if (!scroller) return;
+    const keep = () => {
+      if (!restoreScroll.current || scroller.scrollTop === menuScroll.current) return;
+      scroller.scrollTop = menuScroll.current;
+    };
+    scroller.addEventListener('scroll', keep);
+    return () => scroller.removeEventListener('scroll', keep);
+  }, [vendor]);
+
+  useLayoutEffect(() => {
+    if (!restoreScroll.current) return;
+    const scroller = document.querySelector('.storefront');
+    if (scroller) scroller.scrollTop = menuScroll.current;
+    if (customizingId) return;
+    const timer = window.setTimeout(() => {
+      if (scroller) scroller.scrollTop = menuScroll.current;
+      restoreScroll.current = false;
+    }, 80);
+    return () => clearTimeout(timer);
+  }, [customizingId]);
+
+  useEffect(() => {
     if (open) return;
-    const header = headerRef.current;
-    const search = searchRef.current;
+    const header = document.querySelector<HTMLElement>('.storefront .store-header-top');
+    const search = document.querySelector<HTMLElement>('.storefront .store-search-dock');
     if (!header || !search) return;
     const update = () => {
       const next = header.offsetHeight + search.offsetHeight;
@@ -81,33 +107,7 @@ export default function Store({ params }: { params: { slug: string } }) {
   }, [open, vendor]);
 
   const linked = useMemo(() => linkItemsToCategories(categories, items), [categories, items]);
-  const customizingItem = linked.find(item => item.id === customizingId) ?? null;
-  const showCustomizer = customizingItem != null && requiresCustomization(customizingItem);
-
-  useEffect(() => {
-    document.body.style.position = '';
-    document.body.style.top = '';
-    document.body.style.width = '';
-    document.body.style.overflow = '';
-  }, []);
-
-  useLayoutEffect(() => {
-    const root = document.documentElement;
-    if (!showCustomizer) return;
-    root.style.overflow = 'hidden';
-    return () => {
-      root.style.overflow = '';
-      applyMenuScroll();
-      requestAnimationFrame(() => applyMenuScroll());
-    };
-  }, [showCustomizer]);
-
-  useLayoutEffect(() => {
-    if (showCustomizer || !restoreScrollAfterAdd.current) return;
-    restoreScrollAfterAdd.current = false;
-    applyMenuScroll();
-    requestAnimationFrame(() => applyMenuScroll());
-  }, [cart, showCustomizer]);
+  const customizing = linked.find(item => item.id === customizingId) ?? null;
 
   if (!vendor) return <main className="storefront"><p className="store-loading">Loading…</p></main>;
   const store = vendor;
@@ -145,33 +145,22 @@ export default function Store({ params }: { params: { slug: string } }) {
   function addConfigured(item: MenuItem, configuration: StoredConfiguration) {
     setCart(current => ({ ...current, [item.id]: (current[item.id] ?? 0) + 1 }));
     setConfigs(current => ({ ...current, [item.id]: configuration }));
-    closeCustomizer();
+    if (customizingId) closeCustomizer();
   }
 
   function openCustomizer(id: string) {
-    const item = linked.find(entry => entry.id === id);
-    if (item && !requiresCustomization(item)) {
-      clearTimeout(closeTimer.current);
-      setClosingCustomizer(false);
-      setCustomizingId(null);
-      addConfigured(item, defaultConfiguration(item));
-      return;
-    }
+    captureScroll();
+    restoreScroll.current = true;
     clearTimeout(closeTimer.current);
     setClosingCustomizer(false);
-    rememberMenuScroll();
     setCustomizingId(id);
   }
 
   function addItem(item: MenuItem) {
-    if (!item.available) return;
-    rememberMenuScroll();
-    if (!requiresCustomization(item)) {
-      clearTimeout(closeTimer.current);
-      setClosingCustomizer(false);
-      setCustomizingId(null);
-      restoreScrollAfterAdd.current = true;
-      addConfigured(item, defaultConfiguration(item));
+    captureScroll();
+    const spec = customizationFor(item);
+    if (!needsCustomization(spec)) {
+      addConfigured(item, configurationFrom(item, spec, autoSelection(spec)));
       return;
     }
     openCustomizer(item.id);
@@ -181,7 +170,6 @@ export default function Store({ params }: { params: { slug: string } }) {
   function closeCustomizer() {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       setCustomizingId(null);
-      setClosingCustomizer(false);
       return;
     }
     setClosingCustomizer(true);
@@ -233,21 +221,21 @@ export default function Store({ params }: { params: { slug: string } }) {
 
   if (order) return <OrderConfirmation vendor={store} order={order} />;
 
-  const sheet = showCustomizer && customizingItem && (
+  const sheet = customizing && (
     <ItemCustomizer
-      item={customizingItem}
+      item={customizing}
       inset={chromeHeight}
       onClose={closeCustomizer}
-      onAdd={configuration => addConfigured(customizingItem, configuration)}
+      onAdd={configuration => addConfigured(customizing, configuration)}
     />
   );
 
-  const underlay = showCustomizer ? 'customizer-underlay' : undefined;
+  const underlay = customizing ? 'customizer-underlay' : undefined;
 
   return (
-    <main className={'storefront' + (showCustomizer ? ' customizing' : '') + (showCustomizer && closingCustomizer ? ' closing' : '') + (open ? ' cart-open' : '')}>
+    <main className={'storefront' + (customizing ? ' customizing' : '') + (customizing && closingCustomizer ? ' closing' : '') + (open ? ' cart-open' : '')}>
       {open ? (
-        <div className={underlay} aria-hidden={showCustomizer ? true : undefined}>
+        <div className={underlay} aria-hidden={customizing ? true : undefined}>
           <Cart
             lines={chosen.map(item => ({
               item,
@@ -272,13 +260,10 @@ export default function Store({ params }: { params: { slug: string } }) {
           />
         </div>
       ) : (
-      <div className={underlay} aria-hidden={showCustomizer ? true : undefined}>
-      <div ref={headerRef}>
-        <StoreHeader>
-          <VendorInfo vendor={store} />
-        </StoreHeader>
-      </div>
-      <StoreSearch headerRef={headerRef} measureRef={searchRef} query={query} onQueryChange={setQuery} />
+      <div className={underlay} aria-hidden={customizing ? true : undefined}>
+      <StoreHeader query={query} onQueryChange={setQuery}>
+        <VendorInfo vendor={store} />
+      </StoreHeader>
       <div className="store-body">
         <Menu
           items={shown}
@@ -291,14 +276,14 @@ export default function Store({ params }: { params: { slug: string } }) {
           nav={<CategoryNav categories={shownCategories} selectedId={categoryId} onSelect={selectCategory} />}
         />
       </div>
-      {!open && !showCustomizer && chosen.length > 0 && (
+      {!customizing && chosen.length > 0 && (
         <CartBar
           itemCount={chosen.reduce((sum, item) => sum + cart[item.id], 0)}
           total={total}
           onOpen={() => setOpen(true)}
         />
       )}
-      {!showCustomizer && (
+      {!customizing && (
         <CategoryMenu
           categories={shownCategories}
           counts={categoryCounts}

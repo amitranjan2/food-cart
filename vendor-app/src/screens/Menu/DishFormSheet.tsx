@@ -82,31 +82,37 @@ export function DishFormSheet({ mode, item, categories, onClose, onSaved }: Prop
   const [picker, setPicker] = useState<Picker>(null);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
-  const [focusedKey, setFocusedKey] = useState<string | null>(null);
-  const [errorKeys, setErrorKeys] = useState<Set<string>>(() => new Set());
+  const [focused, setFocused] = useState<string | null>(null);
+  const [invalid, setInvalid] = useState<Record<string, boolean>>({});
+  const [scrolled, setScrolled] = useState(false);
 
-  function clearFieldError(key: string) {
-    setErrorKeys(current => {
-      if (!current.has(key)) return current;
-      const next = new Set(current);
-      next.delete(key);
-      return next;
-    });
-  }
-
-  function fieldStyle(key: string, ...base: object[]) {
-    const stylesList: object[] = [...base, styles.fieldBorder];
-    if (errorKeys.has(key)) stylesList.push(styles.fieldError);
-    else if (focusedKey === key) stylesList.push(styles.fieldFocused);
-    return stylesList;
-  }
-
-  function focusHandlers(key: string) {
-    return {
-      onFocus: () => setFocusedKey(key),
-      onBlur: () => setFocusedKey(current => (current === key ? null : current)),
-    };
-  }
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    const id = 'dish-form-focus';
+    let style = document.getElementById(id) as HTMLStyleElement | null;
+    if (!style) {
+      style = document.createElement('style');
+      style.id = id;
+      document.head.appendChild(style);
+    }
+    style.textContent = `
+      input:focus, textarea:focus { outline: none !important; box-shadow: none !important; }
+      input[placeholder="Name"]:focus, input[placeholder="Description"]:focus,
+      input[placeholder="Price"]:focus {
+        background-color: #ffffff !important;
+        color: #3d5366 !important;
+        caret-color: #3d5366;
+        border-color: #3d5366 !important;
+      }
+      input[placeholder="Option"]:focus, input[placeholder="Size"]:focus,
+      input[placeholder="Variant name"]:focus {
+        background-color: #d8ecff !important;
+        color: #3d5366 !important;
+        caret-color: #3d5366;
+        border-color: #3d5366 !important;
+      }
+    `;
+  }, []);
 
   useEffect(() => {
     if (!item?.categoryId || categoryLabel) return;
@@ -141,7 +147,6 @@ export function DishFormSheet({ mode, item, categories, onClose, onSaved }: Prop
       const body = new FormData();
       body.append('file', file);
       setImageUrl(await uploadMenuImage(token, body));
-      clearFieldError('image');
     } catch (e) {
       if (isAuthFailure(e)) await logout();
       else setMessage(e instanceof Error ? e.message : 'Could not upload image');
@@ -152,7 +157,7 @@ export function DishFormSheet({ mode, item, categories, onClose, onSaved }: Prop
 
   async function save() {
     if (!token) return;
-    const result = buildInput({
+    const body = buildInput({
       name,
       categoryId,
       categoryLabel,
@@ -166,13 +171,11 @@ export function DishFormSheet({ mode, item, categories, onClose, onSaved }: Prop
       variants,
       keepIds,
     });
-    if (!result.ok) {
-      setMessage(result.message);
-      setErrorKeys(new Set(result.fields));
+    if (typeof body === 'string') {
+      setMessage(body);
+      setInvalid(invalidFrom(body, { sizes, variants, sizeVariant }));
       return;
     }
-    setErrorKeys(new Set());
-    const body = result.input;
     try {
       setBusy(true);
       setMessage('');
@@ -189,44 +192,75 @@ export function DishFormSheet({ mode, item, categories, onClose, onSaved }: Prop
   }
 
   const foodLabel = FOOD_TYPES.find(option => option.value === foodType)?.label ?? (foodType === 'OTHER' ? 'Other' : 'Type');
-  const title = mode === 'edit' ? 'EDIT DISH' : 'ADD DISH';
+  const typedName = name.trim();
+  const title = scrolled && typedName ? typedName : mode === 'edit' ? 'Edit Dish' : 'Add Dish';
+  const primaryLabel = busy ? 'Saving…' : typedName ? 'Done' : 'Add Dish';
+
+  function bind(key: string) {
+    return {
+      onFocus: () => setFocused(key),
+      onBlur: () => setFocused(current => (current === key ? null : current)),
+      ...(Platform.OS === 'web'
+        ? { onClick: () => setFocused(key) }
+        : { onTouchStart: () => setFocused(key) }),
+    };
+  }
+
+  function paint(key: string) {
+    return [focused === key && styles.fieldFocus, invalid[key] && styles.fieldError];
+  }
+
+  function clearInvalid(key: string) {
+    setInvalid(current => (current[key] ? { ...current, [key]: false } : current));
+  }
+
+  function textTone(_key: string, filled: boolean) {
+    return filled ? styles.fieldValue : styles.fieldPlaceholder;
+  }
 
   return (
     <KeyboardAvoidingView style={styles.overlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Pressable style={styles.backdrop} onPress={onClose} accessibilityRole="button" />
       <View style={styles.sheet}>
-        <View style={styles.sheetHead}>
-          <View style={styles.handleRow}>
-            <View style={styles.handle} />
-          </View>
-          <Text style={styles.screenTitle}>{title}</Text>
+        <View style={styles.handleRow}>
+          <View style={styles.handle} />
+        </View>
+        <View style={styles.namePin}>
+          <Text style={styles.screenTitle} numberOfLines={1}>{title}</Text>
         </View>
         <ScrollView
           style={styles.scroller}
           contentContainerStyle={styles.body}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          scrollEventThrottle={16}
+          onScroll={event => {
+            const next = event.nativeEvent.contentOffset.y > 12;
+            setScrolled(current => (current === next ? current : next));
+          }}
         >
           <TextInput
             value={name}
             onChangeText={value => {
               setName(value);
-              clearFieldError('name');
+              clearInvalid('name');
             }}
             placeholder="Name"
             placeholderTextColor="#98a8b6"
-            style={fieldStyle('name', styles.field, webNoOutline)}
-            {...focusHandlers('name')}
+            underlineColorAndroid="transparent"
+            selectionColor={colors.header}
+            {...bind('name')}
+            style={[styles.field, ...paint('name')]}
           />
-
           <Pressable
             onPress={() => {
-              setFocusedKey('category');
               togglePicker({ kind: 'category' });
+              setFocused('category');
+              clearInvalid('category');
             }}
-            style={fieldStyle('category', styles.field)}
+            style={[styles.field, ...paint('category')]}
           >
-            <Text style={categoryLabel ? styles.fieldValue : styles.fieldPlaceholder}>{categoryLabel || 'Category'}</Text>
+            <Text style={textTone('category', Boolean(categoryLabel))}>{categoryLabel || 'Category'}</Text>
           </Pressable>
           {picker?.kind === 'category' ? (
             <View style={styles.menu}>
@@ -239,9 +273,9 @@ export function DishFormSheet({ mode, item, categories, onClose, onSaved }: Prop
                     onPress={() => {
                       setCategoryId(category.id);
                       setCategoryLabel(category.name);
-                      clearFieldError('category');
                       setPicker(null);
-                      setFocusedKey(null);
+                      setFocused(null);
+                      clearInvalid('category');
                     }}
                     style={styles.menuItem}
                   >
@@ -260,8 +294,10 @@ export function DishFormSheet({ mode, item, categories, onClose, onSaved }: Prop
             onChangeText={setDescription}
             placeholder="Description"
             placeholderTextColor="#98a8b6"
-            style={fieldStyle('description', styles.field, webNoOutline)}
-            {...focusHandlers('description')}
+            underlineColorAndroid="transparent"
+            selectionColor={colors.header}
+            {...bind('description')}
+            style={[styles.field, ...paint('description')]}
           />
 
           <View style={styles.splitRow}>
@@ -269,22 +305,25 @@ export function DishFormSheet({ mode, item, categories, onClose, onSaved }: Prop
               value={price}
               onChangeText={value => {
                 setPrice(value);
-                clearFieldError('price');
+                clearInvalid('price');
               }}
               placeholder="Price"
               placeholderTextColor="#98a8b6"
               keyboardType="decimal-pad"
-              style={fieldStyle('price', styles.field, styles.splitField, webNoOutline)}
-              {...focusHandlers('price')}
+              underlineColorAndroid="transparent"
+              selectionColor={colors.header}
+              {...bind('price')}
+              style={[styles.field, styles.splitField, ...paint('price')]}
             />
             <Pressable
               onPress={() => {
-                setFocusedKey('foodType');
                 togglePicker({ kind: 'food' });
+                setFocused('food');
+                clearInvalid('food');
               }}
-              style={fieldStyle('foodType', styles.field, styles.splitField)}
+              style={[styles.field, styles.splitField, ...paint('food')]}
             >
-              <Text style={styles.fieldValue}>{foodLabel}</Text>
+              <Text style={textTone('food', true)}>{foodLabel}</Text>
             </Pressable>
           </View>
           {picker?.kind === 'food' ? (
@@ -294,9 +333,8 @@ export function DishFormSheet({ mode, item, categories, onClose, onSaved }: Prop
                   key={option.value}
                   onPress={() => {
                     setFoodType(option.value);
-                    clearFieldError('foodType');
                     setPicker(null);
-                    setFocusedKey(null);
+                    setFocused(null);
                   }}
                   style={styles.menuItem}
                 >
@@ -307,8 +345,11 @@ export function DishFormSheet({ mode, item, categories, onClose, onSaved }: Prop
           ) : null}
 
           <Pressable
-            onPress={chooseImage}
-            style={fieldStyle('image', styles.imageSlot)}
+            onPress={() => {
+              clearInvalid('image');
+              void chooseImage();
+            }}
+            style={[styles.imageSlot, invalid.image && styles.fieldError]}
             accessibilityLabel="Add dish image"
           >
             {imageUrl ? (
@@ -327,33 +368,34 @@ export function DishFormSheet({ mode, item, categories, onClose, onSaved }: Prop
             </Pressable>
             {sizeVariant ? (
               <>
-                {sizes.map(size => {
-                  const sizeNameKey = `size:${size.key}:name`;
-                  const sizePriceKey = `size:${size.key}:price`;
-                  return (
+                {sizes.map(size => (
                   <View key={size.key} style={styles.optionRow}>
                     <TextInput
                       value={size.name}
                       onChangeText={value => {
-                        clearFieldError(sizeNameKey);
                         setSizes(current => current.map(entry => (entry.key === size.key ? { ...entry, name: value } : entry)));
+                        clearInvalid(`size-${size.key}-name`);
                       }}
                       placeholder="Size"
                       placeholderTextColor="#7f95a8"
-                      style={fieldStyle(sizeNameKey, styles.optionInput, styles.sizeName, webNoOutline)}
-                      {...focusHandlers(sizeNameKey)}
+                      underlineColorAndroid="transparent"
+                      selectionColor={colors.header}
+                      {...bind(`size-${size.key}-name`)}
+                      style={[styles.optionInput, styles.sizeName, ...paint(`size-${size.key}-name`)]}
                     />
                     <TextInput
                       value={size.price}
                       onChangeText={value => {
-                        clearFieldError(sizePriceKey);
                         setSizes(current => current.map(entry => (entry.key === size.key ? { ...entry, price: value } : entry)));
+                        clearInvalid(`size-${size.key}-price`);
                       }}
                       placeholder="Price"
                       placeholderTextColor="#7f95a8"
                       keyboardType="decimal-pad"
-                      style={fieldStyle(sizePriceKey, styles.optionInput, styles.sizePrice, webNoOutline)}
-                      {...focusHandlers(sizePriceKey)}
+                      underlineColorAndroid="transparent"
+                      selectionColor={colors.header}
+                      {...bind(`size-${size.key}-price`)}
+                      style={[styles.optionInput, styles.sizePrice, ...paint(`size-${size.key}-price`)]}
                     />
                     <Pressable
                       accessibilityLabel="Remove size"
@@ -363,8 +405,7 @@ export function DishFormSheet({ mode, item, categories, onClose, onSaved }: Prop
                       <Text style={styles.removeLabel}>×</Text>
                     </Pressable>
                   </View>
-                  );
-                })}
+                ))}
                 <Pressable
                   accessibilityLabel="Add size"
                   onPress={() => setSizes(current => [...current, blankSize()])}
@@ -388,13 +429,15 @@ export function DishFormSheet({ mode, item, categories, onClose, onSaved }: Prop
                 <TextInput
                   value={variant.name}
                   onChangeText={value => {
-                    clearFieldError(`variant:${variant.key}:name`);
                     setVariants(current => current.map(entry => (entry.key === variant.key ? { ...entry, name: value } : entry)));
+                    clearInvalid(`variant-${variant.key}`);
                   }}
                   placeholder="Variant name"
                   placeholderTextColor="#98a8b6"
-                  style={fieldStyle(`variant:${variant.key}:name`, styles.variantName, webNoOutline)}
-                  {...focusHandlers(`variant:${variant.key}:name`)}
+                  underlineColorAndroid="transparent"
+                  selectionColor={colors.header}
+                  {...bind(`variant-${variant.key}`)}
+                  style={[styles.variantName, ...paint(`variant-${variant.key}`)]}
                 />
               </View>
               {variant.enabled ? (
@@ -418,26 +461,28 @@ export function DishFormSheet({ mode, item, categories, onClose, onSaved }: Prop
                     value={variant.priceIncreases}
                     onChange={value => setVariants(current => current.map(entry => (entry.key === variant.key ? { ...entry, priceIncreases: value } : entry)))}
                   />
-                  {variant.options.map(option => {
-                    const optionNameKey = `variant:${variant.key}:option:${option.key}:name`;
-                    const optionPriceKey = `variant:${variant.key}:option:${option.key}:price`;
-                    return (
+                  {variant.options.map(option => (
                     <View key={option.key}>
                       <View style={styles.optionRow}>
                         <TextInput
                           value={option.name}
                           onChangeText={value => {
-                            clearFieldError(optionNameKey);
                             updateOption(setVariants, variant.key, option.key, { name: value });
+                            clearInvalid(`option-${option.key}-name`);
                           }}
                           placeholder="Option"
                           placeholderTextColor="#7f95a8"
-                          style={fieldStyle(optionNameKey, styles.optionInput, styles.optionName, webNoOutline)}
-                          {...focusHandlers(optionNameKey)}
+                          underlineColorAndroid="transparent"
+                          selectionColor={colors.header}
+                          {...bind(`option-${option.key}-name`)}
+                          style={[styles.optionInput, styles.optionName, ...paint(`option-${option.key}-name`)]}
                         />
                         <Pressable
-                          onPress={() => togglePicker({ kind: 'option', key: option.key })}
-                          style={styles.optionType}
+                          onPress={() => {
+                            togglePicker({ kind: 'option', key: option.key });
+                            setFocused(`option-${option.key}-type`);
+                          }}
+                          style={[styles.optionType, ...paint(`option-${option.key}-type`)]}
                         >
                           <Text style={styles.optionTypeLabel} numberOfLines={1}>
                             {FOOD_TYPES.find(entry => entry.value === option.foodType)?.label}
@@ -447,14 +492,16 @@ export function DishFormSheet({ mode, item, categories, onClose, onSaved }: Prop
                           <TextInput
                             value={option.price}
                             onChangeText={value => {
-                              clearFieldError(optionPriceKey);
                               updateOption(setVariants, variant.key, option.key, { price: value });
+                              clearInvalid(`option-${option.key}-price`);
                             }}
                             placeholder="Price"
                             placeholderTextColor="#7f95a8"
                             keyboardType="decimal-pad"
-                            style={fieldStyle(optionPriceKey, styles.optionInput, styles.optionPrice, webNoOutline)}
-                            {...focusHandlers(optionPriceKey)}
+                            underlineColorAndroid="transparent"
+                            selectionColor={colors.header}
+                            {...bind(`option-${option.key}-price`)}
+                            style={[styles.optionInput, styles.optionPrice, ...paint(`option-${option.key}-price`)]}
                           />
                         ) : null}
                         <Pressable
@@ -479,6 +526,7 @@ export function DishFormSheet({ mode, item, categories, onClose, onSaved }: Prop
                               onPress={() => {
                                 updateOption(setVariants, variant.key, option.key, { foodType: entry.value });
                                 setPicker(null);
+                                setFocused(null);
                               }}
                               style={styles.menuItem}
                             >
@@ -488,8 +536,7 @@ export function DishFormSheet({ mode, item, categories, onClose, onSaved }: Prop
                         </View>
                       ) : null}
                     </View>
-                    );
-                  })}
+                  ))}
                   <Pressable
                     accessibilityLabel="Add option"
                     onPress={() =>
@@ -520,7 +567,7 @@ export function DishFormSheet({ mode, item, categories, onClose, onSaved }: Prop
 
         <View style={styles.footer}>
           <Pressable disabled={busy} onPress={save} style={styles.done}>
-            <Text style={styles.doneLabel}>{busy ? 'Saving…' : 'Done'}</Text>
+            <Text style={styles.doneLabel}>{primaryLabel}</Text>
           </Pressable>
           <Pressable onPress={onClose} style={styles.cancel}>
             <Text style={styles.cancelLabel}>Cancel</Text>
@@ -565,8 +612,6 @@ function updateOption(
   );
 }
 
-type BuildInputResult = { ok: true; input: MenuItemInput } | { ok: false; message: string; fields: string[] };
-
 function buildInput(form: {
   name: string;
   categoryId: string | null;
@@ -580,94 +625,101 @@ function buildInput(form: {
   sizes: SizeDraft[];
   variants: VariantDraft[];
   keepIds: boolean;
-}): BuildInputResult {
-  const fields: string[] = [];
-  let message = '';
-
-  const fail = (field: string, text: string) => {
-    fields.push(field);
-    if (!message) message = text;
-  };
-
-  if (!form.name.trim()) fail('name', 'Add a dish name.');
+}): MenuItemInput | string {
+  if (!form.name.trim()) return 'Add a dish name.';
   const category = form.categories.find(entry => entry.id === form.categoryId)
     ?? form.categories.find(entry => entry.name.trim().toLowerCase() === form.categoryLabel.trim().toLowerCase());
-  if (!category) fail('category', 'Choose a category.');
+  if (!category) return 'Choose a category.';
   const price = amount(form.price);
-  if (price == null) fail('price', 'Add a valid price.');
-  if (!FOOD_TYPES.some(option => option.value === form.foodType)) fail('foodType', 'Choose Vegan, Veg, Non-Veg, or Egg.');
-  if (!form.imageUrl.trim()) fail('image', 'Add an image.');
+  if (price == null) return 'Add a valid price.';
+  if (!FOOD_TYPES.some(option => option.value === form.foodType)) return 'Choose Vegan, Veg, Non-Veg, or Egg.';
+  if (!form.imageUrl.trim()) return 'Add an image.';
 
   const sizes: SizeOption[] = [];
   if (form.sizeVariant) {
-    if (form.sizes.length === 0) fail('sizes', 'Name each size.');
+    if (form.sizes.length === 0) return 'Name each size.';
     for (const size of form.sizes) {
-      const nameKey = `size:${size.key}:name`;
-      const priceKey = `size:${size.key}:price`;
       const extra = amount(size.price);
-      if (!size.name.trim()) fail(nameKey, 'Name each size.');
-      if (extra == null) fail(priceKey, 'Add a valid price for each size.');
-      if (size.name.trim() && extra != null) {
-        sizes.push({ ...(form.keepIds && size.id ? { id: size.id } : {}), name: size.name.trim(), price: extra });
-      }
+      if (!size.name.trim()) return 'Name each size.';
+      if (extra == null) return 'Add a valid price for each size.';
+      sizes.push({ ...(form.keepIds && size.id ? { id: size.id } : {}), name: size.name.trim(), price: extra });
     }
   }
 
   const variants: CustomVariant[] = [];
   for (const variant of form.variants.filter(entry => entry.enabled)) {
-    const variantNameKey = `variant:${variant.key}:name`;
-    if (!variant.name.trim()) fail(variantNameKey, 'Name each custom variant.');
-    if (variant.options.length === 0) fail(variantNameKey, 'Add at least one option to each variant.');
+    if (!variant.name.trim()) return 'Name each custom variant.';
+    if (variant.options.length === 0) return 'Add at least one option to each variant.';
     const options = [];
     for (const option of variant.options) {
-      const optionNameKey = `variant:${variant.key}:option:${option.key}:name`;
-      const optionPriceKey = `variant:${variant.key}:option:${option.key}:price`;
-      if (!option.name.trim()) fail(optionNameKey, 'Name each option.');
+      if (!option.name.trim()) return 'Name each option.';
       const optionPrice = variant.priceIncreases ? amount(option.price) : 0;
-      if (optionPrice == null) fail(optionPriceKey, 'Add a valid price for each option.');
-      if (option.name.trim() && optionPrice != null) {
-        options.push({
-          ...(form.keepIds && option.id ? { id: option.id } : {}),
-          name: option.name.trim(),
-          foodType: option.foodType,
-          price: optionPrice,
-        });
-      }
-    }
-    if (variant.name.trim() && options.length === variant.options.length) {
-      variants.push({
-        ...(form.keepIds && variant.id ? { id: variant.id } : {}),
-        name: variant.name.trim(),
-        required: variant.required,
-        selection: variant.selection,
-        priceIncreases: variant.priceIncreases,
-        options,
+      if (optionPrice == null) return 'Add a valid price for each option.';
+      options.push({
+        ...(form.keepIds && option.id ? { id: option.id } : {}),
+        name: option.name.trim(),
+        foodType: option.foodType,
+        price: optionPrice,
       });
     }
-  }
-
-  if (fields.length > 0) return { ok: false, message, fields };
-
-  if (!category || price == null) {
-    return { ok: false, message: message || 'Fix the highlighted fields.', fields };
+    variants.push({
+      ...(form.keepIds && variant.id ? { id: variant.id } : {}),
+      name: variant.name.trim(),
+      required: variant.required,
+      selection: variant.selection,
+      priceIncreases: variant.priceIncreases,
+      options,
+    });
   }
 
   return {
-    ok: true,
-    input: {
-      name: form.name.trim(),
-      description: form.description.trim(),
-      price,
-      foodType: form.foodType,
-      imageUrl: form.imageUrl.trim(),
-      categoryId: category.id,
-      sizes,
-      variants,
-    },
+    name: form.name.trim(),
+    description: form.description.trim(),
+    price,
+    foodType: form.foodType,
+    imageUrl: form.imageUrl.trim(),
+    categoryId: category.id,
+    sizes,
+    variants,
   };
 }
 
-const webNoOutline = Platform.OS === 'web' ? ({ outlineStyle: 'none' } as const) : {};
+function invalidFrom(
+  message: string,
+  form: { sizes: SizeDraft[]; variants: VariantDraft[]; sizeVariant: boolean },
+): Record<string, boolean> {
+  if (message.includes('dish name')) return { name: true };
+  if (message.includes('category')) return { category: true };
+  if (message.includes('valid price.') && !message.includes('size') && !message.includes('option')) return { price: true };
+  if (message.includes('Vegan')) return { food: true };
+  if (message.includes('image')) return { image: true };
+  if (message.includes('size')) {
+    const flags: Record<string, boolean> = {};
+    for (const size of form.sizes) {
+      if (!size.name.trim()) flags[`size-${size.key}-name`] = true;
+      if (amount(size.price) == null) flags[`size-${size.key}-price`] = true;
+    }
+    return flags;
+  }
+  if (message.includes('custom variant')) {
+    const flags: Record<string, boolean> = {};
+    for (const variant of form.variants.filter(entry => entry.enabled)) {
+      if (!variant.name.trim()) flags[`variant-${variant.key}`] = true;
+    }
+    return flags;
+  }
+  if (message.includes('option')) {
+    const flags: Record<string, boolean> = {};
+    for (const variant of form.variants.filter(entry => entry.enabled)) {
+      for (const option of variant.options) {
+        if (!option.name.trim()) flags[`option-${option.key}-name`] = true;
+        if (variant.priceIncreases && amount(option.price) == null) flags[`option-${option.key}-price`] = true;
+      }
+    }
+    return flags;
+  }
+  return {};
+}
 
 function amount(value: string) {
   const trimmed = value.trim();
@@ -763,11 +815,12 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 18,
     borderTopRightRadius: 18,
     overflow: 'hidden',
-    flexShrink: 1,
   },
-  sheetHead: {
+  namePin: {
     paddingHorizontal: 14,
+    paddingBottom: 6,
     backgroundColor: colors.page,
+    zIndex: 2,
   },
   scroller: {
     flexGrow: 1,
@@ -786,14 +839,14 @@ const styles = StyleSheet.create({
   },
   body: {
     paddingHorizontal: 14,
-    paddingTop: 0,
+    paddingTop: 4,
     paddingBottom: 12,
   },
   screenTitle: {
     fontSize: 18,
     fontWeight: '800',
     color: '#2f3f4f',
-    marginBottom: 10,
+    marginBottom: 12,
     letterSpacing: 0.3,
   },
   field: {
@@ -805,12 +858,11 @@ const styles = StyleSheet.create({
     color: '#3d5366',
     marginBottom: 10,
     justifyContent: 'center',
-  },
-  fieldBorder: {
     borderWidth: 1.5,
     borderColor: 'transparent',
+    ...Platform.select({ web: { outlineStyle: 'none', outlineWidth: 0 }, default: {} }),
   },
-  fieldFocused: {
+  fieldFocus: {
     borderColor: colors.header,
   },
   fieldError: {
@@ -867,6 +919,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 14,
     overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: 'transparent',
   },
   imagePlus: {
     fontSize: 28,
@@ -911,6 +965,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#3d5366',
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+    ...Platform.select({ web: { outlineStyle: 'none', outlineWidth: 0 }, default: {} }),
   },
   toggleRow: {
     flexDirection: 'row',
@@ -979,6 +1036,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 13,
     color: '#3d5366',
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+    ...Platform.select({ web: { outlineStyle: 'none', outlineWidth: 0 }, default: {} }),
   },
   sizeName: {
     flex: 2.4,
@@ -1003,6 +1063,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 10,
     justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: 'transparent',
   },
   optionTypeLabel: {
     fontSize: 13,
