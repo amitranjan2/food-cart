@@ -24,7 +24,7 @@ export function MenuItemCard({
   const photo = item.imageUrl || fallbackImage;
 
   return (
-    <article className={'dish-card ' + (variant === 'feature' ? 'dish-feature' : 'dish-compact')}>
+    <article id={'menu-item-' + item.id} className={'dish-card ' + (variant === 'feature' ? 'dish-feature' : 'dish-compact')}>
       <div className="media">
         {photo && !broken ? (
           <img src={photo} alt="" onError={() => setBroken(true)} />

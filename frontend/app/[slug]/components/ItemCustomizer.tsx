@@ -50,40 +50,50 @@ export function ItemCustomizer({
   const spec = useMemo(() => customizationFor(item), [item]);
   const [selected, setSelected] = useState(() => initialSelection(spec));
   const [broken, setBroken] = useState(false);
-  const [pinHeight, setPinHeight] = useState(48);
-  const [stacked, setStacked] = useState(false);
+  const [mergeProgress, setMergeProgress] = useState(0);
   const resolved = configurationFrom(item, spec, selected);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const pinRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     setSelected(initialSelection(spec));
     setBroken(false);
-    setStacked(false);
+    setMergeProgress(0);
     scrollRef.current?.scrollTo(0, 0);
   }, [item.id, spec]);
 
   useEffect(() => {
-    const node = pinRef.current;
-    if (!node) return;
-    const update = () => setPinHeight(node.offsetHeight);
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [item.id, stacked]);
-
-  useEffect(() => {
     const scroll = scrollRef.current;
     if (!scroll) return;
+
     const update = () => {
-      const pin = pinRef.current;
-      setStacked(!!pin && pin.getBoundingClientRect().top <= 1);
+      const canCollapse = scroll.scrollHeight > scroll.clientHeight + 4;
+      if (!canCollapse) {
+        setMergeProgress(0);
+        return;
+      }
+
+      const scrollTop = scroll.scrollTop;
+      const mergeStart = 48;
+      const mergeSpan = 72;
+      if (scrollTop < mergeStart) {
+        setMergeProgress(0);
+        return;
+      }
+      const progress = (scrollTop - mergeStart) / mergeSpan;
+      setMergeProgress(Math.min(1, Math.max(0, progress)));
     };
+
     update();
     scroll.addEventListener('scroll', update, { passive: true });
-    return () => scroll.removeEventListener('scroll', update);
-  }, [item.id, inset]);
+    window.addEventListener('resize', update);
+    const observer = new ResizeObserver(update);
+    observer.observe(scroll);
+    return () => {
+      scroll.removeEventListener('scroll', update);
+      window.removeEventListener('resize', update);
+      observer.disconnect();
+    };
+  }, [item.id]);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -120,26 +130,46 @@ export function ItemCustomizer({
       className="customizer"
       style={{
         '--customizer-inset': `${inset}px`,
-        '--customizer-pin-h': `${pinHeight}px`,
+        '--merge-progress': mergeProgress,
       } as CSSProperties}
     >
-      <div className="customizer-scroll" ref={scrollRef}>
-        <div className="customizer-rise">
-          <button type="button" className="customizer-close" onClick={onClose} aria-label="Close customization">
-            <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-              <path d="M3 3l8 8M11 3 3 11" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-            </svg>
-          </button>
+      <header
+        className={'customizer-collapsed-head' + (mergeProgress > 0.15 ? ' is-visible' : '')}
+        style={{ opacity: mergeProgress, pointerEvents: mergeProgress > 0.35 ? 'auto' : 'none' }}
+      >
+        <button type="button" className="customizer-back" onClick={onClose} aria-label="Back">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M15 5 8 12l7 7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+        <div className="customizer-title">
+          <Mark type={item.foodType} />
+          <h2>{item.name}</h2>
         </div>
-        <div className="customizer-sheet">
-          <header className="customizer-heading customizer-pin" ref={pinRef}>
-            {stacked && (
-              <button type="button" className="customizer-back" onClick={onClose} aria-label="Back">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <path d="M15 5 8 12l7 7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </button>
-            )}
+      </header>
+      <div className="customizer-scroll" ref={scrollRef}>
+        <div className="customizer-sheet-stack">
+          <div
+            className="customizer-close-slot"
+            style={{
+              opacity: 1 - mergeProgress,
+              pointerEvents: mergeProgress > 0.85 ? 'none' : 'auto',
+            }}
+          >
+            <button type="button" className="customizer-close" onClick={onClose} aria-label="Close customization">
+              <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+                <path d="M3 3l8 8M11 3 3 11" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              </svg>
+            </button>
+          </div>
+          <div className="customizer-sheet">
+          <header
+            className={
+              'customizer-heading customizer-pin'
+              + (mergeProgress > 0.05 ? ' is-merging' : '')
+              + (mergeProgress > 0.92 ? ' is-absorbed' : '')
+            }
+          >
             <div className="customizer-title">
               <Mark type={item.foodType} />
               <h2>{item.name}</h2>
@@ -187,6 +217,7 @@ export function ItemCustomizer({
               </section>
             );
           })}
+          </div>
           </div>
         </div>
       </div>

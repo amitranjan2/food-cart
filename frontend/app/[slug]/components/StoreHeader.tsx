@@ -1,28 +1,68 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 
-export function StoreHeader({
-  children,
+export function StoreHeader({ children }: { children: ReactNode }) {
+  return (
+    <div className="store-header-top">
+      <div className="store-eta" aria-label="25 Mins">
+        <span className="store-eta-num">25</span>
+        <span className="store-eta-unit">Mins</span>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+export function StoreSearch({
   query,
   onQueryChange,
   onClose,
+  headerRef,
+  measureRef,
 }: {
-  children: ReactNode;
   query: string;
   onQueryChange: (query: string) => void;
   onClose?: () => void;
+  headerRef: RefObject<HTMLDivElement | null>;
+  measureRef?: RefObject<HTMLDivElement>;
 }) {
+  const dockRef = useRef<HTMLDivElement>(null);
+  const [pinned, setPinned] = useState(false);
+  const [dockHeight, setDockHeight] = useState(0);
+
+  useEffect(() => {
+    const dock = dockRef.current;
+    if (!dock) return;
+
+    function sync() {
+      const node = dockRef.current;
+      if (!node) return;
+      setDockHeight(node.offsetHeight);
+      const headerBottom = headerRef.current?.getBoundingClientRect().bottom ?? 0;
+      setPinned(headerBottom <= 0);
+    }
+
+    sync();
+    window.addEventListener('scroll', sync, { passive: true });
+    window.addEventListener('resize', sync);
+    const observer = new ResizeObserver(sync);
+    observer.observe(dock);
+    if (headerRef.current) observer.observe(headerRef.current);
+    return () => {
+      window.removeEventListener('scroll', sync);
+      window.removeEventListener('resize', sync);
+      observer.disconnect();
+    };
+  }, [headerRef]);
+
   return (
-    <>
-      <div className="store-header-top">
-        <div className="store-eta" aria-label="25 Mins">
-          <span className="store-eta-num">25</span>
-          <span className="store-eta-unit">Mins</span>
-        </div>
-        {children}
-      </div>
-      <div className="store-search-dock">
+    <div
+      ref={measureRef}
+      className="store-search-anchor"
+      style={pinned && dockHeight > 0 ? { height: dockHeight } : undefined}
+    >
+      <div ref={dockRef} className={'store-search-dock' + (pinned ? ' pinned' : '')}>
         <label className="store-search">
           <input
             value={query}
@@ -40,6 +80,6 @@ export function StoreHeader({
           {Array.from({ length: 18 }, (_, index) => <span key={index} />)}
         </div>
       </div>
-    </>
+    </div>
   );
 }

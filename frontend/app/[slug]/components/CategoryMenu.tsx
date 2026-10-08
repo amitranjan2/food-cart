@@ -20,12 +20,23 @@ export function CategoryMenu({
   const [pastCategories, setPastCategories] = useState(false);
 
   useEffect(() => {
-    function check() {
-      const section = document.getElementById('store-categories');
-      const dock = document.querySelector('.store-search-dock');
-      const top = dock ? dock.getBoundingClientRect().bottom : 0;
-      setPastCategories(!section || section.getBoundingClientRect().bottom <= top);
+    const section = document.getElementById('store-categories');
+    if (!section) {
+      setPastCategories(true);
+      return;
     }
+
+    function dockBottom() {
+      const dock = document.querySelector('.store-search-dock');
+      const bottom = dock?.getBoundingClientRect().bottom ?? 0;
+      // Sticky search stays on screen; if layout is wrong, fall back to a typical dock height.
+      return bottom > 0 ? bottom : 72;
+    }
+
+    function check() {
+      setPastCategories(section!.getBoundingClientRect().bottom <= dockBottom());
+    }
+
     check();
     window.addEventListener('scroll', check, { passive: true });
     window.addEventListener('resize', check);
