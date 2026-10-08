@@ -113,6 +113,7 @@ export function Cart({
   onAdd,
   onMobileChange,
   onOtpChange,
+  onSendOtp,
   onPay,
   paying,
   payError,
@@ -129,6 +130,7 @@ export function Cart({
   onAdd: (item: MenuItem) => void;
   onMobileChange: (mobile: string) => void;
   onOtpChange: (otp: string) => void;
+  onSendOtp: () => Promise<void>;
   onPay: () => void;
   paying?: boolean;
   payError?: string;
@@ -144,6 +146,32 @@ export function Cart({
   const [billOpen, setBillOpen] = useState(false);
   const [address, setAddress] = useState<SavedAddress | null>(null);
   const [addressStep, setAddressStep] = useState<AddressStep | null>(null);
+  const [otpSentTo, setOtpSentTo] = useState('');
+  const [sendingOtp, setSendingOtp] = useState(false);
+  const [otpError, setOtpError] = useState('');
+  const [resendIn, setResendIn] = useState(0);
+  const otpSent = otpSentTo !== '' && otpSentTo === mobile;
+
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const timer = window.setTimeout(() => setResendIn(value => value - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [resendIn]);
+
+  async function sendOtp() {
+    setSendingOtp(true);
+    setOtpError('');
+    try {
+      await onSendOtp();
+      setOtpSentTo(mobile);
+      onOtpChange('');
+      setResendIn(30);
+    } catch (error) {
+      setOtpError(error instanceof Error ? error.message : 'Could not send the OTP.');
+    } finally {
+      setSendingOtp(false);
+    }
+  }
 
   // The expanded bill freezes the cart behind it, like the menu and customizer do.
   useEffect(() => {
@@ -394,13 +422,42 @@ export function Cart({
       ) : (
       <>
       <section className="cart-auth" aria-label="Confirm mobile">
-        <label className="cart-field">
-          <input inputMode="numeric" autoComplete="tel" placeholder="Mobile number" value={mobile} onChange={event => onMobileChange(event.target.value)} />
-        </label>
-        <label className="cart-field">
-          <input inputMode="numeric" autoComplete="one-time-code" placeholder="OTP" value={otp} onChange={event => onOtpChange(event.target.value)} />
-        </label>
-        {payError ? <p className="cart-pay-error">{payError}</p> : null}
+        <div className="cart-otp-row">
+          <label className="cart-field">
+            <input
+              inputMode="numeric"
+              autoComplete="tel"
+              maxLength={10}
+              placeholder="Mobile number"
+              value={mobile}
+              onChange={event => {
+                onMobileChange(event.target.value.replace(/\D/g, '').slice(0, 10));
+                setOtpSentTo('');
+              }}
+            />
+          </label>
+          <button
+            type="button"
+            className="cart-otp-send"
+            disabled={sendingOtp || resendIn > 0 || !/^[6-9]\d{9}$/.test(mobile)}
+            onClick={sendOtp}
+          >
+            {sendingOtp ? '…' : resendIn > 0 ? `Resend ${resendIn}s` : otpSent ? 'Resend' : 'Send OTP'}
+          </button>
+        </div>
+        {otpSent && (
+          <label className="cart-field">
+            <input
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              placeholder="6-digit OTP"
+              value={otp}
+              onChange={event => onOtpChange(event.target.value.replace(/\D/g, '').slice(0, 6))}
+            />
+          </label>
+        )}
+        {otpError || payError ? <p className="cart-pay-error">{otpError || payError}</p> : null}
       </section>
       {billOpen && <div className="bill-backdrop" aria-hidden="true" onClick={() => setBillOpen(false)} />}
       <div className={'bill-dock' + (billOpen ? ' open' : '')}>
@@ -432,7 +489,7 @@ export function Cart({
             </svg>
             <strong aria-live="polite">{formatRupee(grandTotal)}</strong>
           </button>
-          <button type="button" className="customizer-add" disabled={paying || !mobile.trim() || !otp.trim()} onClick={onPay}>{paying ? '…' : 'Pay'}</button>
+          <button type="button" className="customizer-add" disabled={paying || !otpSent || otp.length !== 6} onClick={onPay}>{paying ? '…' : 'Pay'}</button>
         </footer>
       </div>
       </>

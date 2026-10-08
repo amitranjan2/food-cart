@@ -14,7 +14,7 @@ import { useAuth } from '../../state/AuthContext';
 import { colors } from '../../theme';
 
 const OTP_LENGTH = 6;
-const RESEND_SECONDS = 10;
+const RESEND_SECONDS = 30;
 
 function isValidMobile(value: string) {
   return /^[0-9]{10}$/.test(value);

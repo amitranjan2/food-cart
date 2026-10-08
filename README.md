@@ -8,7 +8,7 @@ Mobile-first, hyperlocal ordering for neighbourhood food vendors. This repositor
 2. Backend: `cd backend && mvn spring-boot:run -Dspring-boot.run.profiles=local`
 3. Frontend: `cd frontend && cp .env.local.example .env.local && npm install && npm run dev`
 
-Visit [http://localhost:3000/raju-momos](http://localhost:3000/raju-momos). The development OTP is `123456`; seeded vendor mobile is `9999999999`.
+Visit [http://localhost:3000/raju-momos](http://localhost:3000/raju-momos). With the `local` profile the OTP is always `123456` and a demo vendor is seeded on `9999999999`; neither exists in production.
 
 ## Project layout
 
@@ -22,6 +22,22 @@ Public menu endpoints live under `/api/public`. Customer authenticated endpoints
 
 `OrderService` is the source of truth for checkout: it reloads each item, checks vendor/item availability, calculates prices, and saves item snapshots. Vendor order updates are ownership-scoped and use a strict transition map.
 
-## Production notes
+## Login and OTP
 
-Set `MONGODB_URI`, `CORS_ORIGIN`, and a cryptographically random `SESSION_SECRET`. OTP delivery is an interface; the local implementation deliberately only accepts `123456`. Add gateway rate limiting at the reverse proxy and retain the per-mobile request limit in the OTP service before connecting an SMS vendor.
+`OtpService` generates a random 6-digit code, stores only its hash, expires it after 5 minutes, locks after 5 wrong attempts, and allows one send per 30 seconds and 5 per hour per number. Delivery goes through the `OtpSender` interface:
+
+- `local` profile: `DevOtpSender` logs the code and always uses `123456`. It cannot load in any other profile.
+- Any other profile: the API **refuses to start** until a real `OtpSender` (SMS provider) is configured.
+
+Demo vendors, menus and orders (`SeedData`, `DemoData`, `CatalogEnricher`, `/api/dev/*`) only run with the `local` profile.
+
+## Production environment
+
+| Variable | Purpose |
+|---|---|
+| `MONGODB_URI` | MongoDB connection string |
+| `CORS_ORIGIN` | Storefront origin, e.g. `https://foodcart.in` |
+| `PUBLIC_BASE_URL` | Public address of this API; used to build image URLs |
+| `UPLOAD_DIR` | Where uploaded images are stored; must be a persistent volume |
+
+Add per-IP rate limiting on `/api/auth/*` at the reverse proxy.

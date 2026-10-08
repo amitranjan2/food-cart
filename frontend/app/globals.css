@@ -188,6 +188,9 @@ html:has(.storefront.customizing),html:has(.storefront.customizing) body{overflo
 .cart-paybar{justify-content:space-between}
 .cart-paybar strong{font-size:var(--fs-xl);font-weight:800;letter-spacing:-.03em}
 .cart-auth{display:grid;gap:8px;margin:8px 14px 0}
+.cart-otp-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center}
+.cart-otp-send{height:44px;border:0;border-radius:12px;padding:0 14px;background:#30404e;color:#fff;font:800 13px/1 var(--store-font-body);white-space:nowrap}
+.cart-otp-send:disabled{opacity:.45}
 .cart-pay-error{margin:0;color:#b42318;font-size:13px;font-weight:700}
 .cart-list{list-style:none;margin:4px 0 0;padding:0 12px;display:grid;gap:10px}
 .cart-line{display:grid;grid-template-columns:72px minmax(0,1fr);column-gap:10px;row-gap:6px;align-items:center;background:#eeeeee;border-radius:14px;padding:8px}

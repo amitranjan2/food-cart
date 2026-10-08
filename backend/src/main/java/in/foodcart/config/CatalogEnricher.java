@@ -5,7 +5,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.*;
 import java.util.*;
 
-@Configuration
+@Configuration @org.springframework.context.annotation.Profile("local")
 public class CatalogEnricher {
  @Bean CommandLineRunner enrichCatalog(VendorRepository vendors,MenuItemRepository items,MenuCategoryRepository categories){return a->{
    for(VendorEntity v:vendors.findAll()){

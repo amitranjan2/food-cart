@@ -1,7 +1,14 @@
 spring:
   application.name: foodcart-api
-  data.mongodb.uri: ${MONGODB_URI:mongodb://localhost:27017/foodcart}
+  data.mongodb:
+    uri: ${MONGODB_URI:mongodb://localhost:27017/foodcart}
+    auto-index-creation: true
+  servlet.multipart:
+    max-file-size: 5MB
+    max-request-size: 6MB
 server.port: ${PORT:8080}
 app:
   cors-origin: ${CORS_ORIGIN:http://localhost:3000}
-  development-otp: ${DEVELOPMENT_OTP:123456}
+  # Absolute address of this API, used to build image URLs (e.g. https://api.foodcart.in).
+  public-base-url: ${PUBLIC_BASE_URL:http://localhost:8080}
+  upload-dir: ${UPLOAD_DIR:uploads}

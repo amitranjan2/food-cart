@@ -185,6 +185,13 @@ export default function Store({ params }: { params: { slug: string } }) {
     document.getElementById('menu-category-' + id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
+  async function sendOtp() {
+    await request('/api/auth/customer/request-otp', {
+      method: 'POST',
+      body: JSON.stringify({ mobile }),
+    });
+  }
+
   async function place() {
     setPaying(true);
     setPayError('');
@@ -254,6 +261,7 @@ export default function Store({ params }: { params: { slug: string } }) {
             onAdd={addItem}
             onMobileChange={setMobile}
             onOtpChange={setOtp}
+            onSendOtp={sendOtp}
             onPay={place}
             paying={paying}
             payError={payError}
