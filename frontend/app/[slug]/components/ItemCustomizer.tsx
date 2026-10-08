@@ -7,7 +7,6 @@ import {
   customizationFor,
   formatRupee,
   initialSelection,
-  selectionReady,
   type CustomizationGroup,
   type StoredConfiguration,
 } from '../lib/customization';
@@ -50,8 +49,8 @@ export function ItemCustomizer({
   const spec = useMemo(() => customizationFor(item), [item]);
   const [selected, setSelected] = useState(() => initialSelection(spec));
   const [broken, setBroken] = useState(false);
-  const [pinHeight, setPinHeight] = useState(48);
   const [stacked, setStacked] = useState(false);
+  const [missing, setMissing] = useState<string[]>([]);
   const resolved = configurationFrom(item, spec, selected);
   const scrollRef = useRef<HTMLDivElement>(null);
   const pinRef = useRef<HTMLElement>(null);
@@ -60,30 +59,27 @@ export function ItemCustomizer({
     setSelected(initialSelection(spec));
     setBroken(false);
     setStacked(false);
+    setMissing([]);
     scrollRef.current?.scrollTo(0, 0);
   }, [item.id, spec]);
 
   useEffect(() => {
-    const node = pinRef.current;
-    if (!node) return;
-    const update = () => setPinHeight(node.offsetHeight);
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [item.id, stacked]);
-
-  useEffect(() => {
     const scroll = scrollRef.current;
-    if (!scroll) return;
+    const pin = pinRef.current;
+    if (!scroll || !pin) return;
+    const line = pin.offsetTop;
     const update = () => {
-      const pin = pinRef.current;
-      setStacked(!!pin && pin.getBoundingClientRect().top <= 1);
+      const top = scroll.scrollTop;
+      setStacked(current => {
+        if (!current && top >= line) return true;
+        if (current && top < line - 8) return false;
+        return current;
+      });
     };
     update();
     scroll.addEventListener('scroll', update, { passive: true });
     return () => scroll.removeEventListener('scroll', update);
-  }, [item.id, inset]);
+  }, [item.id]);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -94,6 +90,7 @@ export function ItemCustomizer({
   }, [onClose]);
 
   function toggle(group: CustomizationGroup, choiceId: string) {
+    setMissing(current => current.filter(id => id !== group.id));
     setSelected(current => {
       const picked = current[group.id] ?? [];
       if (group.selection === 'single') {
@@ -109,6 +106,16 @@ export function ItemCustomizer({
     });
   }
 
+  function tryAdd() {
+    const incomplete = spec.groups.filter(group => group.required && (selected[group.id] ?? []).length === 0).map(group => group.id);
+    if (incomplete.length > 0) {
+      setMissing(incomplete);
+      return;
+    }
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    onAdd(resolved);
+  }
+
   function choiceLabel(group: CustomizationGroup, choice: CustomizationGroup['choices'][number]) {
     if (group.kind === 'portion') return choice.name;
     if (group.kind === 'size' || choice.price > 0) return `${choice.name} [+${formatRupee(choice.price)}]`;
@@ -117,13 +124,11 @@ export function ItemCustomizer({
 
   return (
     <div
-      className="customizer"
-      style={{
-        '--customizer-inset': `${inset}px`,
-        '--customizer-pin-h': `${pinHeight}px`,
-      } as CSSProperties}
+      className={'customizer' + (stacked ? ' is-stacked' : '')}
+      style={{ '--customizer-inset': `${inset}px` } as CSSProperties}
     >
       <div className="customizer-scroll" ref={scrollRef}>
+        <div className="customizer-stack">
         <div className="customizer-rise">
           <button type="button" className="customizer-close" onClick={onClose} aria-label="Close customization">
             <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
@@ -160,7 +165,7 @@ export function ItemCustomizer({
             return (
               <section
                 key={group.id}
-                className={'option-card' + (group.selection === 'single' ? ' single' : '')}
+                className={'option-card' + (missing.includes(group.id) ? ' missing' : '')}
                 role={group.selection === 'single' ? 'radiogroup' : 'group'}
                 aria-label={group.name}
               >
@@ -189,13 +194,14 @@ export function ItemCustomizer({
           })}
           </div>
         </div>
+        </div>
       </div>
       <footer className="customizer-bar">
         <div className="customizer-summary">
           <p>{resolved.barLabel}</p>
           <strong aria-live="polite">{formatRupee(resolved.unitPrice)}</strong>
         </div>
-        <button type="button" className="customizer-add" disabled={!selectionReady(spec, selected)} onClick={() => onAdd(resolved)}>ADD</button>
+        <button type="button" className="customizer-add" onClick={tryAdd}>ADD</button>
       </footer>
     </div>
   );

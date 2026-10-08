@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { request, type MenuCategory, type MenuItem, type PublicMenu, type Vendor } from '../lib/api';
 import { CartBar } from './components/CartBar';
 import { Cart } from './components/Cart';
@@ -11,7 +11,13 @@ import { Menu } from './components/Menu';
 import { OrderConfirmation, type PlacedOrder } from './components/OrderConfirmation';
 import { StoreHeader } from './components/StoreHeader';
 import { VendorInfo } from './components/VendorInfo';
-import { type StoredConfiguration } from './lib/customization';
+import {
+  autoSelection,
+  configurationFrom,
+  customizationFor,
+  needsCustomization,
+  type StoredConfiguration,
+} from './lib/customization';
 import { linkItemsToCategories } from './lib/menuLinks';
 
 export default function Store({ params }: { params: { slug: string } }) {
@@ -32,7 +38,14 @@ export default function Store({ params }: { params: { slug: string } }) {
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState('');
   const [chromeHeight, setChromeHeight] = useState(130);
-  const chromeRef = useRef<HTMLDivElement>(null);
+  const menuScroll = useRef(0);
+  const restoreScroll = useRef(false);
+
+  function captureScroll() {
+    const scroller = document.querySelector('.storefront');
+    if (!scroller) return;
+    menuScroll.current = scroller.scrollTop;
+  }
 
   useEffect(() => {
     let active = true;
@@ -54,15 +67,42 @@ export default function Store({ params }: { params: { slug: string } }) {
   useEffect(() => () => clearTimeout(closeTimer.current), []);
 
   useEffect(() => {
+    if (!vendor) return;
+    const scroller = document.querySelector('.storefront');
+    if (!scroller) return;
+    const keep = () => {
+      if (!restoreScroll.current || scroller.scrollTop === menuScroll.current) return;
+      scroller.scrollTop = menuScroll.current;
+    };
+    scroller.addEventListener('scroll', keep);
+    return () => scroller.removeEventListener('scroll', keep);
+  }, [vendor]);
+
+  useLayoutEffect(() => {
+    if (!restoreScroll.current) return;
+    const scroller = document.querySelector('.storefront');
+    if (scroller) scroller.scrollTop = menuScroll.current;
+    if (customizingId) return;
+    const timer = window.setTimeout(() => {
+      if (scroller) scroller.scrollTop = menuScroll.current;
+      restoreScroll.current = false;
+    }, 80);
+    return () => clearTimeout(timer);
+  }, [customizingId]);
+
+  useEffect(() => {
     if (open) return;
-    const node = chromeRef.current;
-    if (!node) return;
+    const header = document.querySelector<HTMLElement>('.storefront .store-header-top');
+    const search = document.querySelector<HTMLElement>('.storefront .store-search-dock');
+    if (!header || !search) return;
     const update = () => {
-      if (node.offsetHeight > 0) setChromeHeight(node.offsetHeight);
+      const next = header.offsetHeight + search.offsetHeight;
+      if (next > 0) setChromeHeight(next);
     };
     update();
     const observer = new ResizeObserver(update);
-    observer.observe(node);
+    observer.observe(header);
+    observer.observe(search);
     return () => observer.disconnect();
   }, [open, vendor]);
 
@@ -105,13 +145,25 @@ export default function Store({ params }: { params: { slug: string } }) {
   function addConfigured(item: MenuItem, configuration: StoredConfiguration) {
     setCart(current => ({ ...current, [item.id]: (current[item.id] ?? 0) + 1 }));
     setConfigs(current => ({ ...current, [item.id]: configuration }));
-    closeCustomizer();
+    if (customizingId) closeCustomizer();
   }
 
   function openCustomizer(id: string) {
+    captureScroll();
+    restoreScroll.current = true;
     clearTimeout(closeTimer.current);
     setClosingCustomizer(false);
     setCustomizingId(id);
+  }
+
+  function addItem(item: MenuItem) {
+    captureScroll();
+    const spec = customizationFor(item);
+    if (!needsCustomization(spec)) {
+      addConfigured(item, configurationFrom(item, spec, autoSelection(spec)));
+      return;
+    }
+    openCustomizer(item.id);
   }
 
   // Keeps the sheet mounted until the slide-down animation in globals.css finishes.
@@ -199,7 +251,7 @@ export default function Store({ params }: { params: { slug: string } }) {
             fallbackImage={store.coverImageUrl}
             onBack={() => setOpen(false)}
             onQuantity={changeQuantity}
-            onAdd={item => openCustomizer(item.id)}
+            onAdd={addItem}
             onMobileChange={setMobile}
             onOtpChange={setOtp}
             onPay={place}
@@ -209,17 +261,15 @@ export default function Store({ params }: { params: { slug: string } }) {
         </div>
       ) : (
       <div className={underlay} aria-hidden={customizing ? true : undefined}>
-      <div className="store-chrome" ref={chromeRef}>
-        <StoreHeader query={query} onQueryChange={setQuery}>
-          <VendorInfo vendor={store} />
-        </StoreHeader>
-      </div>
+      <StoreHeader query={query} onQueryChange={setQuery}>
+        <VendorInfo vendor={store} />
+      </StoreHeader>
       <div className="store-body">
         <Menu
           items={shown}
           categories={categories}
           quantities={cart}
-          onAdd={item => openCustomizer(item.id)}
+          onAdd={addItem}
           onQuantity={changeQuantity}
           searching={needle.length > 0}
           fallbackImage={store.coverImageUrl}

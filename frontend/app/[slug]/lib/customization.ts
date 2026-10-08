@@ -95,16 +95,21 @@ export function customizationFor(item: MenuItem): ItemCustomization {
 export function initialSelection(spec: ItemCustomization): Record<string, string[]> {
   const selected: Record<string, string[]> = {};
   for (const group of spec.groups) {
-    if (!group.required || group.selection === 'multiple') {
-      selected[group.id] = [];
-      continue;
-    }
-    const preferred = group.kind === 'portion'
-      ? group.choices.find(choice => choice.id === 'full') ?? group.choices[0]
-      : group.choices[0];
-    selected[group.id] = preferred ? [preferred.id] : [];
+    selected[group.id] = [];
   }
   return selected;
+}
+
+export function autoSelection(spec: ItemCustomization): Record<string, string[]> {
+  const selected: Record<string, string[]> = {};
+  for (const group of spec.groups) {
+    selected[group.id] = group.choices.length === 1 ? [group.choices[0].id] : [];
+  }
+  return selected;
+}
+
+export function needsCustomization(spec: ItemCustomization) {
+  return spec.groups.some(group => group.choices.length > 1);
 }
 
 export function selectionReady(spec: ItemCustomization, selected: Record<string, string[]>) {

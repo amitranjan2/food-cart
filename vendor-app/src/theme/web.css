@@ -1,0 +1,23 @@
+input:focus,
+textarea:focus {
+  outline: none !important;
+  box-shadow: none;
+}
+
+input[placeholder="Name"]:focus,
+input[placeholder="Description"]:focus,
+input[placeholder="Price"]:focus {
+  background-color: #ffffff !important;
+  color: #3d5366 !important;
+  caret-color: #3d5366;
+  border-color: #3d5366 !important;
+}
+
+input[placeholder="Option"]:focus,
+input[placeholder="Size"]:focus,
+input[placeholder="Variant name"]:focus {
+  background-color: #d8ecff !important;
+  color: #3d5366 !important;
+  caret-color: #3d5366;
+  border-color: #3d5366 !important;
+}
