@@ -14,20 +14,24 @@ export function useOrders() {
   const [error, setError] = useState('');
 
   const refresh = useCallback(
-    async (silent = false) => {
+    /** quiet: background polling — no spinner, and a failed check keeps the current list instead of showing an error. */
+    async (silent = false, quiet = false) => {
       if (!token) return;
-      if (!silent) setLoading(true);
-      else setRefreshing(true);
-      setError('');
+      if (!quiet) {
+        if (!silent) setLoading(true);
+        else setRefreshing(true);
+        setError('');
+      }
       try {
         const next = await getVendorOrders(token);
         setOrders(next);
+        if (quiet) setError('');
       } catch (e) {
         if (isAuthFailure(e)) {
           await logout();
           return;
         }
-        setError(e instanceof Error ? e.message : 'Could not load orders');
+        if (!quiet) setError(e instanceof Error ? e.message : 'Could not load orders');
       } finally {
         setLoading(false);
         setRefreshing(false);

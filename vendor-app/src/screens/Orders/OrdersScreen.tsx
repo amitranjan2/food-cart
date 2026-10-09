@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { AppState, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -16,12 +16,13 @@ import { Screen } from '../../components/Screen';
 import { MenuPanel } from '../Menu/MenuPanel';
 import { StoreSwitch } from '../../components/StoreSwitch';
 import { filterOrders, useOrders } from '../../hooks/useOrders';
+import { useNewOrderAlert } from '../../hooks/useNewOrderAlert';
 import { patchVendorStatus } from '../../api/vendor';
 import { isAuthFailure } from '../../api/client';
 import { useAuth } from '../../state/AuthContext';
 import { spacing } from '../../theme';
 import type { OrderStatus } from '../../types';
-import { formatDayTitle } from '../../utils/format';
+import { formatDayTitle, formatSlot } from '../../utils/format';
 import { futureOrderCount, indiaDay, pagerDayKey } from '../../utils/orderDay';
 import type { OrdersStackParamList } from '../../navigation/types';
 
@@ -50,6 +51,23 @@ export function OrdersScreen({ navigation }: Props) {
       refresh(true);
     }, [refresh]),
   );
+
+  // Check for new orders every 10 s while the app is open (also while an order's details are open on top),
+  // and straight away when the app comes back to the foreground. Push notifications come later.
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (AppState.currentState === 'active') refresh(true, true);
+    }, POLL_MS);
+    const subscription = AppState.addEventListener('change', state => {
+      if (state === 'active') refresh(true, true);
+    });
+    return () => {
+      clearInterval(timer);
+      subscription.remove();
+    };
+  }, [refresh]);
+
+  const alert = useNewOrderAlert(orders, !loading);
 
   const day = useMemo(() => indiaDay(offset), [offset]);
 
@@ -113,6 +131,26 @@ export function OrdersScreen({ navigation }: Props) {
         </>
       ) : null}
 
+      {alert.latest ? (
+        <View style={styles.alert} accessibilityRole="alert">
+          <Pressable
+            style={styles.alertMain}
+            onPress={() => {
+              const id = alert.latest?.id;
+              alert.dismiss();
+              if (id) navigation.navigate('OrderDetails', { orderId: id });
+            }}
+          >
+            <Text style={styles.alertTitle}>🔔 New order #{alert.latest.orderNumber}</Text>
+            <Text style={styles.alertText} numberOfLines={1}>
+              {[alert.latest.customerName, formatSlot(alert.latest.scheduledFor, now)].filter(Boolean).join(' · ')} · tap to view
+            </Text>
+          </Pressable>
+          <Pressable onPress={alert.dismiss} accessibilityLabel="Dismiss" style={styles.alertClose}>
+            <Text style={styles.alertCloseLabel}>✕</Text>
+          </Pressable>
+        </View>
+      ) : null}
       {tab === 'orders' ? (
         <View style={styles.body}>
           <DatePager
@@ -170,7 +208,46 @@ export function OrdersScreen({ navigation }: Props) {
   );
 }
 
+const POLL_MS = 10_000;
+
 const styles = StyleSheet.create({
+  alert: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 12,
+    marginTop: 10,
+    borderRadius: 14,
+    backgroundColor: '#1f9d55',
+    shadowColor: '#101828',
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  alertMain: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingLeft: 16,
+    gap: 2,
+  },
+  alertTitle: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  alertText: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  alertClose: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  alertCloseLabel: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '800',
+  },
   canvas: {
     backgroundColor: '#F4F6F8',
   },
