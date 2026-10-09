@@ -46,6 +46,15 @@ export function putCategoryOrder(token: string, categoryIds: string[]) {
   });
 }
 
+/** One category's dish ids, top to bottom. */
+export function putItemOrder(token: string, itemIds: string[]) {
+  return request<void>('/api/vendor/menu/item-order', {
+    method: 'PUT',
+    token,
+    body: { itemIds },
+  });
+}
+
 export function deleteMenuItem(token: string, itemId: string) {
   return request<void>(`/api/vendor/menu/items/${itemId}`, {
     method: 'DELETE',

@@ -8,6 +8,7 @@ import in.foodcart.data.VendorEntity;
 import in.foodcart.data.VendorRepository;
 import in.foodcart.service.AuthService;
 import in.foodcart.service.CategoryOrder;
+import in.foodcart.service.DishOrder;
 import in.foodcart.service.MenuItemDetails;
 import org.springframework.web.bind.annotation.*;
 
@@ -40,6 +41,12 @@ public class VendorMenuLayoutController {
     vendor.categoryOrder = CategoryOrder.clean(body.get("categoryIds"), known);
     vendor.updatedAt = Instant.now();
     return vendors.save(vendor).categoryOrder;
+  }
+
+  /** Body: {"itemIds": [...]}: one category's dishes, top to bottom. */
+  @PutMapping("/item-order")
+  public void itemOrder(@RequestHeader("Authorization") String header, @RequestBody Map<String, List<String>> body) {
+    items.saveAll(DishOrder.apply(items.findByVendorIdOrderBySortOrder(auth.actor(header, "VENDOR")), body.get("itemIds")));
   }
 
   /** Body: {"special": true|false}. */

@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  FlatList,
   Image,
   Pressable,
   ScrollView,
+  SectionList,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { deleteMenuItem, getVendorMenu, patchItemAvailability, patchItemSpecial, putCategoryOrder } from '../../api/menu';
+import { deleteMenuItem, getVendorMenu, patchItemAvailability, patchItemSpecial, putCategoryOrder, putItemOrder } from '../../api/menu';
 import { isAuthFailure, mediaUrl } from '../../api/client';
 import { EmptyState } from '../../components/EmptyState';
 import { ErrorState } from '../../components/ErrorState';
@@ -19,7 +19,7 @@ import { useFrameOverlay } from '../../components/Screen';
 import { useAuth } from '../../state/AuthContext';
 import { colors } from '../../theme';
 import type { FoodType, MenuCategory, MenuItem } from '../../types';
-import { ArrangeMenuSheet } from './ArrangeMenuSheet';
+import { ArrangeSheet, type ArrangeRow } from './ArrangeSheet';
 import { DishFormSheet, type DishFormMode } from './DishFormSheet';
 import {
   CopyDishIcon,
@@ -73,7 +73,7 @@ export function MenuPanel() {
   const [availability, setAvailability] = useState<Availability>('ALL');
   const [statusOpen, setStatusOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<MenuItem | null>(null);
-  const [arranging, setArranging] = useState(false);
+  const [arranging, setArranging] = useState<{ categoryId: string | null; name: string } | 'categories' | null>(null);
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -169,11 +169,41 @@ export function MenuPanel() {
     }
   }
 
-  async function saveOrder(categoryIds: string[]) {
+  async function saveOrder(ids: string[]) {
     if (!token) return;
-    await putCategoryOrder(token, categoryIds);
-    setArranging(false);
+    if (arranging === 'categories') await putCategoryOrder(token, ids);
+    else await putItemOrder(token, ids);
+    setArranging(null);
     await load();
+  }
+
+  // The list is grouped like the storefront: categories in the vendor's order, dishes in their order inside each.
+  const known = new Set(categories.map(category => category.id));
+  const sections = [
+    ...categories.map(category => ({ id: category.id as string | null, name: category.name })),
+    { id: null, name: 'Other' },
+  ]
+    .map(category => {
+      const inCategory = (item: MenuItem) => (category.id ? item.categoryId === category.id : !item.categoryId || !known.has(item.categoryId));
+      return { ...category, total: items.filter(inCategory).length, data: shown.filter(inCategory) };
+    })
+    .filter(section => section.data.length > 0);
+
+  function arrangeRows(): ArrangeRow[] {
+    if (arranging === 'categories') {
+      return categories.map(category => {
+        const count = items.filter(item => item.categoryId === category.id).length;
+        return { id: category.id, name: category.name, detail: count === 0 ? 'No dishes' : `${count} ${count === 1 ? 'dish' : 'dishes'}`, dimmed: count === 0 };
+      });
+    }
+    const section = sections.find(entry => entry.id === arranging?.categoryId);
+    const dishes = items.filter(item => (section?.id ? item.categoryId === section.id : !item.categoryId || !known.has(item.categoryId)));
+    return dishes.map(item => ({
+      id: item.id,
+      name: item.name,
+      detail: [rupees(item.price), item.special ? '★ Special' : '', item.available ? '' : 'Paused'].filter(Boolean).join(' · '),
+      dimmed: !item.available,
+    }));
   }
 
   return (
@@ -184,8 +214,8 @@ export function MenuPanel() {
           <Text style={styles.title}>Your dishes</Text>
         </View>
         <View style={styles.titleActions}>
-          <Pressable accessibilityRole="button" onPress={() => setArranging(true)} style={styles.arrange}>
-            <Text style={styles.arrangeLabel}>⇅ Arrange</Text>
+          <Pressable accessibilityRole="button" onPress={() => setArranging('categories')} style={styles.arrange}>
+            <Text style={styles.arrangeLabel}>⇅ Categories</Text>
           </Pressable>
           <Pressable onPress={() => setSheet({ mode: 'add' })} style={styles.add}>
             <Text style={styles.addLabel}>+ Dish</Text>
@@ -247,11 +277,29 @@ export function MenuPanel() {
       ) : error && items.length === 0 ? (
         <ErrorState message={error} />
       ) : (
-        <FlatList
-          data={shown}
+        <SectionList
+          sections={sections}
           keyExtractor={item => item.id}
+          stickySectionHeadersEnabled={false}
           contentContainerStyle={styles.list}
           ListEmptyComponent={<EmptyState message="No dishes match these filters." />}
+          renderSectionHeader={({ section }) => (
+            <View style={styles.sectionHead}>
+              <Text style={styles.sectionTitle}>
+                {section.name} <Text style={styles.sectionCount}>· {section.total}</Text>
+              </Text>
+              {section.total > 1 ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Arrange ${section.name}`}
+                  onPress={() => setArranging({ categoryId: section.id, name: section.name })}
+                  style={styles.sectionArrange}
+                >
+                  <Text style={styles.sectionArrangeLabel}>⇅ Arrange</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          )}
           renderItem={({ item }) => {
             const types = typeCount(item);
             return (
@@ -324,7 +372,17 @@ export function MenuPanel() {
         />
       )}
       {arranging ? (
-        <ArrangeMenuSheet categories={categories} items={items} onSave={saveOrder} onClose={() => setArranging(false)} />
+        <ArrangeSheet
+          title={arranging === 'categories' ? 'Arrange categories' : `Arrange ${arranging.name}`}
+          hint={
+            arranging === 'categories'
+              ? 'Customers see your categories in this order. Categories without dishes stay hidden.'
+              : `Customers see the dishes in ${arranging.name} in this order.`
+          }
+          rows={arrangeRows()}
+          onSave={saveOrder}
+          onClose={() => setArranging(null)}
+        />
       ) : null}
       {pendingDelete ? (
         <View style={styles.confirmBackdrop}>
@@ -394,6 +452,34 @@ const styles = StyleSheet.create({
   arrangeLabel: {
     color: colors.header,
     fontSize: 12,
+    fontWeight: '700',
+  },
+  sectionHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 6,
+  },
+  sectionTitle: {
+    color: colors.title,
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  sectionCount: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  sectionArrange: {
+    borderWidth: 1,
+    borderColor: '#b9cbdb',
+    borderRadius: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  sectionArrangeLabel: {
+    color: colors.header,
+    fontSize: 11,
     fontWeight: '700',
   },
   star: {

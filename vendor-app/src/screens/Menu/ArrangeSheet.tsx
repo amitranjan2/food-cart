@@ -1,24 +1,27 @@
 import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../../theme';
-import type { MenuCategory, MenuItem } from '../../types';
 
-/** Moves categories up and down; the storefront shows them in this order. */
-export function ArrangeMenuSheet({
-  categories,
-  items,
+export type ArrangeRow = { id: string; name: string; detail: string; dimmed?: boolean };
+
+/** Moves rows (categories, or the dishes of one category) up and down; the storefront shows them in this order. */
+export function ArrangeSheet({
+  title,
+  hint,
+  rows,
   onSave,
   onClose,
 }: {
-  categories: MenuCategory[];
-  items: MenuItem[];
-  onSave: (categoryIds: string[]) => Promise<void>;
+  title: string;
+  hint: string;
+  rows: ArrangeRow[];
+  onSave: (ids: string[]) => Promise<void>;
   onClose: () => void;
 }) {
-  const [order, setOrder] = useState(categories);
+  const [order, setOrder] = useState(rows);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const changed = order.some((category, index) => category.id !== categories[index]?.id);
+  const changed = order.some((row, index) => row.id !== rows[index]?.id);
 
   function move(index: number, by: -1 | 1) {
     setOrder(current => {
@@ -33,7 +36,7 @@ export function ArrangeMenuSheet({
     try {
       setBusy(true);
       setError('');
-      await onSave(order.map(category => category.id));
+      await onSave(order.map(row => row.id));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save the order');
     } finally {
@@ -45,21 +48,20 @@ export function ArrangeMenuSheet({
     <Modal transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
       <View style={styles.sheet}>
-        <Text style={styles.title}>Arrange menu</Text>
-        <Text style={styles.hint}>Customers see your categories in this order. Categories without dishes stay hidden.</Text>
+        <Text style={styles.title}>{title}</Text>
+        <Text style={styles.hint}>{hint}</Text>
         <ScrollView style={styles.list} contentContainerStyle={styles.listBody}>
-          {order.map((category, index) => {
-            const count = items.filter(item => item.categoryId === category.id).length;
+          {order.map((row, index) => {
             return (
-              <View key={category.id} style={[styles.row, count === 0 && styles.rowEmpty]}>
+              <View key={row.id} style={[styles.row, row.dimmed && styles.rowEmpty]}>
                 <Text style={styles.position}>{index + 1}</Text>
                 <View style={styles.copy}>
-                  <Text style={styles.name}>{category.name}</Text>
-                  <Text style={styles.count}>{count === 0 ? 'No dishes' : `${count} ${count === 1 ? 'dish' : 'dishes'}`}</Text>
+                  <Text style={styles.name} numberOfLines={1}>{row.name}</Text>
+                  <Text style={styles.count}>{row.detail}</Text>
                 </View>
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={`Move ${category.name} up`}
+                  accessibilityLabel={`Move ${row.name} up`}
                   disabled={index === 0}
                   onPress={() => move(index, -1)}
                   style={[styles.move, index === 0 && styles.moveOff]}
@@ -68,7 +70,7 @@ export function ArrangeMenuSheet({
                 </Pressable>
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={`Move ${category.name} down`}
+                  accessibilityLabel={`Move ${row.name} down`}
                   disabled={index === order.length - 1}
                   onPress={() => move(index, 1)}
                   style={[styles.move, index === order.length - 1 && styles.moveOff]}
