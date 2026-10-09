@@ -25,10 +25,11 @@ export function CategoryMenu({
     const dock = document.querySelector('.store-search-dock');
     if (!section || !scroller) return;
 
-    function update() {
+    // An arrow function keeps the null check above; a hoisted function declaration loses it.
+    const update = () => {
       const top = dock ? dock.getBoundingClientRect().bottom : 0;
       setPastCategories(section.getBoundingClientRect().bottom <= top + 8);
-    }
+    };
 
     update();
     const io = new IntersectionObserver(() => update(), {

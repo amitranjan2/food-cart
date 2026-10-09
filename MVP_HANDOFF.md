@@ -85,7 +85,8 @@ Order matters: **S2.1 and S2.2 ⛔ block S2.3**.
 - [ ] **S4.1** Order number is `1000 + orders.count() + 1` (`CheckoutService`): global and can collide. Use a per-vendor atomic daily counter.
 - [ ] **S4.2** CORS `allowedMethods` lacks `DELETE` (`CorsConfig`).
 - [ ] **S4.3** `NoSuchElementException` returns 500. A bad store link stays on "Loading…" forever. Show a closed-vendor banner.
-- [ ] **S4.4** `next.config.mjs` has `ignoreBuildErrors: true`, hiding 2 `tsc` errors: `[slug]/components/CategoryMenu.tsx:30` (`section` possibly null), `vendor/page.tsx:23`. Fix them, then remove the flag. (The third, the `query` prop, was the missing search bar: fixed in S4.11.) This flag is how S4.11 slipped through, so it is worth doing early.
+- [x] **S4.4** Type errors now fail the build (commit tagged `S4.4`, Oct 9). Removed `ignoreBuildErrors` from `next.config.mjs`; fixed the last 2 errors (`CategoryMenu.tsx` and `vendor/page.tsx`: hoisted function declarations lost a null check, now arrow functions).
+  - Verified: `tsc` clean; `next build` passes; a deliberately planted type error makes `next build` fail ("Failed to compile"), then removed.
 - [ ] **S4.5** Backend Dockerfile, MongoDB Atlas, HTTPS. Vendor app on the web uses `window.location.origin` for the API.
 - [ ] **S4.6** One brand: "FoodCart" vs "Supr-Mama".
 - [ ] **S4.7** Remove dead `OrderService` (unused duplicate of `CheckoutService`).

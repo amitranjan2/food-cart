@@ -1,3 +1,3 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = { reactStrictMode: true, typescript: { ignoreBuildErrors: true } };
+const nextConfig = { reactStrictMode: true };
 export default nextConfig;
