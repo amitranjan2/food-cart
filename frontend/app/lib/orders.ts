@@ -6,7 +6,8 @@ export type CustomerOrder = {
   type: 'PICKUP' | 'DINE_IN';
   /** Start of the chosen slot, e.g. "2026-10-09T09:30:00Z". */
   scheduledFor: string;
-  pickupCode?: string | null;
+  /** The customer's handover code; whoever hands the order over must enter it. */
+  handover?: { code?: string | null; verifiedAt?: string | null } | null;
   total: number;
   items: { menuItemId: string; name: string; portion?: string; summary?: string | null; quantity: number; lineTotal: number }[];
   payment?: { status: string } | null;

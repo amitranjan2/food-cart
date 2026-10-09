@@ -11,7 +11,7 @@ export const ORDER_LIST_ACTION: Partial<Record<OrderStatus, string>> = {
   PLACED: 'Accept',
   ACCEPTED: 'Mark Prepared',
   PREPARING: 'Mark Ready',
-  READY: 'Mark Delivered',
+  READY: 'Hand Over',
 };
 
 export const ORDER_CHIP: Record<OrderStatus, { label: string; background: string; color: string }> = {
@@ -47,5 +47,5 @@ export const ORDER_DETAIL_ACTION: Partial<Record<OrderStatus, string>> = {
   PLACED: 'ACCEPT ORDER',
   ACCEPTED: 'MARK PREPARING',
   PREPARING: 'MARK READY',
-  READY: 'MARK COMPLETED',
+  READY: 'HAND OVER (ENTER CODE)',
 };

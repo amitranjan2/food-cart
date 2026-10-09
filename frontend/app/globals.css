@@ -319,3 +319,16 @@ html.scroll-locked,html.scroll-locked body,.storefront.scroll-locked{overflow:hi
 .status-map{flex:none;width:40px;height:40px;border-radius:12px;background:#e8edf1;color:#30404e;display:grid;place-items:center}
 .status-paid{margin:0;font-size:var(--fs-xs);font-weight:800;color:#167442}
 .status-help{justify-self:center;margin-top:4px;padding:12px 20px;border-radius:12px;background:#30404e;color:#fff;font-size:var(--fs-sm);font-weight:800;text-decoration:none}
+.home-title{padding-left:8px}
+.home-vendor{grid-template-columns:64px minmax(0,1fr) auto;align-items:center;gap:14px;color:#30404e;text-decoration:none}
+.home-vendor-photo{width:64px;height:64px;grid-row:auto}
+.home-vendor-copy{display:grid;gap:3px;min-width:0}
+.home-vendor-copy b{font-size:var(--fs-md);font-weight:800}
+.home-vendor-copy span{font-size:var(--fs-sm);font-weight:600;color:#5d6b76;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.home-vendor-copy .home-open{color:#167442;font-weight:800}
+.home-vendor-copy .home-closed{color:#b42318;font-weight:800}
+.home-vendor-go{font-size:28px;font-weight:700;color:#8b969f}
+.home-empty{display:grid;justify-items:center;gap:8px;padding:40px 16px;text-align:center}
+.home-empty-icon{margin:0;font-size:44px;line-height:1;color:#8b969f}
+.home-empty h2{margin:0;font-size:var(--fs-lg);font-weight:800}
+.home-empty p{margin:0;max-width:300px;font-size:var(--fs-sm);font-weight:600;color:#5d6b76;line-height:1.45}

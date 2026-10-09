@@ -1,3 +1,83 @@
 'use client';
-import Link from 'next/link';import{useEffect,useState}from'react';import{request,Vendor}from'./lib/api';
-export default function Home(){const[vendors,setVendors]=useState<Vendor[]>([]);const[error,setError]=useState('');useEffect(()=>{request<Vendor[]>('/api/public/vendors').then(setVendors).catch(e=>setError(e.message))},[]);return <main className="shell"><div className="mx-auto max-w-6xl px-5 pb-12 md:px-10"><header className="flex items-center justify-between py-6 md:py-8"><b className="text-2xl">foodcart<span className="text-clay">.</span></b><nav className="hidden gap-8 text-sm font-semibold text-stone-500 md:flex"><a href="#vendors">Explore nearby</a><a href="#how">How it works</a></nav><Link href="/vendor" className="rounded-full border border-ink px-4 py-2 text-xs font-bold">VENDOR LOGIN</Link></header><section className="relative overflow-hidden rounded-[36px] bg-[#f05e3f] p-7 text-[#102820] md:p-12"><div className="absolute -right-8 -top-10 h-52 w-52 rounded-full bg-lime"/><div className="relative grid items-end gap-8 md:grid-cols-[1fr_.8fr]"><div><p className="text-xs font-black tracking-[.2em]">THE GOOD STUFF IS NEARBY</p><h1 className="mt-5 max-w-2xl text-5xl leading-[.9] md:text-7xl">Skip the app.<br/>Meet the <i>cart.</i></h1><p className="mt-6 max-w-md text-base font-medium leading-7">Street food deserves its own rhythm. Order straight from people who make it, then pick it up hot.</p><a href="#vendors" className="mt-8 inline-block rounded-full bg-[#102820] px-6 py-4 text-xs font-black tracking-wider text-white">FIND YOUR FAVOURITE ↓</a></div><div className="hidden rounded-[28px] bg-[#f7dfc5] p-6 md:block"><p className="text-6xl">🥟</p><p className="mt-12 text-xl font-bold leading-tight">No delivery layers.<br/>No platform noise.</p><p className="mt-3 text-sm">Just your local food counter, online.</p></div></div></section><section id="vendors" className="mt-12 md:mt-16"><div className="flex items-end justify-between"><div><p className="text-xs font-bold tracking-[.16em] text-stone-500">OPEN FOR PICKUP</p><h2 className="mt-2 text-3xl md:text-4xl">Around your corner</h2></div><span className="rounded-full bg-lime px-3 py-2 text-xs font-bold">{vendors.length} OPEN</span></div>{error?<p className="mt-5 text-sm text-red-700">{error}</p>:<div className="mt-6 grid gap-4 md:grid-cols-2">{vendors.map((v,index)=><Link key={v.id} href={'/'+v.slug} className={'group flex min-h-52 flex-col justify-between rounded-[26px] p-6 transition hover:-translate-y-1 '+(index%2?'bg-[#102820] text-white':'bg-[#f7dfc5] text-ink')}><div className="flex justify-between"><span className="text-4xl">{index%2?'🌶️':'🥟'}</span><span className={'h-fit rounded-full px-3 py-1 text-[10px] font-black tracking-widest '+(index%2?'bg-lime text-ink':'bg-white')}>● OPEN</span></div><div><p className={'text-xs '+(index%2?'text-stone-300':'text-stone-500')}>{v.address}</p><h3 className="mt-2 text-3xl font-bold">{v.name}</h3><p className={'mt-2 text-sm '+(index%2?'text-stone-300':'text-stone-600')}>{v.description}</p><span className="mt-5 inline-block text-xs font-black tracking-wider">VIEW MENU →</span></div></Link>)}</div>}</section><section id="how" className="mt-12 grid gap-8 border-t-2 border-ink pt-8 md:mt-16 md:grid-cols-3">{[['01','Pick a familiar counter'],['02','Order before you arrive'],['03','Collect it fresh']].map(([n,t])=><div key={n}><p className="text-xs font-black tracking-widest text-clay">{n}</p><b className="mt-3 block text-xl">{t}</b></div>)}</section></div></main>}
+
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { request, type Vendor } from './lib/api';
+import { savedVendorSlugs } from './lib/savedVendors';
+import { storedSession } from './lib/session';
+
+type Saved = { vendor: Vendor; totalOrders: number };
+
+function VendorPhoto({ src }: { src?: string }) {
+  const [broken, setBroken] = useState(false);
+  return (
+    <div className="cart-line-photo home-vendor-photo">
+      {src && !broken ? <img src={src} alt="" onError={() => setBroken(true)} /> : <span className="media-fallback" />}
+    </div>
+  );
+}
+
+/**
+ * The customer's own vendors: every storefront they have opened (QR scan or link), most recent first.
+ * There is no public list of all vendors; in the web launch customers arrive through a vendor's link.
+ */
+export default function Home() {
+  const [saved, setSaved] = useState<Saved[] | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    async function load() {
+      const token = storedSession();
+      const fromAccount: Saved[] = token
+        ? await request<{ vendor: Vendor; totalOrders: number }[]>('/api/customers/me/recent-vendors', {}, token).catch(() => [])
+        : [];
+      const known = new Set(fromAccount.map(entry => entry.vendor.slug));
+      // Vendors opened on this phone before signing in, or when the account call failed.
+      const localOnly = await Promise.all(
+        savedVendorSlugs()
+          .filter(slug => !known.has(slug))
+          .map(slug => request<Vendor>('/api/public/vendors/' + slug).then(vendor => ({ vendor, totalOrders: 0 })).catch(() => null)),
+      );
+      if (active) setSaved([...fromAccount, ...localOnly.filter((entry): entry is Saved => entry !== null)]);
+    }
+    load();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  return (
+    <main className="storefront">
+      <header className="cart-header">
+        <div className="cart-title home-title"><h1>Your vendors</h1></div>
+        <div className="store-scallop" aria-hidden="true">{Array.from({ length: 18 }, (_, index) => <span key={index} />)}</div>
+      </header>
+      <div className="status-body">
+        {saved === null ? (
+          <p className="status-message">Loading…</p>
+        ) : saved.length === 0 ? (
+          <div className="home-empty">
+            <p className="home-empty-icon" aria-hidden="true">▢</p>
+            <h2>No vendors yet</h2>
+            <p>Scan a vendor’s QR code at their stall to open their menu. Vendors you open are saved here.</p>
+          </div>
+        ) : (
+          saved.map(({ vendor, totalOrders }) => (
+            <Link key={vendor.id} href={'/' + vendor.slug} className="status-card home-vendor">
+              <VendorPhoto src={vendor.logoUrl || vendor.coverImageUrl} />
+              <div className="home-vendor-copy">
+                <b>{vendor.name}</b>
+                {vendor.address ? <span>{vendor.address}</span> : null}
+                <span className={vendor.status === 'OPEN' ? 'home-open' : 'home-closed'}>
+                  {vendor.status === 'OPEN' ? 'Open now' : 'Closed'}
+                  {totalOrders > 0 ? ` · ${totalOrders} ${totalOrders === 1 ? 'order' : 'orders'}` : ''}
+                </span>
+              </div>
+              <span className="home-vendor-go" aria-hidden="true">›</span>
+            </Link>
+          ))
+        )}
+      </div>
+    </main>
+  );
+}

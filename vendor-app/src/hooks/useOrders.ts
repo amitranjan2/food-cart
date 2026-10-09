@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { getVendorOrders, patchOrderStatus } from '../api/orders';
+import { getVendorOrders, handOverOrder, patchOrderStatus } from '../api/orders';
 import { isAuthFailure } from '../api/client';
 import { useAuth } from '../state/AuthContext';
 import type { Order, OrderStatus } from '../types';
@@ -58,7 +58,17 @@ export function useOrders() {
     [token],
   );
 
-  return { orders, loading, refreshing, error, refresh, advanceStatus };
+  /** READY orders complete only through the customer's handover code. */
+  const handOver = useCallback(
+    async (order: Order, code: string) => {
+      if (!token) return;
+      await handOverOrder(token, order.id, code);
+      setOrders(await getVendorOrders(token));
+    },
+    [token],
+  );
+
+  return { orders, loading, refreshing, error, refresh, advanceStatus, handOver };
 }
 
 export function filterOrders(

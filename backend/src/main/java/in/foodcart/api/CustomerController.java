@@ -51,10 +51,31 @@ public class CustomerController {
     return orders.findByCustomerIdOrderByCreatedAtDesc(auth.actor(h, "CUSTOMER"));
   }
 
+  record SaveVendor(String slug) {}
+
+  /** Saves a vendor for this customer when they open its storefront (QR scan or link). Saved vendors stay on their home page. */
+  @PostMapping("/vendors")
+  Map<String, Object> save(@RequestHeader("Authorization") String h, @RequestBody SaveVendor input) {
+    String customerId = auth.actor(h, "CUSTOMER");
+    VendorEntity v = vendors.findBySlug(input.slug() == null ? "" : input.slug()).orElseThrow(() -> new IllegalArgumentException("Vendor not found"));
+    CustomerVendorHistoryEntity x = history.findByCustomerIdAndVendorId(customerId, v.id).orElseGet(() -> {
+      CustomerVendorHistoryEntity fresh = new CustomerVendorHistoryEntity();
+      fresh.customerId = customerId;
+      fresh.vendorId = v.id;
+      return fresh;
+    });
+    java.time.Instant now = java.time.Instant.now();
+    if (x.firstVisitedAt == null) x.firstVisitedAt = now;
+    x.lastVisitedAt = now;
+    history.save(x);
+    return Map.of("saved", true);
+  }
+
+  /** The customer's saved vendors, most recently visited first. */
   @GetMapping("/recent-vendors")
   List<Map<String, Object>> recent(@RequestHeader("Authorization") String h) {
     List<Map<String, Object>> result = new ArrayList<>();
-    for (CustomerVendorHistoryEntity x : history.findByCustomerIdOrderByLastOrderedAtDesc(auth.actor(h, "CUSTOMER"))) {
+    for (CustomerVendorHistoryEntity x : history.findByCustomerIdOrderByLastVisitedAtDesc(auth.actor(h, "CUSTOMER"))) {
       // A deleted vendor is skipped rather than crashing the whole list.
       vendors.findById(x.vendorId).ifPresent(v -> {
         Map<String, Object> row = new LinkedHashMap<>();

@@ -171,6 +171,42 @@ class CheckoutServiceTest {
 
   @Test
   void everyOrderGetsAFourDigitHandoverCode() {
-    assertTrue(checkout.create("c1", request("160")).pickupCode.matches("[0-9]{4}"));
+    assertTrue(checkout.create("c1", request("160")).handover.code.matches("[0-9]{4}"));
+  }
+
+  private OrderEntity readyOrder() {
+    OrderEntity o = new OrderEntity();
+    o.id = "o3";
+    o.vendorId = "v1";
+    o.status = OrderStatus.READY;
+    o.handover = new Handover();
+    o.handover.code = "2905";
+    when(orders.findByIdAndVendorId("o3", "v1")).thenReturn(Optional.of(o));
+    return o;
+  }
+
+  @Test
+  void theVendorCompletesAnOrderOnlyWithTheCustomersCode() {
+    OrderEntity o = readyOrder();
+    IllegalArgumentException wrong = assertThrows(IllegalArgumentException.class, () -> checkout.handOver("v1", "o3", "1111"));
+    assertEquals("Wrong code. 4 tries left.", wrong.getMessage());
+    assertEquals(OrderStatus.READY, o.status);
+    checkout.handOver("v1", "o3", "2905");
+    assertEquals(OrderStatus.COMPLETED, o.status);
+    assertEquals("VENDOR", o.handover.verifiedByRole);
+    assertNotNull(o.completedAt);
+  }
+
+  @Test
+  void markingCompletedWithoutTheCodeIsRefused() {
+    readyOrder();
+    IllegalStateException e = assertThrows(IllegalStateException.class, () -> checkout.status("v1", "o3", OrderStatus.COMPLETED));
+    assertEquals("Enter the customer's handover code to complete this order.", e.getMessage());
+  }
+
+  @Test
+  void ordersThatAreNotReadyCannotBeHandedOver() {
+    readyOrder().status = OrderStatus.PLACED;
+    assertThrows(IllegalStateException.class, () -> checkout.handOver("v1", "o3", "2905"));
   }
 }

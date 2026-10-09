@@ -10,6 +10,7 @@ import { EmptyState } from '../../components/EmptyState';
 import { ErrorState } from '../../components/ErrorState';
 import { Header } from '../../components/Header';
 import { LoadingState } from '../../components/LoadingState';
+import { HandoverSheet } from '../../components/HandoverSheet';
 import { OrderCard } from '../../components/OrderCard';
 import { Screen } from '../../components/Screen';
 import { MenuPanel } from '../Menu/MenuPanel';
@@ -27,7 +28,9 @@ type Props = NativeStackScreenProps<OrdersStackParamList, 'OrdersList'>;
 
 export function OrdersScreen({ navigation }: Props) {
   const { vendor, token, logout, setVendor } = useAuth();
-  const { orders, loading, refreshing, error, refresh, advanceStatus } = useOrders();
+  const { orders, loading, refreshing, error, refresh, advanceStatus, handOver } = useOrders();
+  const [handoverId, setHandoverId] = useState<string | null>(null);
+  const handoverOrder = orders.find(item => item.id === handoverId);
   const [menuOpen, setMenuOpen] = useState(false);
   const [tab, setTab] = useState<'menu' | 'orders'>('orders');
   const [offset, setOffset] = useState(0);
@@ -143,7 +146,7 @@ export function OrdersScreen({ navigation }: Props) {
                   busy={busyId === item.id}
                   now={now}
                   onPress={() => navigation.navigate('OrderDetails', { orderId: item.id })}
-                  onAdvance={() => advance(item.id)}
+                  onAdvance={() => (item.status === 'READY' ? setHandoverId(item.id) : advance(item.id))}
                   onReject={() => advance(item.id, 'REJECTED')}
                 />
               )}
@@ -154,6 +157,16 @@ export function OrdersScreen({ navigation }: Props) {
         <MenuPanel />
       )}
       <BottomNav tab={tab} onChange={setTab} />
+      {handoverOrder ? (
+        <HandoverSheet
+          order={handoverOrder}
+          onClose={() => setHandoverId(null)}
+          onSubmit={async code => {
+            await handOver(handoverOrder, code);
+            setHandoverId(null);
+          }}
+        />
+      ) : null}
     </Screen>
   );
 }

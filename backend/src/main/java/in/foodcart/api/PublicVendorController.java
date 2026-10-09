@@ -1,7 +1,6 @@
 package in.foodcart.api;
 
 import in.foodcart.data.*;
-import in.foodcart.domain.VendorStatus;
 import in.foodcart.service.PublicMenuView;
 import in.foodcart.service.slots.SlotRules;
 import org.springframework.http.ResponseEntity;
@@ -27,10 +26,8 @@ public class PublicVendorController {
     this.catalog = catalog;
   }
 
-  @GetMapping
-  public List<PublicVendor> vendors() {
-    return vendors.findByStatusOrderByNameAsc(VendorStatus.OPEN).stream().map(PublicVendor::from).toList();
-  }
+  // No public list of all vendors: customers reach a vendor through its own link or QR code, and the home page
+  // shows only the vendors that customer has opened (/api/customers/me/recent-vendors).
 
   @GetMapping("/{slug}")
   public ResponseEntity<PublicVendor> vendor(@PathVariable String slug) {

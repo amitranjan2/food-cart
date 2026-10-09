@@ -132,8 +132,12 @@ public class PaymentService {
       x.vendorId = o.vendorId;
       return x;
     });
+    Instant now = Instant.now(clock);
     h.totalOrders++;
-    h.lastOrderedAt = Instant.now(clock);
+    if (h.firstOrderedAt == null) h.firstOrderedAt = now;
+    h.lastOrderedAt = now;
+    if (h.firstVisitedAt == null) h.firstVisitedAt = now;
+    h.lastVisitedAt = now;
     history.save(h);
   }
 }

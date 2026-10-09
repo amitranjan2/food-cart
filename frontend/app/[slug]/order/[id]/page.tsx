@@ -155,7 +155,7 @@ export default function OrderStatus({ params }: { params: { slug: string; id: st
           <section className="status-card">
             <div className="status-card-head">
               <h2>{order.type === 'DINE_IN' ? 'Dine-in details' : 'Pick-up details'}</h2>
-              {order.status === 'READY' && order.pickupCode ? <span className="status-code" aria-label={'Code ' + order.pickupCode}>{order.pickupCode}</span> : null}
+              {order.status === 'READY' && order.handover?.code ? <span className="status-code" aria-label={'Code ' + order.handover.code}>{order.handover.code}</span> : null}
             </div>
             <div className="status-place">
               <div>

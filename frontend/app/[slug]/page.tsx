@@ -10,6 +10,7 @@ import { ItemCustomizer } from './components/ItemCustomizer';
 import { Menu } from './components/Menu';
 import { useRouter } from 'next/navigation';
 import { storedSession, storeSession } from '../lib/session';
+import { saveVendor, syncSavedVendors } from '../lib/savedVendors';
 import type { CustomerOrder, OrderView } from '../lib/orders';
 import { TestCheckout } from './components/TestCheckout';
 import { openCheckout, type CheckoutOutcome, type StartedPayment } from '../lib/payments';
@@ -130,6 +131,11 @@ export default function Store({ params }: { params: { slug: string } }) {
     setOpen(true);
   }
 
+  // Opening a storefront (QR scan or link) saves the vendor for this customer's home page.
+  useEffect(() => {
+    saveVendor(params.slug, storedSession() || undefined);
+  }, [params.slug]);
+
   // A returning customer is recognised without a new OTP; an expired or revoked session is forgotten.
   useEffect(() => {
     const token = storedSession();
@@ -170,6 +176,7 @@ export default function Store({ params }: { params: { slug: string } }) {
     setCustomerName(profile.name ?? '');
     setCustomerToken(session.token);
     storeSession(session.token);
+    syncSavedVendors(session.token);
   }
 
   async function saveName(name: string) {

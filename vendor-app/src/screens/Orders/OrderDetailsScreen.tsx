@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { HandoverSheet } from '../../components/HandoverSheet';
 import { Header } from '../../components/Header';
 import { LoadingState } from '../../components/LoadingState';
 import { Screen } from '../../components/Screen';
@@ -20,9 +21,10 @@ type Props = NativeStackScreenProps<OrdersStackParamList, 'OrderDetails'>;
 export function OrderDetailsScreen({ navigation, route }: Props) {
   const { orderId } = route.params;
   const { logout } = useAuth();
-  const { orders, loading, refresh, advanceStatus } = useOrders();
+  const { orders, loading, refresh, advanceStatus, handOver } = useOrders();
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [handingOver, setHandingOver] = useState(false);
   const busyRef = useRef(false);
 
   useFocusEffect(
@@ -94,8 +96,8 @@ export function OrderDetailsScreen({ navigation, route }: Props) {
               ) : null}
             </View>
             {order.scheduledFor ? <Text style={styles.slot}>For {formatSlot(order.scheduledFor)}</Text> : null}
-            {order.pickupCode ? (
-              <Text style={styles.code}>Handover code {order.pickupCode} · ask the customer for it before handing over</Text>
+            {order.status === 'READY' ? (
+              <Text style={styles.code}>Ask the customer for the 4-digit code on their order page to hand this over.</Text>
             ) : null}
             <View style={styles.items}>
               {order.items?.map((item, index) => (
@@ -108,7 +110,7 @@ export function OrderDetailsScreen({ navigation, route }: Props) {
             <View style={styles.footer}>
               <Text style={styles.total}>{rupees(order.total)}</Text>
               {action ? (
-                <Pressable disabled={busy} onPress={advance} style={styles.action}>
+                <Pressable disabled={busy} onPress={order.status === 'READY' ? () => setHandingOver(true) : advance} style={styles.action}>
                   <Text style={styles.actionLabel}>{busy ? 'UPDATING…' : action}</Text>
                 </Pressable>
               ) : null}
@@ -117,6 +119,16 @@ export function OrderDetailsScreen({ navigation, route }: Props) {
           </View>
         )}
       </ScrollView>
+      {handingOver && order ? (
+        <HandoverSheet
+          order={order}
+          onClose={() => setHandingOver(false)}
+          onSubmit={async code => {
+            await handOver(order, code);
+            setHandingOver(false);
+          }}
+        />
+      ) : null}
     </Screen>
   );
 }

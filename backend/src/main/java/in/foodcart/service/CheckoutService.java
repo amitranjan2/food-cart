@@ -11,6 +11,7 @@ import in.foodcart.data.VendorRepository;
 import in.foodcart.domain.OrderStatus;
 import in.foodcart.domain.OrderType;
 import in.foodcart.domain.VendorStatus;
+import in.foodcart.service.handover.HandoverRules;
 import in.foodcart.service.payments.PaymentService;
 import in.foodcart.service.slots.SlotRules;
 import org.springframework.stereotype.Service;
@@ -30,7 +31,6 @@ public class CheckoutService {
   private final OrderRepository orders;
   private final CustomerRepository customers;
   private final PaymentService payments;
-  private static final java.security.SecureRandom CODES = new java.security.SecureRandom();
   /** Replaced in tests. */
   Clock clock = Clock.system(SlotRules.ZONE);
 
@@ -93,7 +93,7 @@ public class CheckoutService {
     o.orderNumber = 1000 + orders.count() + 1;
     // Pay first: the vendor only sees the order once the payment is confirmed (PaymentService).
     o.status = OrderStatus.PAYMENT_PENDING;
-    o.pickupCode = String.format("%04d", CODES.nextInt(10_000));
+    o.handover = HandoverRules.issue();
     o.paymentMethod = "ONLINE";
     return orders.save(o);
   }
@@ -112,8 +112,32 @@ public class CheckoutService {
     throw new IllegalStateException("That time slot is no longer available. Please pick another.");
   }
 
+  /**
+   * The vendor enters the code the customer shows; only a matching code completes the order. Delivery partners will
+   * use the same HandoverRules with their own party.
+   */
+  public OrderEntity handOver(String vendorId, String id, String code) {
+    OrderEntity o = orders.findByIdAndVendorId(id, vendorId).orElseThrow(() -> new SecurityException("Order not found"));
+    if (o.status != OrderStatus.READY && o.status != OrderStatus.PREPARING) throw new IllegalStateException("This order isn't ready to hand over.");
+    if (o.handover == null) throw new IllegalStateException("This order has no handover code.");
+    boolean ok = HandoverRules.verify(o.handover, code, new HandoverRules.Party("VENDOR", vendorId), Instant.now(clock));
+    if (!ok) {
+      orders.save(o);
+      int left = HandoverRules.MAX_ATTEMPTS - o.handover.attempts;
+      throw new IllegalArgumentException(left > 0
+          ? "Wrong code. " + left + (left == 1 ? " try" : " tries") + " left."
+          : "Too many wrong codes. Try again in a few minutes, or ask the customer to refresh their order page.");
+    }
+    o.status = OrderStatus.COMPLETED;
+    o.completedAt = Instant.now(clock);
+    return orders.save(o);
+  }
+
   public OrderEntity status(String vendorId, String id, OrderStatus target) {
     OrderEntity o = orders.findByIdAndVendorId(id, vendorId).orElseThrow(() -> new SecurityException("Order not found"));
+    if (target == OrderStatus.COMPLETED && o.handover != null) {
+      throw new IllegalStateException("Enter the customer's handover code to complete this order.");
+    }
     boolean valid = (o.status == OrderStatus.PLACED && (target == OrderStatus.ACCEPTED || target == OrderStatus.REJECTED))
         || (o.status == OrderStatus.ACCEPTED && target == OrderStatus.PREPARING)
         || (o.status == OrderStatus.PREPARING && (target == OrderStatus.READY || target == OrderStatus.COMPLETED))
