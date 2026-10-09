@@ -298,7 +298,7 @@ html.scroll-locked,html.scroll-locked body,.storefront.scroll-locked{overflow:hi
 .test-checkout-sheet .customizer-add{width:100%;height:50px}
 .test-checkout-fail,.test-checkout-close{height:44px;border:0;border-radius:12px;background:#e8edf1;color:#30404e;font:800 14px/1 var(--store-font-body)}
 .test-checkout-close{background:transparent}
-.status-body{display:grid;gap:12px;padding:20px 12px 40px;background:var(--store-paper)}
+.status-body{display:grid;gap:12px;padding:32px 12px 40px;background:var(--store-paper)}
 .status-message{margin:0;padding:14px 16px;border-radius:16px;background:#e8edf1;color:#30404e;font-size:var(--fs-sm);font-weight:700;line-height:1.45}
 .status-card{display:grid;gap:10px;padding:14px 16px;border-radius:16px;background:#fff;box-shadow:0 1px 0 rgba(48,64,78,.06),0 8px 18px rgba(48,64,78,.04)}
 .status-card h2{margin:0;font-size:var(--fs-md);font-weight:800}
