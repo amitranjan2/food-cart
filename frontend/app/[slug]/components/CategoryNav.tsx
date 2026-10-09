@@ -1,7 +1,7 @@
 'use client';
 
-import type { ReactNode } from 'react';
-import type { MenuCategory } from '../../lib/api';
+import { useState, type ReactNode } from 'react';
+import { API, type MenuCategory } from '../../lib/api';
 
 function glyph(name: string): ReactNode {
   const n = name.toLowerCase();
@@ -60,6 +60,20 @@ function glyph(name: string): ReactNode {
   );
 }
 
+/** Approved category art (served by the API under /category-art/); the drawn glyph until then or if it fails to load. */
+function ChipArt({ category }: { category: MenuCategory }) {
+  const [broken, setBroken] = useState(false);
+  const src = category.imageUrl && (/^https?:\/\//i.test(category.imageUrl) ? category.imageUrl : API + category.imageUrl);
+  if (src && !broken) return <img className="cat-chip-art" src={src} alt="" onError={() => setBroken(true)} />;
+  return (
+    <svg viewBox="0 0 72 72" aria-hidden="true">
+      <circle cx="36" cy="36" r="33" fill="none" stroke="currentColor" strokeWidth="1.4" />
+      <circle cx="36" cy="36" r="27" fill="none" stroke="currentColor" strokeWidth="1.2" />
+      {glyph(category.name)}
+    </svg>
+  );
+}
+
 export function CategoryNav({
   categories,
   selectedId,
@@ -84,16 +98,7 @@ export function CategoryNav({
               onClick={() => onSelect(category.id)}
               className={'cat-chip' + (selected ? ' selected' : '')}
             >
-              {category.imageUrl ? (
-                // Approved category art (line drawing on a plate); categories without one get a drawn glyph.
-                <img className="cat-chip-art" src={category.imageUrl} alt="" />
-              ) : (
-                <svg viewBox="0 0 72 72" aria-hidden="true">
-                  <circle cx="36" cy="36" r="33" fill="none" stroke="currentColor" strokeWidth="1.4" />
-                  <circle cx="36" cy="36" r="27" fill="none" stroke="currentColor" strokeWidth="1.2" />
-                  {glyph(category.name)}
-                </svg>
-              )}
+              <ChipArt category={category} />
               <span>{category.name}</span>
             </button>
           );
