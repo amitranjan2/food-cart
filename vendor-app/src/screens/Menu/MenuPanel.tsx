@@ -29,8 +29,11 @@ import {
 } from '../../components/icons/MenuActionIcons';
 import { rupees } from '../../utils/format';
 
-const FOOD_FILTERS: { value: FoodType | 'ALL'; label: string }[] = [
+type FoodFilter = FoodType | 'ALL' | 'SPECIAL';
+
+const FOOD_FILTERS: { value: FoodFilter; label: string }[] = [
   { value: 'ALL', label: 'ALL' },
+  { value: 'SPECIAL', label: '★ SPECIAL' },
   { value: 'VEGAN', label: 'VEGAN' },
   { value: 'VEG', label: 'VEG' },
   { value: 'NON_VEG', label: 'NON VEG' },
@@ -69,7 +72,7 @@ export function MenuPanel() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
-  const [food, setFood] = useState<FoodType | 'ALL'>('ALL');
+  const [food, setFood] = useState<FoodFilter>('ALL');
   const [availability, setAvailability] = useState<Availability>('ALL');
   const [statusOpen, setStatusOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<MenuItem | null>(null);
@@ -119,11 +122,14 @@ export function MenuPanel() {
   useEffect(() => () => setOverlay(null), [setOverlay]);
 
   const shown = items.filter(item => {
-    if (food !== 'ALL' && item.foodType !== food) return false;
+    if (food === 'SPECIAL' ? !item.special : food !== 'ALL' && item.foodType !== food) return false;
     if (availability === 'LIVE' && !item.available) return false;
     if (availability === 'SOLD_OUT' && item.available) return false;
     return item.name.toLowerCase().includes(query.trim().toLowerCase());
   });
+
+  // Arranging is only offered on the full, unfiltered menu, so the vendor always sees every dish they are moving.
+  const unfiltered = food === 'ALL' && availability === 'ALL' && query.trim() === '';
 
   async function removeItem(item: MenuItem) {
     if (!token) return;
@@ -151,7 +157,8 @@ export function MenuPanel() {
     if (!token) return;
     try {
       const saved = await patchItemAvailability(token, item.id, !item.available);
-      setItems(current => current.map(entry => (entry.id === saved.id ? saved : entry)));
+      // Only take the changed flag: the menu response maps older dishes to their catalogue category, this one doesn't.
+      setItems(current => current.map(entry => (entry.id === saved.id ? { ...entry, available: saved.available } : entry)));
     } catch (e) {
       if (isAuthFailure(e)) await logout();
       else setError(e instanceof Error ? e.message : 'Could not update availability');
@@ -162,7 +169,7 @@ export function MenuPanel() {
     if (!token) return;
     try {
       const saved = await patchItemSpecial(token, item.id, !item.special);
-      setItems(current => current.map(entry => (entry.id === saved.id ? saved : entry)));
+      setItems(current => current.map(entry => (entry.id === saved.id ? { ...entry, special: saved.special } : entry)));
     } catch (e) {
       if (isAuthFailure(e)) await logout();
       else setError(e instanceof Error ? e.message : 'Could not update specials');
@@ -214,9 +221,11 @@ export function MenuPanel() {
           <Text style={styles.title}>Your dishes</Text>
         </View>
         <View style={styles.titleActions}>
-          <Pressable accessibilityRole="button" onPress={() => setArranging('categories')} style={styles.arrange}>
-            <Text style={styles.arrangeLabel}>⇅ Categories</Text>
-          </Pressable>
+          {unfiltered ? (
+            <Pressable accessibilityRole="button" onPress={() => setArranging('categories')} style={styles.arrange}>
+              <Text style={styles.arrangeLabel}>⇅ Categories</Text>
+            </Pressable>
+          ) : null}
           <Pressable onPress={() => setSheet({ mode: 'add' })} style={styles.add}>
             <Text style={styles.addLabel}>+ Dish</Text>
           </Pressable>
@@ -282,13 +291,21 @@ export function MenuPanel() {
           keyExtractor={item => item.id}
           stickySectionHeadersEnabled={false}
           contentContainerStyle={styles.list}
-          ListEmptyComponent={<EmptyState message="No dishes match these filters." />}
+          ListEmptyComponent={
+            <EmptyState
+              message={
+                food === 'SPECIAL' && !items.some(item => item.special)
+                  ? 'No specials yet. Tap ☆ on a dish photo to show it in your storefront’s specials.'
+                  : 'No dishes match these filters.'
+              }
+            />
+          }
           renderSectionHeader={({ section }) => (
             <View style={styles.sectionHead}>
               <Text style={styles.sectionTitle}>
-                {section.name} <Text style={styles.sectionCount}>· {section.total}</Text>
+                {section.name} <Text style={styles.sectionCount}>· {unfiltered ? section.total : section.data.length}</Text>
               </Text>
-              {section.total > 1 ? (
+              {unfiltered && section.total > 1 ? (
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={`Arrange ${section.name}`}
