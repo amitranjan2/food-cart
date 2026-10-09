@@ -71,7 +71,7 @@ export function OrdersScreen({ navigation }: Props) {
 
   const alert = useNewOrderAlert(orders, !loading);
 
-  /** From the new-order banner: open the order's slot day and scroll to its card, outlined for a moment. */
+  /** From the new-order notice in the header: open the order's slot day and scroll to its card, outlined for a moment. */
   function showInList(order: Order) {
     const days = Math.round((Date.parse(orderDayKey(order)) - Date.parse(pagerDayKey(indiaDay(0)))) / 86_400_000);
     setTab('orders');
@@ -85,7 +85,7 @@ export function OrdersScreen({ navigation }: Props) {
   // Badge on the next-day arrow, so advance orders aren't missed.
   const futureCount = useMemo(() => futureOrderCount(orders, pagerDayKey(day)), [orders, day]);
 
-  // Scroll to the order picked from the banner once its day is showing; runs when the target or day changes,
+  // Scroll to the order picked from the header notice once its day is showing; runs when the target or day changes,
   // not on every 10 s refresh.
   useEffect(() => {
     if (!highlightId) return;
@@ -134,6 +134,19 @@ export function OrdersScreen({ navigation }: Props) {
         title={vendor.name}
         onMenuPress={() => setMenuOpen(open => !open)}
         right={<StoreSwitch open={vendor.status === 'OPEN'} onToggle={toggleStore} />}
+        notice={
+          alert.latest
+            ? {
+                title: `🔔 New order #${alert.latest.orderNumber}`,
+                detail: [alert.latest.customerName, formatSlot(alert.latest.scheduledFor, now), 'tap to view'].filter(Boolean).join(' · '),
+                onPress: () => {
+                  const order = alert.latest;
+                  alert.dismiss();
+                  if (order) showInList(order);
+                },
+              }
+            : undefined
+        }
       />
       {menuOpen ? (
         <>
@@ -152,26 +165,6 @@ export function OrdersScreen({ navigation }: Props) {
         </>
       ) : null}
 
-      {alert.latest ? (
-        <View style={styles.alert} accessibilityRole="alert">
-          <Pressable
-            style={styles.alertMain}
-            onPress={() => {
-              const order = alert.latest;
-              alert.dismiss();
-              if (order) showInList(order);
-            }}
-          >
-            <Text style={styles.alertTitle}>🔔 New order #{alert.latest.orderNumber}</Text>
-            <Text style={styles.alertText} numberOfLines={1}>
-              {[alert.latest.customerName, formatSlot(alert.latest.scheduledFor, now)].filter(Boolean).join(' · ')} · tap to view
-            </Text>
-          </Pressable>
-          <Pressable onPress={alert.dismiss} accessibilityLabel="Dismiss" style={styles.alertClose}>
-            <Text style={styles.alertCloseLabel}>✕</Text>
-          </Pressable>
-        </View>
-      ) : null}
       {tab === 'orders' ? (
         <View style={styles.body}>
           <DatePager
@@ -234,43 +227,6 @@ export function OrdersScreen({ navigation }: Props) {
 const POLL_MS = 10_000;
 
 const styles = StyleSheet.create({
-  alert: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: 12,
-    marginTop: 10,
-    borderRadius: 14,
-    backgroundColor: '#1f9d55',
-    shadowColor: '#101828',
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-  },
-  alertMain: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingLeft: 16,
-    gap: 2,
-  },
-  alertTitle: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  alertText: {
-    color: 'rgba(255,255,255,0.9)',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  alertClose: {
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  alertCloseLabel: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '800',
-  },
   canvas: {
     backgroundColor: '#F4F6F8',
   },

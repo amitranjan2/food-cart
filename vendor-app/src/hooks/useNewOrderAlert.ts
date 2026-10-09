@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
 import type { Order } from '../types';
+import { indiaDay, orderDayKey, pagerDayKey } from '../utils/orderDay';
 
 const CHIME = require('../../assets/sounds/new-order.wav');
 
 /**
- * Chimes when a new paid order arrives (one the vendor hasn't seen in this session) and keeps the latest one for a
- * banner. Orders already waiting when the app opens are shown but don't chime.
+ * Watches the polled orders for ones that weren't there before. Orders for today chime and are announced in the
+ * header; orders for a later day only raise the count on the next-day arrow (DatePager pops it).
+ * The first load only records what's already there.
  */
 export function useNewOrderAlert(orders: Order[], ready: boolean) {
   const player = useAudioPlayer(CHIME);
@@ -14,7 +16,6 @@ export function useNewOrderAlert(orders: Order[], ready: boolean) {
   const [latest, setLatest] = useState<Order | null>(null);
 
   useEffect(() => {
-    // A vendor with the phone on silent still needs to hear new orders.
     setAudioModeAsync({ playsInSilentMode: true }).catch(() => {});
   }, []);
 
@@ -28,14 +29,14 @@ export function useNewOrderAlert(orders: Order[], ready: boolean) {
     const fresh = placed.filter(order => !seen.current?.has(order.id));
     if (fresh.length === 0) return;
     for (const order of fresh) seen.current.add(order.id);
-    setLatest(fresh[fresh.length - 1]);
-    player
-      .seekTo(0)
-      .catch(() => {})
-      .finally(() => player.play());
+    const today = pagerDayKey(indiaDay(0));
+    const forToday = fresh.filter(order => orderDayKey(order) === today);
+    if (forToday.length === 0) return;
+    setLatest(forToday[forToday.length - 1]);
+    player.seekTo(0).catch(() => {}).finally(() => player.play());
   }, [orders, ready, player]);
 
-  // The banner goes away once that order has been accepted or rejected.
+  // Gone once the vendor accepts or rejects it.
   const current = latest && orders.find(order => order.id === latest.id)?.status === 'PLACED' ? latest : null;
   return { latest: current, dismiss: () => setLatest(null) };
 }

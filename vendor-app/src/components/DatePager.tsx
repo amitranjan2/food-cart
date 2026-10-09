@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Animated, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../theme';
 
 export function DatePager({
@@ -13,6 +14,20 @@ export function DatePager({
   /** Orders on later days, shown as a badge on the next-day arrow. */
   nextCount?: number;
 }) {
+  // A quick pop when an order for a later day arrives; not when the count changes because the day was changed.
+  const scale = useRef(new Animated.Value(1)).current;
+  const previous = useRef({ title, nextCount });
+  useEffect(() => {
+    const before = previous.current;
+    previous.current = { title, nextCount };
+    if (before.title !== title || nextCount <= before.nextCount) return;
+    const useNativeDriver = Platform.OS !== 'web';
+    Animated.sequence([
+      Animated.timing(scale, { toValue: 1.45, duration: 140, useNativeDriver }),
+      Animated.spring(scale, { toValue: 1, friction: 4, tension: 160, useNativeDriver }),
+    ]).start();
+  }, [title, nextCount, scale]);
+
   return (
     <View style={styles.bar}>
       <Pressable accessibilityRole="button" accessibilityLabel="Previous day" onPress={onPrev} style={styles.arrow}>
@@ -27,9 +42,9 @@ export function DatePager({
       >
         <Text style={styles.arrowLabel}>›</Text>
         {nextCount > 0 ? (
-          <View style={styles.badge}>
+          <Animated.View style={[styles.badge, { transform: [{ scale }] }]}>
             <Text style={styles.badgeLabel}>{nextCount > 9 ? '9+' : nextCount}</Text>
-          </View>
+          </Animated.View>
         ) : null}
       </Pressable>
     </View>
