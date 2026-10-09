@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../theme';
 import type { Order } from '../types';
-import { formatElapsed, formatSlot } from '../utils/format';
+import { formatElapsed, formatSlot, rupees } from '../utils/format';
 import { formatOrderType, ORDER_LIST_ACTION, orderStatusStartedAt } from '../utils/orderStatus';
 import { StatusChip } from './StatusChip';
 
@@ -9,14 +9,15 @@ export function OrderCard({
   order,
   busy,
   now,
-  onPress,
+  highlighted,
   onAdvance,
   onReject,
 }: {
   order: Order;
   busy?: boolean;
   now: number;
-  onPress: () => void;
+  /** Briefly outlined when the vendor arrives here from the new-order banner. */
+  highlighted?: boolean;
   onAdvance?: () => void;
   onReject?: () => void;
 }) {
@@ -27,7 +28,7 @@ export function OrderCard({
   const isNew = order.status === 'PLACED';
 
   return (
-    <Pressable onPress={onPress} style={styles.card}>
+    <View style={[styles.card, highlighted ? styles.highlighted : null]}>
       <View style={styles.row}>
         <Text style={styles.number}>#{order.orderNumber}</Text>
         <StatusChip status={order.status} />
@@ -52,6 +53,7 @@ export function OrderCard({
           </Text>
         ))}
       </View>
+      <Text style={styles.total}>{rupees(order.total)}</Text>
       {isNew ? (
         <View style={styles.actionsEnd}>
           <Pressable
@@ -96,7 +98,7 @@ export function OrderCard({
           </Pressable>
         </View>
       ) : null}
-    </Pressable>
+    </View>
   );
 }
 
@@ -112,7 +114,18 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.title,
   },
+  highlighted: {
+    borderColor: '#1f9d55',
+  },
+  total: {
+    marginTop: 8,
+    fontSize: 15,
+    fontWeight: '800',
+    color: colors.title,
+  },
   card: {
+    borderWidth: 2,
+    borderColor: 'transparent',
     backgroundColor: colors.white,
     borderRadius: 14,
     paddingHorizontal: 14,

@@ -21,9 +21,9 @@ import { patchVendorStatus } from '../../api/vendor';
 import { isAuthFailure } from '../../api/client';
 import { useAuth } from '../../state/AuthContext';
 import { spacing } from '../../theme';
-import type { OrderStatus } from '../../types';
+import type { Order, OrderStatus } from '../../types';
 import { formatDayTitle, formatSlot } from '../../utils/format';
-import { futureOrderCount, indiaDay, pagerDayKey } from '../../utils/orderDay';
+import { futureOrderCount, indiaDay, orderDayKey, pagerDayKey } from '../../utils/orderDay';
 import type { OrdersStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<OrdersStackParamList, 'OrdersList'>;
@@ -40,6 +40,8 @@ export function OrdersScreen({ navigation }: Props) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const busyRef = useRef(false);
+  const listRef = useRef<FlatList<Order>>(null);
+  const [highlightId, setHighlightId] = useState<string | null>(null);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
@@ -69,11 +71,30 @@ export function OrdersScreen({ navigation }: Props) {
 
   const alert = useNewOrderAlert(orders, !loading);
 
+  /** From the new-order banner: open the order's slot day and scroll to its card, outlined for a moment. */
+  function showInList(order: Order) {
+    const days = Math.round((Date.parse(orderDayKey(order)) - Date.parse(pagerDayKey(indiaDay(0)))) / 86_400_000);
+    setTab('orders');
+    setOffset(days);
+    setHighlightId(order.id);
+  }
+
   const day = useMemo(() => indiaDay(offset), [offset]);
 
   const shown = useMemo(() => filterOrders(orders, day, 'ALL', ''), [orders, day]);
   // Badge on the next-day arrow, so advance orders aren't missed.
   const futureCount = useMemo(() => futureOrderCount(orders, pagerDayKey(day)), [orders, day]);
+
+  // Scroll to the order picked from the banner once its day is showing; runs when the target or day changes,
+  // not on every 10 s refresh.
+  useEffect(() => {
+    if (!highlightId) return;
+    const index = shown.findIndex(order => order.id === highlightId);
+    if (index >= 0) setTimeout(() => listRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.1 }), 50);
+    const timer = setTimeout(() => setHighlightId(null), 2500);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [highlightId, offset]);
 
   async function toggleStore() {
     if (!token || !vendor) return;
@@ -136,9 +157,9 @@ export function OrdersScreen({ navigation }: Props) {
           <Pressable
             style={styles.alertMain}
             onPress={() => {
-              const id = alert.latest?.id;
+              const order = alert.latest;
               alert.dismiss();
-              if (id) navigation.navigate('OrderDetails', { orderId: id });
+              if (order) showInList(order);
             }}
           >
             <Text style={styles.alertTitle}>🔔 New order #{alert.latest.orderNumber}</Text>
@@ -166,6 +187,8 @@ export function OrdersScreen({ navigation }: Props) {
             <ErrorState message={error} />
           ) : (
             <FlatList
+              ref={listRef}
+              onScrollToIndexFailed={info => listRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: true })}
               data={shown}
               keyExtractor={item => item.id}
               contentContainerStyle={styles.list}
@@ -182,7 +205,7 @@ export function OrdersScreen({ navigation }: Props) {
                   order={item}
                   busy={busyId === item.id}
                   now={now}
-                  onPress={() => navigation.navigate('OrderDetails', { orderId: item.id })}
+                  highlighted={highlightId === item.id}
                   onAdvance={() => (item.status === 'READY' ? setHandoverId(item.id) : advance(item.id))}
                   onReject={() => advance(item.id, 'REJECTED')}
                 />
