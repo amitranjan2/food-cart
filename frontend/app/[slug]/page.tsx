@@ -34,6 +34,9 @@ export default function Store({ params }: { params: { slug: string } }) {
   const [slots, setSlots] = useState<{ hoursSet: boolean; slots: string[] } | null>(null);
   const [mobile, setMobile] = useState('');
   const [otp, setOtp] = useState('');
+  /** Set once the customer submits a correct OTP; Pay uses it. */
+  const [customerToken, setCustomerToken] = useState('');
+  const homeScroll = useRef(0);
   const [order, setOrder] = useState<PlacedOrder>();
   const [query, setQuery] = useState('');
   const [paying, setPaying] = useState(false);
@@ -109,6 +112,30 @@ export default function Store({ params }: { params: { slug: string } }) {
 
   const linked = useMemo(() => linkItemsToCategories(categories, items), [categories, items]);
   const customizing = linked.find(item => item.id === customizingId) ?? null;
+
+  // The cart and the menu share one scroller: open the cart at its top, and return to the same spot in the menu.
+  useLayoutEffect(() => {
+    const scroller = document.querySelector('.storefront');
+    if (scroller) scroller.scrollTop = open ? 0 : homeScroll.current;
+  }, [open]);
+
+  function openCart() {
+    homeScroll.current = document.querySelector('.storefront')?.scrollTop ?? 0;
+    setOpen(true);
+  }
+
+  function changeMobile(next: string) {
+    setMobile(next);
+    setCustomerToken('');
+  }
+
+  async function verifyOtp() {
+    const session = await request<{ token: string }>('/api/auth/customer/verify-otp', {
+      method: 'POST',
+      body: JSON.stringify({ mobile, otp }),
+    });
+    setCustomerToken(session.token);
+  }
 
   // Slots move every half hour, so fetch them each time the cart opens.
   useEffect(() => {
@@ -209,10 +236,6 @@ export default function Store({ params }: { params: { slug: string } }) {
     setPaying(true);
     setPayError('');
     try {
-      const session = await request<{ token: string }>('/api/auth/customer/verify-otp', {
-        method: 'POST',
-        body: JSON.stringify({ mobile, otp }),
-      });
       const placed = await request<PlacedOrder>('/api/orders', {
         method: 'POST',
         body: JSON.stringify({
@@ -232,7 +255,7 @@ export default function Store({ params }: { params: { slug: string } }) {
             };
           }),
         }),
-      }, session.token);
+      }, customerToken);
       setOrder(placed);
     } catch (error) {
       setPayError(error instanceof Error ? error.message : 'Could not place the order.');
@@ -278,9 +301,11 @@ export default function Store({ params }: { params: { slug: string } }) {
             onBack={() => setOpen(false)}
             onQuantity={changeQuantity}
             onAdd={addItem}
-            onMobileChange={setMobile}
+            onMobileChange={changeMobile}
             onOtpChange={setOtp}
             onSendOtp={sendOtp}
+            onVerifyOtp={verifyOtp}
+            verified={customerToken !== ''}
             onPay={place}
             paying={paying}
             payError={payError}
@@ -308,7 +333,7 @@ export default function Store({ params }: { params: { slug: string } }) {
         <CartBar
           itemCount={chosen.reduce((sum, item) => sum + cart[item.id], 0)}
           total={total}
-          onOpen={() => setOpen(true)}
+          onOpen={openCart}
         />
       )}
       {!customizing && (

@@ -58,11 +58,20 @@ function clockLabel(date: Date) {
   return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 }
 
-function slotLabel(date: Date, now = new Date()) {
-  const time = clockLabel(date);
-  if (date.toDateString() === now.toDateString()) return time;
-  const weekday = date.toLocaleDateString('en-US', { weekday: 'short' });
-  return `${weekday} ${time}`;
+/** Today's date in India ("2026-10-09"), plus offsetDays. Slots are India time, so "today" must be too. */
+function indiaDay(offsetDays = 0) {
+  return new Date(Date.now() + 330 * 60_000 + offsetDays * 86_400_000).toISOString().slice(0, 10);
+}
+
+function dayName(date: Date) {
+  const day = slotKey(date).slice(0, 10);
+  if (day === indiaDay()) return 'Today';
+  if (day === indiaDay(1)) return 'Tomorrow';
+  return dayHeading(date);
+}
+
+function slotLabel(date: Date) {
+  return `${dayName(date)}, ${clockLabel(date)}`;
 }
 
 function dayHeading(date: Date) {
@@ -115,6 +124,8 @@ export function Cart({
   onMobileChange,
   onOtpChange,
   onSendOtp,
+  onVerifyOtp,
+  verified,
   onPay,
   paying,
   payError,
@@ -135,6 +146,9 @@ export function Cart({
   onMobileChange: (mobile: string) => void;
   onOtpChange: (otp: string) => void;
   onSendOtp: () => Promise<void>;
+  /** Checks the OTP with the server. Pay is enabled only once this succeeds. */
+  onVerifyOtp: () => Promise<void>;
+  verified: boolean;
   onPay: (type: OrderType, slot: string) => void;
   paying?: boolean;
   payError?: string;
@@ -152,11 +166,13 @@ export function Cart({
     setOnceSlot(current => (current && onceOptions.some(option => option.getTime() === current.getTime()) ? current : onceOptions[0] ?? null));
   }, [onceOptions]);
   const [editing, setEditing] = useState(false);
+  const [slotDay, setSlotDay] = useState('');
   const [billOpen, setBillOpen] = useState(false);
   const [address, setAddress] = useState<SavedAddress | null>(null);
   const [addressStep, setAddressStep] = useState<AddressStep | null>(null);
   const [otpSentTo, setOtpSentTo] = useState('');
   const [sendingOtp, setSendingOtp] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [otpError, setOtpError] = useState('');
   const [resendIn, setResendIn] = useState(0);
   const otpSent = otpSentTo !== '' && otpSentTo === mobile;
@@ -166,6 +182,18 @@ export function Cart({
     const timer = window.setTimeout(() => setResendIn(value => value - 1), 1000);
     return () => clearTimeout(timer);
   }, [resendIn]);
+
+  async function verifyOtp() {
+    setVerifying(true);
+    setOtpError('');
+    try {
+      await onVerifyOtp();
+    } catch (error) {
+      setOtpError(error instanceof Error ? error.message : 'Could not verify the OTP.');
+    } finally {
+      setVerifying(false);
+    }
+  }
 
   async function sendOtp() {
     setSendingOtp(true);
@@ -212,13 +240,14 @@ export function Cart({
   }
 
   const onceGroups = onceOptions.reduce<{ key: string; label: string; times: Date[] }[]>((list, time) => {
-    const key = time.toDateString();
+    const key = slotKey(time).slice(0, 10);
     const last = list[list.length - 1];
-    if (!last || last.key !== key) list.push({ key, label: dayHeading(time), times: [time] });
+    if (!last || last.key !== key) list.push({ key, label: dayName(time), times: [time] });
     else last.times.push(time);
     return list;
   }, []);
 
+  const shownDay = onceGroups.find(group => group.key === slotDay) ?? onceGroups.find(group => onceSlot && group.key === slotKey(onceSlot).slice(0, 10)) ?? onceGroups[0];
   const slotPill = plan === 'once'
     ? onceSlot ? slotLabel(onceSlot) : slots === null ? '…' : 'None'
     : clockLabel(dateAtMinutes(subscribeMinutes));
@@ -333,38 +362,59 @@ export function Cart({
             </div>
           </>
         )}
-        <div className="slot-line">
-          <span>Slot</span>
-          <b>{slotPill}</b>
-          <button type="button" className="slot-edit" disabled={onceOptions.length === 0} aria-expanded={editing} aria-label="Edit time slot" onClick={() => setEditing(value => !value)}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M4 20h4L18.5 9.5a1.4 1.4 0 0 0 0-2L16.5 5.5a1.4 1.4 0 0 0-2 0L4 16v4z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-              <path d="M13.5 6.5l4 4" stroke="currentColor" strokeWidth="1.8" />
-            </svg>
+        <div className="slot-head">
+          <div className="slot-copy">
+            <span>{fulfillment === 'dinein' ? 'Dine-in time' : 'Pick-up time'}</span>
+            <b>{slotPill}</b>
+          </div>
+          <button
+            type="button"
+            className="slot-change"
+            disabled={plan === 'once' && onceOptions.length === 0}
+            aria-expanded={editing}
+            onClick={() => {
+              setSlotDay('');
+              setEditing(value => !value);
+            }}
+          >
+            {editing ? 'Done' : 'Change'}
           </button>
         </div>
-        {editing && plan === 'once' && (
+        {editing && plan === 'once' && shownDay && (
           <div className="slot-picker">
-            {onceGroups.map(group => (
-              <div key={group.key}>
-                <p>{group.label}</p>
-                <div className="slot-grid">
-                  {group.times.map(time => (
-                    <button
-                      key={time.getTime()}
-                      type="button"
-                      className={onceSlot?.getTime() === time.getTime() ? 'on' : undefined}
-                      onClick={() => {
-                        setOnceSlot(time);
-                        setEditing(false);
-                      }}
-                    >
-                      {clockLabel(time)}
-                    </button>
-                  ))}
-                </div>
+            {onceGroups.length > 1 && (
+              <div className="slot-days" role="tablist" aria-label="Day">
+                {onceGroups.map(group => (
+                  <button
+                    key={group.key}
+                    type="button"
+                    role="tab"
+                    aria-selected={group.key === shownDay.key}
+                    className={group.key === shownDay.key ? 'on' : undefined}
+                    onClick={() => setSlotDay(group.key)}
+                  >
+                    {group.label}
+                  </button>
+                ))}
               </div>
-            ))}
+            )}
+            <div className="slot-grid" role="radiogroup" aria-label={'Times for ' + shownDay.label}>
+              {shownDay.times.map(time => (
+                <button
+                  key={time.getTime()}
+                  type="button"
+                  role="radio"
+                  aria-checked={onceSlot?.getTime() === time.getTime()}
+                  className={onceSlot?.getTime() === time.getTime() ? 'on' : undefined}
+                  onClick={() => {
+                    setOnceSlot(time);
+                    setEditing(false);
+                  }}
+                >
+                  {clockLabel(time)}
+                </button>
+              ))}
+            </div>
           </div>
         )}
         {editing && plan === 'subscribe' && (
@@ -447,16 +497,24 @@ export function Cart({
               }}
             />
           </label>
-          <button
-            type="button"
-            className="cart-otp-send"
-            disabled={sendingOtp || resendIn > 0 || !/^[6-9]\d{9}$/.test(mobile)}
-            onClick={sendOtp}
-          >
-            {sendingOtp ? '…' : resendIn > 0 ? `Resend ${resendIn}s` : otpSent ? 'Resend' : 'Send OTP'}
-          </button>
+          {verified ? (
+            <span className="cart-otp-verified" aria-live="polite">✓ Verified</span>
+          ) : otpSent && otp.length === 6 ? (
+            <button type="button" className="cart-otp-send" disabled={verifying} onClick={verifyOtp}>
+              {verifying ? '…' : 'Submit'}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="cart-otp-send"
+              disabled={sendingOtp || resendIn > 0 || !/^[6-9]\d{9}$/.test(mobile)}
+              onClick={sendOtp}
+            >
+              {sendingOtp ? '…' : resendIn > 0 ? `Resend ${resendIn}s` : otpSent ? 'Resend' : 'Send OTP'}
+            </button>
+          )}
         </div>
-        {otpSent && (
+        {otpSent && !verified && (
           <label className="cart-field">
             <input
               inputMode="numeric"
@@ -464,7 +522,10 @@ export function Cart({
               maxLength={6}
               placeholder="6-digit OTP"
               value={otp}
-              onChange={event => onOtpChange(event.target.value.replace(/\D/g, '').slice(0, 6))}
+              onChange={event => {
+                onOtpChange(event.target.value.replace(/\D/g, '').slice(0, 6));
+                setOtpError('');
+              }}
             />
           </label>
         )}
@@ -498,7 +559,7 @@ export function Cart({
             </svg>
             <strong aria-live="polite">{formatRupee(total)}</strong>
           </button>
-          <button type="button" className="customizer-add" disabled={paying || !otpSent || otp.length !== 6 || !onceSlot} onClick={() => onceSlot && onPay(ORDER_TYPES[fulfillment], slotKey(onceSlot))}>{paying ? '…' : 'Pay'}</button>
+          <button type="button" className="customizer-add" disabled={paying || !verified || !onceSlot} onClick={() => onceSlot && onPay(ORDER_TYPES[fulfillment], slotKey(onceSlot))}>{paying ? '…' : 'Pay'}</button>
         </footer>
       </div>
       </>
