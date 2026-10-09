@@ -42,6 +42,8 @@ export default function Store({ params }: { params: { slug: string } }) {
   /** Set once the customer submits a correct OTP; Pay uses it. */
   const [customerToken, setCustomerToken] = useState('');
   const [customerName, setCustomerName] = useState('');
+  /** Dishes this customer ordered here before (newest first); empty when signed out or on a first visit. */
+  const [orderAgainIds, setOrderAgainIds] = useState<string[]>([]);
   const [testCheckout, setTestCheckout] = useState<{ amount: number; resolve: (outcome: CheckoutOutcome) => void } | null>(null);
   const homeScroll = useRef(0);
   const router = useRouter();
@@ -186,6 +188,20 @@ export default function Store({ params }: { params: { slug: string } }) {
     }, customerToken);
     setCustomerName(profile.name ?? '');
   }
+
+  useEffect(() => {
+    if (!customerToken) {
+      setOrderAgainIds([]);
+      return;
+    }
+    let active = true;
+    request<{ itemIds: string[] }>('/api/customers/me/vendors/' + params.slug + '/order-again', {}, customerToken)
+      .then(result => active && setOrderAgainIds(result.itemIds ?? []))
+      .catch(() => active && setOrderAgainIds([]));
+    return () => {
+      active = false;
+    };
+  }, [customerToken, params.slug]);
 
   // Slots move every half hour, so fetch them each time the cart opens.
   useEffect(() => {
@@ -393,6 +409,7 @@ export default function Store({ params }: { params: { slug: string } }) {
       <div className="store-body">
         <Menu
           items={shown}
+          orderAgain={orderAgainIds.map(id => items.find(item => item.id === id)).filter((item): item is MenuItem => item !== undefined)}
           categories={categories}
           quantities={cart}
           onAdd={addItem}

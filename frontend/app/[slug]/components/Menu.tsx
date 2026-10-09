@@ -65,6 +65,7 @@ function DishRow({
 
 export function Menu({
   items,
+  orderAgain = [],
   categories,
   quantities,
   onAdd,
@@ -74,6 +75,8 @@ export function Menu({
   fallbackImage,
 }: {
   items: MenuItem[];
+  /** Dishes the customer ordered here before; the row is hidden when empty. */
+  orderAgain?: MenuItem[];
   categories: MenuCategory[];
   quantities: Record<string, number>;
   onAdd: (item: MenuItem) => void;
@@ -93,10 +96,10 @@ export function Menu({
       {!searching && (
         <>
           {specials.length > 0 && <SpecialCarousel items={specials} quantities={quantities} fallbackImage={fallbackImage} onAdd={onAdd} onQuantity={onQuantity} />}
-          <section className="menu-section" aria-label="Order again">
+          {orderAgain.length > 0 && <section className="menu-section" aria-label="Order again">
             <h2>ORDER AGAIN!</h2>
-            <DishRow items={items} variant="compact" quantities={quantities} fallbackImage={fallbackImage} onAdd={onAdd} onQuantity={onQuantity} className="card-row" label="Order again" />
-          </section>
+            <DishRow items={orderAgain} variant="compact" quantities={quantities} fallbackImage={fallbackImage} onAdd={onAdd} onQuantity={onQuantity} className="card-row" label="Order again" />
+          </section>}
         </>
       )}
       {nav}

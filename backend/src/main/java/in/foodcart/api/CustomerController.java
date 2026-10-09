@@ -71,6 +71,16 @@ public class CustomerController {
     return Map.of("saved", true);
   }
 
+  /** Dish ids this customer ordered before at this vendor, most recent first; empty for a first visit. */
+  @GetMapping("/vendors/{slug}/order-again")
+  Map<String, List<String>> orderAgain(@RequestHeader("Authorization") String h, @PathVariable String slug) {
+    String customerId = auth.actor(h, "CUSTOMER");
+    List<String> ids = vendors.findBySlug(slug)
+        .map(v -> in.foodcart.service.OrderAgain.dishIds(orders.findByCustomerIdAndVendorIdOrderByCreatedAtDesc(customerId, v.id)))
+        .orElse(List.of());
+    return Map.of("itemIds", ids);
+  }
+
   /** The customer's saved vendors, most recently visited first. */
   @GetMapping("/recent-vendors")
   List<Map<String, Object>> recent(@RequestHeader("Authorization") String h) {
