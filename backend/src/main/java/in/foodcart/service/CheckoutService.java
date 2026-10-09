@@ -14,6 +14,7 @@ import in.foodcart.domain.VendorStatus;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.List;
 
@@ -35,7 +36,8 @@ public class CheckoutService {
 
   public record Line(String menuItemId, int quantity, BigDecimal displayedPrice, String portion, String sizeId, List<MenuLinePrice.Pick> options) {}
 
-  public record Request(String vendorId, String type, String dineInNote, List<Line> items) {}
+  /** displayedTotal is the amount the customer saw; the order is refused if the server's bill differs. */
+  public record Request(String vendorId, String type, String dineInNote, BigDecimal displayedTotal, List<Line> items) {}
 
   public OrderEntity create(String customerId, Request request) {
     VendorEntity v = vendors.findById(request.vendorId()).orElseThrow(() -> new IllegalArgumentException("Vendor not found"));
@@ -70,6 +72,10 @@ public class CheckoutService {
     if (o.items.isEmpty()) throw new IllegalArgumentException("Cart is empty");
     o.subtotal = o.items.stream().map(x -> x.lineTotal).reduce(BigDecimal.ZERO, BigDecimal::add);
     o.total = o.subtotal;
+    // Rounded to paise: the browser adds prices as floating point (0.1 + 0.2 = 0.30000000000000004).
+    if (request.displayedTotal() == null || o.total.compareTo(request.displayedTotal().setScale(2, RoundingMode.HALF_UP)) != 0) {
+      throw new IllegalStateException("Your cart total has changed. Please review your cart.");
+    }
     o.orderNumber = 1000 + orders.count() + 1;
     OrderEntity saved = orders.save(o);
     CustomerVendorHistoryEntity h = history.findByCustomerIdAndVendorId(customerId, v.id).orElseGet(() -> {

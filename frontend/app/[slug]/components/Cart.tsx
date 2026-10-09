@@ -17,10 +17,6 @@ type Plan = 'once' | 'subscribe';
 type Fulfillment = 'pickup' | 'dinein' | 'delivery';
 type Frequency = 'weekly' | 'monthly';
 
-// Placeholder charges until the vendor API exposes tax and delivery settings.
-const TAX_RATE = 0.05;
-const DELIVERY_FEE = 20;
-
 const DAYS = [
   { id: 'mon', label: 'M' },
   { id: 'tue', label: 'T' },
@@ -214,9 +210,6 @@ export function Cart({
   }, []);
 
   const slotPill = plan === 'once' ? slotLabel(onceSlot) : clockLabel(dateAtMinutes(subscribeMinutes));
-  const tax = Math.round(total * TAX_RATE);
-  const delivery = fulfillment === 'delivery' && lines.length > 0 ? DELIVERY_FEE : 0;
-  const grandTotal = total + tax + delivery;
   const needsAddress = fulfillment === 'delivery' && !address;
 
   if (addressStep) {
@@ -470,10 +463,8 @@ export function Cart({
             </div>
           ))}
           <div className="bill-gap" />
-          <div className="bill-row"><span>Item Total</span><span>{formatRupee(total)}</span></div>
-          <div className="bill-row"><span>Tax</span><span>{formatRupee(tax)}</span></div>
-          {delivery > 0 && <div className="bill-row"><span>Delivery</span><span>{formatRupee(delivery)}</span></div>}
-          <div className="bill-row grand"><span>Total</span><span>{formatRupee(grandTotal)}</span></div>
+          {/* The server charges exactly the item total; it rejects the order if this number differs. */}
+          <div className="bill-row grand"><span>Total</span><span>{formatRupee(total)}</span></div>
         </section>
         <footer className="customizer-bar cart-paybar">
           <button
@@ -487,7 +478,7 @@ export function Cart({
             <svg className={'bill-chevron' + (billOpen ? ' flipped' : '')} width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M6 15l6-6 6 6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            <strong aria-live="polite">{formatRupee(grandTotal)}</strong>
+            <strong aria-live="polite">{formatRupee(total)}</strong>
           </button>
           <button type="button" className="customizer-add" disabled={paying || !otpSent || otp.length !== 6} onClick={onPay}>{paying ? '…' : 'Pay'}</button>
         </footer>

@@ -205,7 +205,8 @@ export default function Store({ params }: { params: { slug: string } }) {
         body: JSON.stringify({
           vendorId: store.id,
           type: 'PICKUP',
-          items: chosen.map(item => {
+          displayedTotal: total,
+          items:chosen.map(item => {
             const config = configs[item.id];
             return {
               menuItemId: item.id,
