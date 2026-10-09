@@ -33,7 +33,7 @@ html:has(.storefront),html:has(.storefront) body{height:100%;height:100dvh;overf
 .hero-row,.card-row,.mind-row{display:flex;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
 .hero-row::-webkit-scrollbar,.card-row::-webkit-scrollbar,.mind-row::-webkit-scrollbar{display:none}
 .hero-row{gap:10px;scroll-snap-type:x mandatory;padding:8px calc(50% - min(29vw,110px)) 0;scroll-padding-inline:calc(50% - min(29vw,110px))}
-.special-row{position:relative;z-index:0;isolation:isolate;padding-top:14px;padding-bottom:10px}
+.special-row{position:relative;z-index:0;isolation:isolate;padding-top:34px;padding-bottom:10px}
 .special-slot{position:relative;flex:0 0 min(58vw,220px);scroll-snap-align:center;will-change:transform,opacity;transform-origin:center 60%}
 .special-slot::before{content:'✦ Special';position:absolute;inset:0;border-radius:16px;background:linear-gradient(145deg,#30404e,#4f667a);box-shadow:0 10px 24px rgba(48,64,78,.18);display:grid;place-items:center;color:#fff;font-size:14px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;transition:opacity .3s ease .6s}
 .special-slot.revealed::before{opacity:0}
