@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import type { MenuItem } from '../../lib/api';
+import { FEATURES } from '../../lib/features';
 import { formatRupee } from '../lib/customization';
 import { AddressFlow, addressLabel, type AddressStep, type SavedAddress } from './AddressFlow';
 import { MenuItemCard } from './MenuItemCard';
@@ -15,6 +16,9 @@ export type CartLine = {
 
 type Plan = 'once' | 'subscribe';
 type Fulfillment = 'pickup' | 'dinein' | 'delivery';
+// The server accepts only PICKUP and DINE_IN until V2, so a DELIVERY order fails loudly instead of becoming a pickup.
+const ORDER_TYPES = { pickup: 'PICKUP', dinein: 'DINE_IN', delivery: 'DELIVERY' } as const;
+export type OrderType = (typeof ORDER_TYPES)[Fulfillment];
 type Frequency = 'weekly' | 'monthly';
 
 const DAYS = [
@@ -127,7 +131,7 @@ export function Cart({
   onMobileChange: (mobile: string) => void;
   onOtpChange: (otp: string) => void;
   onSendOtp: () => Promise<void>;
-  onPay: () => void;
+  onPay: (type: OrderType) => void;
   paying?: boolean;
   payError?: string;
 }) {
@@ -289,11 +293,15 @@ export function Cart({
       )}
 
       <section className="plan-box">
-        <div className="plan-row" role="radiogroup" aria-label="Order type">
-          <button type="button" role="radio" aria-checked={plan === 'once'} className={plan === 'once' ? 'on' : undefined} onClick={() => selectPlan('once')}>One-Time</button>
-          <button type="button" role="radio" aria-checked={plan === 'subscribe'} className={plan === 'subscribe' ? 'on' : undefined} onClick={() => selectPlan('subscribe')}>Subscribe</button>
-        </div>
-        <div className="plan-rule" />
+        {FEATURES.subscribe && (
+          <>
+            <div className="plan-row" role="radiogroup" aria-label="Order type">
+              <button type="button" role="radio" aria-checked={plan === 'once'} className={plan === 'once' ? 'on' : undefined} onClick={() => selectPlan('once')}>One-Time</button>
+              <button type="button" role="radio" aria-checked={plan === 'subscribe'} className={plan === 'subscribe' ? 'on' : undefined} onClick={() => selectPlan('subscribe')}>Subscribe</button>
+            </div>
+            <div className="plan-rule" />
+          </>
+        )}
         {plan === 'subscribe' && (
           <>
             <div className="day-line">
@@ -375,7 +383,7 @@ export function Cart({
           ['pickup', 'Pick Up'],
           ['dinein', 'Dine In'],
           ['delivery', 'Delivery'],
-        ] as const).map(([id, label]) => (
+        ] as const).filter(([id]) => id !== 'delivery' || FEATURES.delivery).map(([id, label]) => (
           <div className="mode-option" key={id}>
             <button
               type="button"
@@ -480,7 +488,7 @@ export function Cart({
             </svg>
             <strong aria-live="polite">{formatRupee(total)}</strong>
           </button>
-          <button type="button" className="customizer-add" disabled={paying || !otpSent || otp.length !== 6} onClick={onPay}>{paying ? '…' : 'Pay'}</button>
+          <button type="button" className="customizer-add" disabled={paying || !otpSent || otp.length !== 6} onClick={() => onPay(ORDER_TYPES[fulfillment])}>{paying ? '…' : 'Pay'}</button>
         </footer>
       </div>
       </>

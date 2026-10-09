@@ -17,8 +17,8 @@ Last updated: Oct 9, 2026.
 
 ## Decisions
 - **V1** (Oct 9): street-food **pickup and dine-in** orders, **paid online before the order reaches the vendor**. Delivery and Subscribe hidden behind a flag, not deleted.
-  - Dine-in: customer adds a table/seat/spot note (backend already has `dineInNote`). Pay-first for both modes.
-  - Vendor app must show Pickup vs Dine-in plus the note clearly on each order card.
+  - Dine-in (decided Oct 9): **no note**. The customer only picks Pick Up or Dine In; table/spot details are sorted face to face or over a call. `dineInNote` was removed. Pay-first for both modes.
+  - Vendor app shows Pickup vs Dine-in on each order card and on the order details screen.
 - **V2:** self-delivery + simple daily subscriptions.
 - **V3:** third-party delivery (Porter / Uber / Rapido). Check which of these actually offer an API in India before promising V3.
 - **Payments** (Oct 9): online payment in V1 via Razorpay (UPI + cards).
@@ -70,7 +70,9 @@ Order matters: **S2.1 and S2.2 ⛔ block S2.3**.
 - [x] **S2.1** Customer sees exactly what the server charges (commit tagged `S2.1`, Oct 9). Removed the placeholder 5% tax and ₹20 delivery fee from `Cart.tsx`; the bill is the item total. The storefront sends `displayedTotal` with the order, and `CheckoutService` refuses the order (400 "Your cart total has changed") if it is missing or differs from the server's total after rounding to paise. S2.3 must charge Razorpay `order.total` from the server, never an amount from the browser.
   - Verified: `mvn test` 25/25 (new `CheckoutServiceTest`: exact total accepted, float noise tolerated, wrong or missing total refused with nothing saved). In a real browser against the `local` API: a cart of Veg Momos + Egg Roll shows ₹150 in the bill and pay bar (the old code showed ₹158), sends `displayedTotal: 150`, and the confirmation shows ₹150. Over HTTP: total 70 → 200, 73.5 → 400, missing → 400.
   - When V1 needs real taxes or fees, add them in `CheckoutService` and return them in a quote endpoint the cart displays, so the browser never computes charges.
-- [ ] **S2.2** Order type as a server-validated enum (`PICKUP` | `DINE_IN`), plus the dine-in note. Gate Subscribe / Delivery behind a flag (the Delivery tab is in `Cart.tsx`).
+- [x] **S2.2** Real order type (commit tagged `S2.2`, Oct 9). `OrderType` enum (`PICKUP` | `DINE_IN`) on the server; anything else (`DELIVERY`, lowercase, empty, missing) is refused with "Choose Pick Up or Dine In." The cart sends the mode the customer picked. Delivery and Subscribe are hidden by `frontend/app/lib/features.ts` (both `false`), not deleted; with delivery on, the cart sends `DELIVERY`, which the server refuses until V2. `dineInNote` removed everywhere. Confirmation page says "Dine in at" / "Pick up from". Vendor app details screen shows "Dine-in"/"Pickup" instead of the raw value.
+  - Verified: `mvn test` 27/27 (new: type stored; bad types refused, nothing saved). `tsc` + `next build` clean. Browser: cart shows only Pick Up / Dine In and no One-Time/Subscribe row; a Dine In order is sent as `DINE_IN` with no note; vendor app (web build) shows Pickup and Dine-in on the order cards and on the details screen; `/api/vendor/orders` returns the types with no `dineInNote`.
+- [ ] **S2.8** The cart's **Slot** picker (pickup time) is never sent: the order has no time field and the vendor can't see it. Decide: send it and show it to the vendor, or hide it for V1 (orders are then "as soon as possible").
 - [ ] **S2.3** Razorpay payment: `PAYMENT_PENDING` status; create-payment endpoint; checkout signature verification; `payment.captured` webhook (unauthenticated endpoint, HMAC checked against the **raw** request body); `PLACED` only after capture; refunds on reject/cancel; expire unpaid orders after ~15 min; vendor app hides unpaid orders. Rename the "Pay" flow to real checkout. Keys only in environment variables, never in the repo (it is public). Payout part waits on the payout open question.
 - [ ] **S2.4** Cart keyed by item id: Half + Full of one item collapse into one line. Key by item + chosen options.
 - [ ] **S2.5** Vendors can only use 4 global categories (Momos/Rolls/Drinks/Chaat) via `MenuItemService.catalogCategoryId`. Let vendors create their own.
@@ -96,6 +98,7 @@ Order matters: **S2.1 and S2.2 ⛔ block S2.3**.
 - [x] **S4.11** Storefront home header cut off and search bar missing (commit tagged `S4.11`, Oct 9). Cause: merge `f32aaa8` kept `StoreHeader.tsx` from 6f6791c (search split into `StoreSearch`) but `page.tsx` from a20e15b (which never renders it), so `.store-body`'s `margin-top:-22px` slid over the header. Fix: render `StoreSearch` under the header; removed its unused window-scroll pinning (the page scrolls `.storefront`, and CSS `position: sticky` already pins it).
   - Verified in a browser at 400px: header 0–58px with the title inside; search bar 58–130px; after scrolling 700px the search bar is pinned at 0; searching "roll" filters the menu; the S2.1 checkout still works (₹150 cart → ₹150 order).
   - Lesson: when merging both sides' edits to `page.tsx`, run `tsc` before committing.
+- [ ] **S4.13** Vendor app has 8 older type errors, all in `screens/Menu/DishFormSheet.tsx` (web-only styles such as `outlineStyle: 'none'` that React Native's types reject). Not caught by any build. Fix them and add a `tsc` check for the vendor app.
 - [x] **S4.12** Audit of merge `f32aaa8` (device 1 `aakashyadav-26` 6f6791c + device 2 `aakashyadav-kgp` a20e15b, both Oct 8). Result: the merge equals device 2's code, plus 3 device-1 files. Vendor app: identical to device 2.
   - `StoreHeader.tsx`: broke the home header. Fixed in S4.11.
   - `lib/customization.ts`: device 1's `requiresCustomization` / `defaultConfiguration` were unused, and `defaultConfiguration` would select nothing because device 2 changed `initialSelection`. Removed (commit tagged `S4.12`).

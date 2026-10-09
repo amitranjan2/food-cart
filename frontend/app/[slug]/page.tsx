@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { request, type MenuCategory, type MenuItem, type PublicMenu, type Vendor } from '../lib/api';
 import { CartBar } from './components/CartBar';
-import { Cart } from './components/Cart';
+import { Cart, type OrderType } from './components/Cart';
 import { CategoryMenu } from './components/CategoryMenu';
 import { CategoryNav } from './components/CategoryNav';
 import { ItemCustomizer } from './components/ItemCustomizer';
@@ -192,7 +192,7 @@ export default function Store({ params }: { params: { slug: string } }) {
     });
   }
 
-  async function place() {
+  async function place(type: OrderType) {
     setPaying(true);
     setPayError('');
     try {
@@ -204,7 +204,7 @@ export default function Store({ params }: { params: { slug: string } }) {
         method: 'POST',
         body: JSON.stringify({
           vendorId: store.id,
-          type: 'PICKUP',
+          type,
           displayedTotal: total,
           items:chosen.map(item => {
             const config = configs[item.id];

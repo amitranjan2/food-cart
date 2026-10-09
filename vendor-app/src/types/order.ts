@@ -27,7 +27,6 @@ export type Order = {
   customerId: string;
   customerMobile?: string | null;
   type?: OrderType | string;
-  dineInNote?: string | null;
   paymentMethod?: string | null;
   rejectionReason?: string | null;
   rejectionNote?: string | null;

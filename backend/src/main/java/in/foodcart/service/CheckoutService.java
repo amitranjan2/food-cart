@@ -10,6 +10,7 @@ import in.foodcart.data.OrderRepository;
 import in.foodcart.data.VendorEntity;
 import in.foodcart.data.VendorRepository;
 import in.foodcart.domain.OrderStatus;
+import in.foodcart.domain.OrderType;
 import in.foodcart.domain.VendorStatus;
 import org.springframework.stereotype.Service;
 
@@ -36,8 +37,8 @@ public class CheckoutService {
 
   public record Line(String menuItemId, int quantity, BigDecimal displayedPrice, String portion, String sizeId, List<MenuLinePrice.Pick> options) {}
 
-  /** displayedTotal is the amount the customer saw; the order is refused if the server's bill differs. */
-  public record Request(String vendorId, String type, String dineInNote, BigDecimal displayedTotal, List<Line> items) {}
+  /** type is "PICKUP" or "DINE_IN". displayedTotal is the amount the customer saw; the order is refused if the server's bill differs. */
+  public record Request(String vendorId, String type, BigDecimal displayedTotal, List<Line> items) {}
 
   public OrderEntity create(String customerId, Request request) {
     VendorEntity v = vendors.findById(request.vendorId()).orElseThrow(() -> new IllegalArgumentException("Vendor not found"));
@@ -46,8 +47,7 @@ public class CheckoutService {
     o.vendorId = v.id;
     o.customerId = customerId;
     o.customerMobile = customers.findById(customerId).orElseThrow(() -> new SecurityException("Customer not found")).mobile;
-    o.type = request.type();
-    o.dineInNote = request.dineInNote();
+    o.type = OrderType.parse(request.type());
     for (Line line : request.items()) {
       MenuItemEntity m = items.findByIdAndVendorId(line.menuItemId(), v.id).orElseThrow(() -> new IllegalStateException("An item no longer exists."));
       MenuLinePrice.Quote quote = MenuLinePrice.quote(m, line.portion(), line.sizeId(), line.options());

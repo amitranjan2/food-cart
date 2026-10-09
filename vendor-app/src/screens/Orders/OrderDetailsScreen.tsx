@@ -12,7 +12,7 @@ import { isAuthFailure } from '../../api/client';
 import { useAuth } from '../../state/AuthContext';
 import { colors, spacing } from '../../theme';
 import { rupees } from '../../utils/format';
-import { ORDER_DETAIL_ACTION } from '../../utils/orderStatus';
+import { formatOrderType, ORDER_DETAIL_ACTION } from '../../utils/orderStatus';
 import type { OrdersStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<OrdersStackParamList, 'OrderDetails'>;
@@ -89,7 +89,7 @@ export function OrderDetailsScreen({ navigation, route }: Props) {
               <Text style={styles.phone}>☎ {order.customerMobile || 'Customer'}</Text>
               {order.type ? (
                 <View style={styles.type}>
-                  <Text style={styles.typeLabel}>{order.type}</Text>
+                  <Text style={styles.typeLabel}>{formatOrderType(order.type)}</Text>
                 </View>
               ) : null}
             </View>

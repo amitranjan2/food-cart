@@ -1,6 +1,7 @@
 package in.foodcart.service;
 
 import in.foodcart.data.*;
+import in.foodcart.domain.OrderType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -40,8 +41,12 @@ class CheckoutServiceTest {
   }
 
   private CheckoutService.Request request(String displayedTotal) {
+    return request("PICKUP", displayedTotal);
+  }
+
+  private CheckoutService.Request request(String type, String displayedTotal) {
     CheckoutService.Line line = new CheckoutService.Line("m1", 2, new BigDecimal("80"), "FULL", null, List.of());
-    return new CheckoutService.Request("v1", "PICKUP", null, displayedTotal == null ? null : new BigDecimal(displayedTotal), List.of(line));
+    return new CheckoutService.Request("v1", type, displayedTotal == null ? null : new BigDecimal(displayedTotal), List.of(line));
   }
 
   @Test
@@ -67,6 +72,21 @@ class CheckoutServiceTest {
   @Test
   void refusesAnOrderWithoutADisplayedTotal() {
     assertThrows(IllegalStateException.class, () -> checkout.create("c1", request(null)));
+    verify(orders, never()).save(any());
+  }
+
+  @Test
+  void storesTheOrderTypeTheCustomerChose() {
+    assertEquals(OrderType.DINE_IN, checkout.create("c1", request("DINE_IN", "160")).type);
+    assertEquals(OrderType.PICKUP, checkout.create("c1", request("PICKUP", "160")).type);
+  }
+
+  @Test
+  void refusesUnknownOrMissingOrderTypes() {
+    for (String type : new String[] {"DELIVERY", "pickup", "", null}) {
+      IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> checkout.create("c1", request(type, "160")));
+      assertEquals("Choose Pick Up or Dine In.", e.getMessage());
+    }
     verify(orders, never()).save(any());
   }
 }

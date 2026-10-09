@@ -5,6 +5,7 @@ import type { Vendor } from '../../lib/api';
 
 export type PlacedOrder = {
   orderNumber: number;
+  type: 'PICKUP' | 'DINE_IN';
   total: number;
   items: { menuItemId: string; name: string; quantity: number; lineTotal: number }[];
 };
@@ -18,7 +19,7 @@ export function OrderConfirmation({ vendor, order }: { vendor: Vendor; order: Pl
         <h1 className="mt-2 text-4xl">#{order.orderNumber}</h1>
         <p className="mt-4 rounded-xl bg-[#eef1e8] p-4 font-bold">Order is shared with the kitchen. We’ll keep you updated.</p>
         <div className="mt-5 rounded-2xl bg-stone-100 p-4">
-          <b>Pick up details</b>
+          <b>{order.type === 'DINE_IN' ? 'Dine in at' : 'Pick up from'}</b>
           <p className="mt-2">{vendor.name}<br />{vendor.address}</p>
         </div>
         <div className="mt-5 rounded-2xl bg-stone-100 p-4">
