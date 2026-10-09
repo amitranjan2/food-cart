@@ -27,7 +27,7 @@ Last updated: Oct 9, 2026.
   - Unpaid orders expire after ~15 minutes.
 - **Time slots** (Oct 9): orders are for a 30-minute slot. The customer picks any slot after the current one, up to the **end of tomorrow by the calendar** (last slot tomorrow 11:30 PM; tonight's after-midnight slots count as tomorrow), inside the vendor's own opening hours. Hours are set **per weekday**; a day can be closed; closing may be **after midnight** (that tail belongs to the evening it started). A vendor with **no hours set gets no slots, so no orders**. All times are India time (Asia/Kolkata).
 - **Consumer home** (Oct 10): no public list of vendors. Later, customers use an app and scan vendor storefront QR codes; every vendor a customer opens is saved permanently on their home page. In the web launch customers only reach vendors through storefront links, so the home page just shows the vendors they opened.
-- **Handover handshake** (Oct 10): an order is completed only when the party handing it over enters the customer's 4-digit code. Generic: vendor staff today, delivery partners for last-mile delivery later. The handing party never receives the code.
+- **Handover handshake** (Oct 10): an order is completed only when the party handing it over enters the customer's 4-digit code. The code is created when the vendor marks the order **Ready**; every order must pass through Ready. Lost code: support looks it up with `ops/handover-code.sh` after confirming the customer. Generic: vendor staff today, delivery partners for last-mile delivery later. The handing party never receives the code.
 - **Branching** (Oct 9): `storefront-development` is the working branch.
 
 ## Open questions
@@ -36,7 +36,7 @@ Last updated: Oct 9, 2026.
 - [ ] **One mobile number for two stalls?** `vendors.mobile` is indexed but not unique, yet vendor login looks vendors up by mobile. If no: make it unique (drop the old `mobile` index first, or startup index creation fails). Tracked as S4.9.
 - [ ] SMS/OTP provider (suggested MSG91).
 - [ ] Image storage: server disk vs R2/S3.
-- [ ] Delete the old Next.js `/vendor` console (duplicates the Expo vendor app)?
+- [x] Delete the old Next.js `/vendor` console: **deleted** Oct 10 (S3.6).
 
 ## Non-code tasks (start now: these take days)
 - [ ] **N1** Razorpay account + KYC (Aks). Approval takes days.
@@ -97,12 +97,14 @@ Order matters: **S2.1 and S2.2 ⛔ block S2.3**.
   - Not built from the designs: delivery screens (V2), "Rate order", bill download. Follow-up: vendor app could require the handover code before marking an order complete (S3.4).
 
 ## Step 3: vendor never misses an order
+- [x] **S3.6** (commit tagged `S3.6`, Oct 10) Handover code created when the vendor marks the order Ready; no Preparing → Completed shortcut. Deleted the old Next.js vendor console (`frontend/app/vendor/*` and its CSS); README updated. **Lost code:** `MONGODB_URI=… ops/handover-code.sh <vendor-slug> <order-number>` prints the order, customer name + number (confirm identity first) and the code, or why there is none (not ready yet / already used).
+  - Verified: `mvn test` 64/64 (code appears only at Ready; Preparing can't complete or hand over). `next build` clean, no `/vendor` routes. Script run against a test database: ready order → code; preparing → "none yet"; completed → "already used"; unknown order / vendor / bad number handled.
 - [x] **S3.5** Consumer home = "Your vendors" (commit tagged `S3.4`, Oct 10). Opening a storefront saves the vendor in the browser and, once verified, on the account (`POST /api/customers/me/vendors`, `firstVisitedAt`/`lastVisitedAt` on customer-vendor history); verification copies browser-saved vendors to the account in order. `/` lists them most recent first (status, order count) in the storefront style; empty state asks to scan a vendor's QR. **Removed `GET /api/public/vendors`** (public list of all vendors).
   - Verified: new visitor → "No vendors yet"; open two stores → both, latest first; same account in a fresh browser → same list from the server; `GET /api/public/vendors` → 404.
 - [x] **S3.4** Handover handshake (commit tagged `S3.4`, Oct 10). `service/handover/HandoverRules` (pure, unit tested): issue a 4-digit code per order; `verify(handover, code, Party(role, id), now)` records who and when; 5 wrong codes lock entry for 10 min. Order field `handover` (was `pickupCode`). `POST /api/vendor/orders/{id}/handover {code}` completes READY/PREPARING orders; `PATCH …/status COMPLETED` is refused while a code exists. Every vendor response strips the code (`Handover.withoutCode`). Vendor app: "Hand Over" opens a code sheet (wrong code → "Wrong code. 4 tries left."). Customer status page shows the code at Ready.
   - Verified: `mvn test` 63/63 (new `HandoverRulesTest` 5, checkout 4). End to end: vendor API shows `code: null`; direct COMPLETED → 400; customer sees 8454; vendor app wrong code → "4 tries left", right code → completed; customer page turned to Picked up by itself; stored `verifiedByRole: VENDOR`.
   - For delivery (V2): a delivery partner calls the same `HandoverRules.verify` with `Party("DELIVERY_PARTNER", id)` through its own endpoint.
-  - The old Next.js `/vendor` console can no longer complete orders (it uses the status PATCH); another reason to delete it (open question).
+  - Oct 10 follow-up (S3.6): code now created at **Ready** (not at checkout); the Preparing → Completed shortcut is removed, so every order goes through Ready and the code; handover only from Ready.
 - [ ] **S3.3** Vendor app's order list is grouped by the day an order was **placed** (`createdAt`), not its slot. An order placed tonight for tomorrow 9 AM shows only under today. Group or sort by `scheduledFor` (and show upcoming slots first).
 - [ ] **S3.1** Vendor app only refreshes on focus or pull-to-refresh. Poll every 10–15s with a sound, then push notifications.
 - [ ] **S3.2** Allow cancelling an order after it's accepted (transitions in `CheckoutService.status`), with the S2.3 refund.

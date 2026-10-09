@@ -170,8 +170,26 @@ class CheckoutServiceTest {
   }
 
   @Test
-  void everyOrderGetsAFourDigitHandoverCode() {
-    assertTrue(checkout.create("c1", request("160")).handover.code.matches("[0-9]{4}"));
+  void theHandoverCodeIsCreatedWhenTheVendorMarksTheOrderReady() {
+    assertNull(checkout.create("c1", request("160")).handover);
+    OrderEntity o = new OrderEntity();
+    o.id = "o4";
+    o.vendorId = "v1";
+    o.status = OrderStatus.PREPARING;
+    when(orders.findByIdAndVendorId("o4", "v1")).thenReturn(Optional.of(o));
+    checkout.status("v1", "o4", OrderStatus.READY);
+    assertTrue(o.handover.code.matches("[0-9]{4}"));
+  }
+
+  @Test
+  void preparingOrdersCannotSkipReadyAndTheCode() {
+    OrderEntity o = new OrderEntity();
+    o.id = "o5";
+    o.vendorId = "v1";
+    o.status = OrderStatus.PREPARING;
+    when(orders.findByIdAndVendorId("o5", "v1")).thenReturn(Optional.of(o));
+    assertThrows(IllegalStateException.class, () -> checkout.status("v1", "o5", OrderStatus.COMPLETED));
+    assertThrows(IllegalStateException.class, () -> checkout.handOver("v1", "o5", "1234"));
   }
 
   private OrderEntity readyOrder() {
@@ -206,7 +224,7 @@ class CheckoutServiceTest {
 
   @Test
   void ordersThatAreNotReadyCannotBeHandedOver() {
-    readyOrder().status = OrderStatus.PLACED;
+    readyOrder().status = OrderStatus.PREPARING;
     assertThrows(IllegalStateException.class, () -> checkout.handOver("v1", "o3", "2905"));
   }
 }

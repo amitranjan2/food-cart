@@ -1,6 +1,6 @@
 # FoodCart
 
-Mobile-first, hyperlocal ordering for neighbourhood food vendors. This repository contains one Next.js customer/vendor PWA and one Java 17 Spring Boot REST API backed by MongoDB.
+Mobile-first, hyperlocal ordering for neighbourhood food vendors. This repository contains a Next.js customer storefront, an Expo vendor app (`vendor-app/`) and a Java 17 Spring Boot REST API backed by MongoDB.
 
 ## Local development
 
@@ -12,7 +12,7 @@ Visit [http://localhost:3000/raju-momos](http://localhost:3000/raju-momos). With
 
 ## Project layout
 
-- `frontend/` — customer storefront, cart/checkout, order tracking and vendor console
+- `frontend/` — customer storefront, cart/checkout and order tracking (vendors use the Expo app in `vendor-app/`)
 - `backend/` — controllers, services, Mongo repositories and authentication boundary
 - `docker-compose.yml` — local MongoDB only
 

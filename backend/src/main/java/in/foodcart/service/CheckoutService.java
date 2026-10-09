@@ -93,7 +93,6 @@ public class CheckoutService {
     o.orderNumber = 1000 + orders.count() + 1;
     // Pay first: the vendor only sees the order once the payment is confirmed (PaymentService).
     o.status = OrderStatus.PAYMENT_PENDING;
-    o.handover = HandoverRules.issue();
     o.paymentMethod = "ONLINE";
     return orders.save(o);
   }
@@ -118,7 +117,7 @@ public class CheckoutService {
    */
   public OrderEntity handOver(String vendorId, String id, String code) {
     OrderEntity o = orders.findByIdAndVendorId(id, vendorId).orElseThrow(() -> new SecurityException("Order not found"));
-    if (o.status != OrderStatus.READY && o.status != OrderStatus.PREPARING) throw new IllegalStateException("This order isn't ready to hand over.");
+    if (o.status != OrderStatus.READY) throw new IllegalStateException("Mark the order ready before handing it over.");
     if (o.handover == null) throw new IllegalStateException("This order has no handover code.");
     boolean ok = HandoverRules.verify(o.handover, code, new HandoverRules.Party("VENDOR", vendorId), Instant.now(clock));
     if (!ok) {
@@ -135,20 +134,21 @@ public class CheckoutService {
 
   public OrderEntity status(String vendorId, String id, OrderStatus target) {
     OrderEntity o = orders.findByIdAndVendorId(id, vendorId).orElseThrow(() -> new SecurityException("Order not found"));
-    if (target == OrderStatus.COMPLETED && o.handover != null) {
-      throw new IllegalStateException("Enter the customer's handover code to complete this order.");
-    }
+    // Completing always goes through handOver: the order must be READY and the customer's code must match.
+    if (target == OrderStatus.COMPLETED) throw new IllegalStateException("Enter the customer's handover code to complete this order.");
     boolean valid = (o.status == OrderStatus.PLACED && (target == OrderStatus.ACCEPTED || target == OrderStatus.REJECTED))
         || (o.status == OrderStatus.ACCEPTED && target == OrderStatus.PREPARING)
-        || (o.status == OrderStatus.PREPARING && (target == OrderStatus.READY || target == OrderStatus.COMPLETED))
-        || (o.status == OrderStatus.READY && target == OrderStatus.COMPLETED);
+        || (o.status == OrderStatus.PREPARING && target == OrderStatus.READY);
     if (!valid) throw new IllegalStateException("Invalid order status transition");
     o.status = target;
     Instant now = Instant.now();
     if (target == OrderStatus.ACCEPTED) o.acceptedAt = now;
     if (target == OrderStatus.PREPARING) o.preparingAt = now;
-    if (target == OrderStatus.READY) o.readyAt = now;
-    if (target == OrderStatus.COMPLETED) o.completedAt = now;
+    if (target == OrderStatus.READY) {
+      o.readyAt = now;
+      // The code exists only once the food is ready, so it can't be shared (or used) earlier.
+      if (o.handover == null) o.handover = HandoverRules.issue();
+    }
     if (target == OrderStatus.REJECTED) {
       o.rejectedAt = now;
       payments.refundIfPaid(o);
