@@ -35,3 +35,8 @@ export function ordersForDay<T extends Pick<Order, 'scheduledFor' | 'createdAt' 
     .filter(order => orderDayKey(order) === dayKey)
     .sort((a, b) => slotTime(a) - slotTime(b) || a.orderNumber - b.orderNumber);
 }
+
+/** Active orders (not rejected or cancelled) on any day after dayKey, for the badge on the next-day arrow. */
+export function futureOrderCount<T extends Pick<Order, 'scheduledFor' | 'createdAt' | 'status'>>(orders: T[], dayKey: string) {
+  return orders.filter(order => order.status !== 'REJECTED' && order.status !== 'CANCELLED' && orderDayKey(order) > dayKey).length;
+}

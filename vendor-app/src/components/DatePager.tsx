@@ -5,10 +5,13 @@ export function DatePager({
   title,
   onPrev,
   onNext,
+  nextCount = 0,
 }: {
   title: string;
   onPrev: () => void;
   onNext: () => void;
+  /** Orders on later days, shown as a badge on the next-day arrow. */
+  nextCount?: number;
 }) {
   return (
     <View style={styles.bar}>
@@ -16,8 +19,18 @@ export function DatePager({
         <Text style={styles.arrowLabel}>‹</Text>
       </Pressable>
       <Text style={styles.title}>{title}</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel="Next day" onPress={onNext} style={styles.arrow}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={nextCount > 0 ? `Next day, ${nextCount} upcoming ${nextCount === 1 ? 'order' : 'orders'}` : 'Next day'}
+        onPress={onNext}
+        style={styles.arrow}
+      >
         <Text style={styles.arrowLabel}>›</Text>
+        {nextCount > 0 ? (
+          <View style={styles.badge}>
+            <Text style={styles.badgeLabel}>{nextCount > 9 ? '9+' : nextCount}</Text>
+          </View>
+        ) : null}
       </Pressable>
     </View>
   );
@@ -49,6 +62,26 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  badge: {
+    position: 'absolute',
+    top: -7,
+    right: -7,
+    minWidth: 20,
+    height: 20,
+    paddingHorizontal: 5,
+    borderRadius: 10,
+    backgroundColor: colors.error,
+    borderWidth: 2,
+    borderColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeLabel: {
+    color: colors.white,
+    fontSize: 11,
+    lineHeight: 13,
+    fontWeight: '800',
   },
   arrowLabel: {
     color: '#344054',
