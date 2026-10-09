@@ -38,7 +38,6 @@ const FOOD_FILTERS: { value: FoodFilter; label: string }[] = [
   { value: 'VEG', label: 'VEG' },
   { value: 'NON_VEG', label: 'NON VEG' },
   { value: 'EGG', label: 'EGG' },
-  { value: 'OTHER', label: 'OTHER' },
 ];
 
 function typeCount(item: MenuItem) {
@@ -573,6 +572,8 @@ const styles = StyleSheet.create({
   filterScroll: {
     height: 34,
     flexGrow: 0,
+    // Otherwise a long dish list squeezes the row and clips the chips.
+    flexShrink: 0,
     marginBottom: 12,
   },
   filters: {
@@ -580,6 +581,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   filter: {
+    // No browser focus box in the web build; the dark fill already shows the chosen chip.
+    outlineWidth: 0,
     backgroundColor: colors.filterBg,
     borderRadius: 4,
     paddingHorizontal: 10,
