@@ -220,7 +220,10 @@ export default function Store({ params }: { params: { slug: string } }) {
 
   const chosen = linked.filter(item => cart[item.id]);
   const total = chosen.reduce((sum, item) => sum + (configs[item.id]?.unitPrice ?? item.price) * cart[item.id], 0);
-  const suggestions = linked.filter(item => item.available && !cart[item.id]);
+  // Cheapest first across the whole menu (not grouped by category): easy add-ons at the front.
+  const suggestions = linked
+    .filter(item => item.available && !cart[item.id])
+    .sort((a, b) => a.price - b.price || a.name.localeCompare(b.name));
   const needle = query.trim().toLowerCase();
   const shown = needle
     ? linked.filter(item => item.name.toLowerCase().includes(needle) || (item.description ?? '').toLowerCase().includes(needle))
