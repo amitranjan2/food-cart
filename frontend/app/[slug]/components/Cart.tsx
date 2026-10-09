@@ -128,6 +128,7 @@ export function Cart({
   verified,
   customerName,
   onSaveName,
+  onSignOut,
   onPay,
   paying,
   payError,
@@ -154,6 +155,8 @@ export function Cart({
   /** Saved name; empty until the customer saves one. */
   customerName: string;
   onSaveName: (name: string) => Promise<void>;
+  /** Forgets the verified customer so someone else can order. */
+  onSignOut: () => void;
   onPay: (type: OrderType, slot: string) => void;
   paying?: boolean;
   payError?: string;
@@ -508,6 +511,18 @@ export function Cart({
               <b>{customerName}</b>
               <span>{mobile}</span>
             </div>
+            <button
+              type="button"
+              className="cart-identity-switch"
+              onClick={() => {
+                setOtpSentTo('');
+                setNameDraft('');
+                setOtpError('');
+                onSignOut();
+              }}
+            >
+              Not you?
+            </button>
             <i aria-label="Verified">✓</i>
           </div>
         ) : (

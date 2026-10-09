@@ -54,6 +54,12 @@ public class AuthService {
     return session(v.id, "VENDOR");
   }
 
+  /** Ends a session so its token stops working. Unknown or missing tokens are ignored. */
+  public void logout(String header) {
+    if (header == null || !header.startsWith("Bearer ")) return;
+    sessions.findByToken(header.substring(7)).ifPresent(sessions::delete);
+  }
+
   public String actor(String header, String role) {
     if (header == null || !header.startsWith("Bearer ")) throw new SecurityException("Authentication required");
     SessionEntity s = sessions.findByToken(header.substring(7)).orElseThrow(() -> new SecurityException("Invalid session"));

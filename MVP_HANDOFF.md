@@ -83,7 +83,9 @@ Order matters: **S2.1 and S2.2 ⛔ block S2.3**.
 - [ ] **S2.3** Razorpay payment: `PAYMENT_PENDING` status; create-payment endpoint; checkout signature verification; `payment.captured` webhook (unauthenticated endpoint, HMAC checked against the **raw** request body); `PLACED` only after capture; refunds on reject/cancel; expire unpaid orders after ~15 min; vendor app hides unpaid orders. Rename the "Pay" flow to real checkout. Keys only in environment variables, never in the repo (it is public). Payout part waits on the payout open question.
 - [ ] **S2.4** Cart keyed by item id: Half + Full of one item collapse into one line. Key by item + chosen options.
 - [ ] **S2.5** Vendors can only use 4 global categories (Momos/Rolls/Drinks/Chaat) via `MenuItemService.catalogCategoryId`. Let vendors create their own.
-- [ ] **S2.6** Remember the customer's session so repeat orders don't need a new OTP.
+- [x] **S2.6** Remember the customer (commit tagged `S2.6`, Oct 9). After OTP verification the session token is kept in the browser (`localStorage` key `foodcart.customer`; server sessions last 30 days). On the next visit `GET /api/customers/me` restores number + name, so the cart shows the locked card and no OTP is needed; an expired or invalid token is silently forgotten. The card has **Not you?**: it calls the new `POST /api/auth/logout` (deletes the server session), forgets the token and resets the cart to Send OTP.
+  - Verified: `mvn test` 43/43 (new `AuthServiceLogoutTest`). Browser with one profile: verify + name → token saved; reload → "Riya · 9844445555" card, no OTP inputs, order placed; Not you? → number cleared, Send OTP, storage empty, old token gets 403 from the server; reload → not remembered; a bogus stored token is removed.
+  - Trade-off: a token in `localStorage` can be read by any script running on the storefront. Acceptable for V1 because the storefront loads no third-party scripts; move to an HttpOnly cookie if that changes (e.g. analytics or ads).
 - [ ] **S2.7** Customer order-status page (Paid → Accepted → Preparing → Ready/Served) by polling; a WhatsApp message is better later.
 
 ## Step 3: vendor never misses an order

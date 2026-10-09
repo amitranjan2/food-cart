@@ -20,6 +20,26 @@ import {
 } from './lib/customization';
 import { linkItemsToCategories } from './lib/menuLinks';
 
+/** Where a verified customer's session token is kept between visits (server sessions last 30 days). */
+const SESSION_KEY = 'foodcart.customer';
+
+function storedSession() {
+  try {
+    return localStorage.getItem(SESSION_KEY) ?? '';
+  } catch {
+    return '';
+  }
+}
+
+function storeSession(token: string) {
+  try {
+    if (token) localStorage.setItem(SESSION_KEY, token);
+    else localStorage.removeItem(SESSION_KEY);
+  } catch {
+    // Private mode or blocked storage: the customer just verifies again next time.
+  }
+}
+
 export default function Store({ params }: { params: { slug: string } }) {
   const [vendor, setVendor] = useState<Vendor>();
   const [categories, setCategories] = useState<MenuCategory[]>([]);
@@ -125,10 +145,34 @@ export default function Store({ params }: { params: { slug: string } }) {
     setOpen(true);
   }
 
+  // A returning customer is recognised without a new OTP; an expired or revoked session is forgotten.
+  useEffect(() => {
+    const token = storedSession();
+    if (!token) return;
+    request<{ mobile: string; name: string | null }>('/api/customers/me', {}, token)
+      .then(profile => {
+        setMobile(profile.mobile);
+        setCustomerName(profile.name ?? '');
+        setCustomerToken(token);
+      })
+      .catch(() => storeSession(''));
+  }, []);
+
   function changeMobile(next: string) {
     setMobile(next);
     setCustomerToken('');
     setCustomerName('');
+    storeSession('');
+  }
+
+  /** "Not you?": ends the session on the server too, so the old token stops working. */
+  function signOut() {
+    if (customerToken) request('/api/auth/logout', { method: 'POST' }, customerToken).catch(() => {});
+    storeSession('');
+    setCustomerToken('');
+    setCustomerName('');
+    setMobile('');
+    setOtp('');
   }
 
   async function verifyOtp() {
@@ -140,6 +184,7 @@ export default function Store({ params }: { params: { slug: string } }) {
     const profile = await request<{ name: string | null }>('/api/customers/me', {}, session.token);
     setCustomerName(profile.name ?? '');
     setCustomerToken(session.token);
+    storeSession(session.token);
   }
 
   async function saveName(name: string) {
@@ -321,6 +366,7 @@ export default function Store({ params }: { params: { slug: string } }) {
             verified={customerToken !== ''}
             customerName={customerName}
             onSaveName={saveName}
+            onSignOut={signOut}
             onPay={place}
             paying={paying}
             payError={payError}

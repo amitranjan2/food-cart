@@ -201,6 +201,7 @@ html:has(.storefront.customizing),html:has(.storefront.customizing) body{overflo
 .cart-identity div{display:grid;gap:2px;min-width:0;flex:1}
 .cart-identity b{font-size:var(--fs-md);font-weight:800;color:#30404e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cart-identity span{font-size:var(--fs-sm);font-weight:700;color:#717c86}
+.cart-identity-switch{flex:none;border:0;background:transparent;padding:6px 4px;color:#2b65af;font:800 13px/1 var(--store-font-body);text-decoration:underline;text-underline-offset:3px}
 .cart-identity i{flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:#d9f7df;color:#167442;font-style:normal;font-weight:800}
 .cart-otp-verified{height:44px;display:flex;align-items:center;padding:0 12px;border-radius:12px;background:#d9f7df;color:#167442;font:800 13px/1 var(--store-font-body);white-space:nowrap}
 .cart-pay-error{margin:0;color:#b42318;font-size:13px;font-weight:700}

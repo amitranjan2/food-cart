@@ -24,6 +24,12 @@ public class AuthController {
     return Map.of("sent", true);
   }
 
+  @PostMapping("/logout")
+  Map<String, Object> logout(@RequestHeader(value = "Authorization", required = false) String h) {
+    auth.logout(h);
+    return Map.of("loggedOut", true);
+  }
+
   @PostMapping("/{role}/verify-otp")
   Map<String, String> verify(@PathVariable String role, @RequestBody Verify b) {
     String token;
