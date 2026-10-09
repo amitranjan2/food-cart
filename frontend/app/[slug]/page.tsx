@@ -8,7 +8,9 @@ import { CategoryMenu } from './components/CategoryMenu';
 import { CategoryNav } from './components/CategoryNav';
 import { ItemCustomizer } from './components/ItemCustomizer';
 import { Menu } from './components/Menu';
-import { OrderConfirmation, type PlacedOrder } from './components/OrderConfirmation';
+import { useRouter } from 'next/navigation';
+import { storedSession, storeSession } from '../lib/session';
+import type { CustomerOrder, OrderView } from '../lib/orders';
 import { TestCheckout } from './components/TestCheckout';
 import { openCheckout, type CheckoutOutcome, type StartedPayment } from '../lib/payments';
 import { StoreHeader, StoreSearch } from './components/StoreHeader';
@@ -21,26 +23,6 @@ import {
   type StoredConfiguration,
 } from './lib/customization';
 import { linkItemsToCategories } from './lib/menuLinks';
-
-/** Where a verified customer's session token is kept between visits (server sessions last 30 days). */
-const SESSION_KEY = 'foodcart.customer';
-
-function storedSession() {
-  try {
-    return localStorage.getItem(SESSION_KEY) ?? '';
-  } catch {
-    return '';
-  }
-}
-
-function storeSession(token: string) {
-  try {
-    if (token) localStorage.setItem(SESSION_KEY, token);
-    else localStorage.removeItem(SESSION_KEY);
-  } catch {
-    // Private mode or blocked storage: the customer just verifies again next time.
-  }
-}
 
 export default function Store({ params }: { params: { slug: string } }) {
   const [vendor, setVendor] = useState<Vendor>();
@@ -61,7 +43,7 @@ export default function Store({ params }: { params: { slug: string } }) {
   const [customerName, setCustomerName] = useState('');
   const [testCheckout, setTestCheckout] = useState<{ amount: number; resolve: (outcome: CheckoutOutcome) => void } | null>(null);
   const homeScroll = useRef(0);
-  const [order, setOrder] = useState<PlacedOrder>();
+  const router = useRouter();
   const [query, setQuery] = useState('');
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState('');
@@ -295,7 +277,7 @@ export default function Store({ params }: { params: { slug: string } }) {
 
   async function waitForPayment(orderId: string) {
     for (let attempt = 0; attempt < 20; attempt++) {
-      const current = await request<PlacedOrder>('/api/orders/' + orderId, {}, customerToken);
+      const current = (await request<OrderView>('/api/orders/' + orderId, {}, customerToken)).order;
       if (current.status === 'PLACED') return current;
       if (current.status !== 'PAYMENT_PENDING') throw new Error('This payment could not be used for the order. Any amount taken will be refunded.');
       await new Promise(done => setTimeout(done, 1000));
@@ -307,7 +289,7 @@ export default function Store({ params }: { params: { slug: string } }) {
     setPaying(true);
     setPayError('');
     try {
-      const created = await request<{ order: PlacedOrder; payment: StartedPayment }>('/api/orders', {
+      const created = await request<{ order: CustomerOrder; payment: StartedPayment }>('/api/orders', {
         method: 'POST',
         body: JSON.stringify({
           vendorId: store.id,
@@ -333,7 +315,7 @@ export default function Store({ params }: { params: { slug: string } }) {
       if (outcome === 'failure') throw new Error('Payment failed. Nothing was charged; please try again.');
       // The gateway's webhook confirms the payment on the server; wait for it rather than trusting the browser.
       const placed = await waitForPayment(created.order.id);
-      setOrder(placed);
+      router.push(`/${params.slug}/order/${placed.id}`);
     } catch (error) {
       setPayError(error instanceof Error ? error.message : 'Could not place the order.');
       // The chosen slot may have just expired; show the current ones.
@@ -344,7 +326,6 @@ export default function Store({ params }: { params: { slug: string } }) {
     }
   }
 
-  if (order) return <OrderConfirmation vendor={store} order={order} />;
 
   const paymentSheet = testCheckout && (
     <TestCheckout amount={testCheckout.amount} onChoose={outcome => testCheckout.resolve(outcome)} />

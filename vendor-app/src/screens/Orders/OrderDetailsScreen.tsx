@@ -94,6 +94,9 @@ export function OrderDetailsScreen({ navigation, route }: Props) {
               ) : null}
             </View>
             {order.scheduledFor ? <Text style={styles.slot}>For {formatSlot(order.scheduledFor)}</Text> : null}
+            {order.pickupCode ? (
+              <Text style={styles.code}>Handover code {order.pickupCode} · ask the customer for it before handing over</Text>
+            ) : null}
             <View style={styles.items}>
               {order.items?.map((item, index) => (
                 <Text key={`${item.menuItemId ?? 'line'}-${index}`} style={styles.item}>
@@ -119,6 +122,12 @@ export function OrderDetailsScreen({ navigation, route }: Props) {
 }
 
 const styles = StyleSheet.create({
+  code: {
+    marginTop: 4,
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.muted,
+  },
   slot: {
     marginTop: 8,
     fontSize: 16,

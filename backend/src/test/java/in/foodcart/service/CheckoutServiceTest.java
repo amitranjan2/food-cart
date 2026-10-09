@@ -168,4 +168,9 @@ class CheckoutServiceTest {
     when(orders.findByIdAndVendorId("o2", "v1")).thenReturn(Optional.of(unpaid));
     assertThrows(IllegalStateException.class, () -> checkout.status("v1", "o2", OrderStatus.ACCEPTED));
   }
+
+  @Test
+  void everyOrderGetsAFourDigitHandoverCode() {
+    assertTrue(checkout.create("c1", request("160")).pickupCode.matches("[0-9]{4}"));
+  }
 }

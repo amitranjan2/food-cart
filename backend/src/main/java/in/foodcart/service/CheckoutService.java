@@ -30,6 +30,7 @@ public class CheckoutService {
   private final OrderRepository orders;
   private final CustomerRepository customers;
   private final PaymentService payments;
+  private static final java.security.SecureRandom CODES = new java.security.SecureRandom();
   /** Replaced in tests. */
   Clock clock = Clock.system(SlotRules.ZONE);
 
@@ -92,6 +93,7 @@ public class CheckoutService {
     o.orderNumber = 1000 + orders.count() + 1;
     // Pay first: the vendor only sees the order once the payment is confirmed (PaymentService).
     o.status = OrderStatus.PAYMENT_PENDING;
+    o.pickupCode = String.format("%04d", CODES.nextInt(10_000));
     o.paymentMethod = "ONLINE";
     return orders.save(o);
   }

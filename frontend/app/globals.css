@@ -298,3 +298,24 @@ html.scroll-locked,html.scroll-locked body,.storefront.scroll-locked{overflow:hi
 .test-checkout-sheet .customizer-add{width:100%;height:50px}
 .test-checkout-fail,.test-checkout-close{height:44px;border:0;border-radius:12px;background:#e8edf1;color:#30404e;font:800 14px/1 var(--store-font-body)}
 .test-checkout-close{background:transparent}
+.status-body{display:grid;gap:12px;padding:20px 12px 40px;background:var(--store-paper)}
+.status-message{margin:0;padding:14px 16px;border-radius:16px;background:#e8edf1;color:#30404e;font-size:var(--fs-sm);font-weight:700;line-height:1.45}
+.status-card{display:grid;gap:10px;padding:14px 16px;border-radius:16px;background:#fff;box-shadow:0 1px 0 rgba(48,64,78,.06),0 8px 18px rgba(48,64,78,.04)}
+.status-card h2{margin:0;font-size:var(--fs-md);font-weight:800}
+.status-card-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.status-kicker{margin:0;font-size:var(--fs-xs);font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#717c86}
+.status-items.muted .status-line{opacity:.45}
+.status-line{display:grid;grid-template-columns:56px minmax(0,1fr);gap:12px;align-items:center}
+.status-line .cart-line-photo{width:56px;height:56px;grid-row:auto}
+.status-line div{display:grid;gap:2px;min-width:0}
+.status-line b{font-size:var(--fs-sm);font-weight:800}
+.status-line span{font-size:var(--fs-xs);font-weight:700;color:#717c86}
+.status-code{flex:none;padding:6px 12px;border-radius:10px;background:#30404e;color:#fff;font-size:var(--fs-md);font-weight:800;letter-spacing:.12em}
+.status-place{display:flex;align-items:flex-start;gap:12px}
+.status-place div{display:grid;gap:3px;flex:1;min-width:0}
+.status-place b{font-size:var(--fs-sm);font-weight:800}
+.status-place span{font-size:var(--fs-sm);color:#5d6b76;font-weight:600}
+.status-place .status-slot{color:#30404e;font-weight:800}
+.status-map{flex:none;width:40px;height:40px;border-radius:12px;background:#e8edf1;color:#30404e;display:grid;place-items:center}
+.status-paid{margin:0;font-size:var(--fs-xs);font-weight:800;color:#167442}
+.status-help{justify-self:center;margin-top:4px;padding:12px 20px;border-radius:12px;background:#30404e;color:#fff;font-size:var(--fs-sm);font-weight:800;text-decoration:none}

@@ -30,6 +30,8 @@ export type Order = {
   type?: OrderType | string;
   /** Start of the customer's 30-minute slot (ISO instant). */
   scheduledFor?: string | null;
+  /** 4 digits the customer shows at handover. */
+  pickupCode?: string | null;
   paymentMethod?: string | null;
   rejectionReason?: string | null;
   rejectionNote?: string | null;
