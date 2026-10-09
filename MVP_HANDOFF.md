@@ -85,10 +85,13 @@ Order matters: **S2.1 and S2.2 ⛔ block S2.3**.
 - [ ] **S4.1** Order number is `1000 + orders.count() + 1` (`CheckoutService`): global and can collide. Use a per-vendor atomic daily counter.
 - [ ] **S4.2** CORS `allowedMethods` lacks `DELETE` (`CorsConfig`).
 - [ ] **S4.3** `NoSuchElementException` returns 500. A bad store link stays on "Loading…" forever. Show a closed-vendor banner.
-- [ ] **S4.4** `next.config.mjs` has `ignoreBuildErrors: true`, hiding 3 `tsc` errors: `[slug]/components/CategoryMenu.tsx:30` (`section` possibly null), `[slug]/page.tsx` `query` prop on a component that doesn't accept it (search is probably not wired up), `vendor/page.tsx:23`. Fix them, then remove the flag.
+- [ ] **S4.4** `next.config.mjs` has `ignoreBuildErrors: true`, hiding 2 `tsc` errors: `[slug]/components/CategoryMenu.tsx:30` (`section` possibly null), `vendor/page.tsx:23`. Fix them, then remove the flag. (The third, the `query` prop, was the missing search bar: fixed in S4.11.) This flag is how S4.11 slipped through, so it is worth doing early.
 - [ ] **S4.5** Backend Dockerfile, MongoDB Atlas, HTTPS. Vendor app on the web uses `window.location.origin` for the API.
 - [ ] **S4.6** One brand: "FoodCart" vs "Supr-Mama".
 - [ ] **S4.7** Remove dead `OrderService` (unused duplicate of `CheckoutService`).
 - [ ] **S4.8** Per-IP rate limit on `/api/auth/*` (reverse proxy or app). ⛔ blocks go-live: the per-number limits alone still let one attacker spend SMS credits on any number.
 - [ ] **S4.9** Make `vendors.mobile` unique if the open question says one number = one stall.
 - [ ] **S4.10** Repo `amitranjan2/food-cart` is **public**. Decide whether to make it private; either way, no secrets in the repo.
+- [x] **S4.11** Storefront home header cut off and search bar missing (commit tagged `S4.11`, Oct 9). Cause: merge `f32aaa8` kept `StoreHeader.tsx` from 6f6791c (search split into `StoreSearch`) but `page.tsx` from a20e15b (which never renders it), so `.store-body`'s `margin-top:-22px` slid over the header. Fix: render `StoreSearch` under the header; removed its unused window-scroll pinning (the page scrolls `.storefront`, and CSS `position: sticky` already pins it).
+  - Verified in a browser at 400px: header 0–58px with the title inside; search bar 58–130px; after scrolling 700px the search bar is pinned at 0; searching "roll" filters the menu; the S2.1 checkout still works (₹150 cart → ₹150 order).
+  - Lesson: when merging both sides' edits to `page.tsx`, run `tsc` before committing.

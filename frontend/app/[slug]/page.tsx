@@ -9,7 +9,7 @@ import { CategoryNav } from './components/CategoryNav';
 import { ItemCustomizer } from './components/ItemCustomizer';
 import { Menu } from './components/Menu';
 import { OrderConfirmation, type PlacedOrder } from './components/OrderConfirmation';
-import { StoreHeader } from './components/StoreHeader';
+import { StoreHeader, StoreSearch } from './components/StoreHeader';
 import { VendorInfo } from './components/VendorInfo';
 import {
   autoSelection,
@@ -270,9 +270,10 @@ export default function Store({ params }: { params: { slug: string } }) {
         </div>
       ) : (
       <div className={underlay} aria-hidden={customizing ? true : undefined}>
-      <StoreHeader query={query} onQueryChange={setQuery}>
+      <StoreHeader>
         <VendorInfo vendor={store} />
       </StoreHeader>
+      <StoreSearch query={query} onQueryChange={setQuery} />
       <div className="store-body">
         <Menu
           items={shown}
