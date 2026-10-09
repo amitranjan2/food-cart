@@ -40,18 +40,6 @@ export function formatRupee(amount: number) {
   return Number.isInteger(rounded) ? `₹${rounded}` : `₹${rounded.toFixed(2)}`;
 }
 
-/** True when more than one SKU path exists (any group offers 2+ choices). */
-export function requiresCustomization(item: MenuItem) {
-  const { groups } = customizationFor(item);
-  if (groups.length === 0) return false;
-  return groups.some(group => group.choices.length > 1);
-}
-
-export function defaultConfiguration(item: MenuItem): StoredConfiguration {
-  const spec = customizationFor(item);
-  return configurationFrom(item, spec, initialSelection(spec));
-}
-
 export function customizationFor(item: MenuItem): ItemCustomization {
   const groups: CustomizationGroup[] = [];
   const basePrice = Number(item.price);
