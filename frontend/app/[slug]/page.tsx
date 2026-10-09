@@ -25,6 +25,9 @@ import {
 } from './lib/customization';
 import { linkItemsToCategories } from './lib/menuLinks';
 
+/** Most dishes shown in the cart's "You may also like" row. */
+const SUGGESTION_LIMIT = 12;
+
 export default function Store({ params }: { params: { slug: string } }) {
   const [vendor, setVendor] = useState<Vendor>();
   const [categories, setCategories] = useState<MenuCategory[]>([]);
@@ -220,10 +223,11 @@ export default function Store({ params }: { params: { slug: string } }) {
 
   const chosen = linked.filter(item => cart[item.id]);
   const total = chosen.reduce((sum, item) => sum + (configs[item.id]?.unitPrice ?? item.price) * cart[item.id], 0);
-  // Cheapest first across the whole menu (not grouped by category): easy add-ons at the front.
+  // Cheapest first across the whole menu (not grouped by category): easy add-ons at the front. Capped so it stays a nudge.
   const suggestions = linked
     .filter(item => item.available && !cart[item.id])
-    .sort((a, b) => a.price - b.price || a.name.localeCompare(b.name));
+    .sort((a, b) => a.price - b.price || a.name.localeCompare(b.name))
+    .slice(0, SUGGESTION_LIMIT);
   const needle = query.trim().toLowerCase();
   const shown = needle
     ? linked.filter(item => item.name.toLowerCase().includes(needle) || (item.description ?? '').toLowerCase().includes(needle))
