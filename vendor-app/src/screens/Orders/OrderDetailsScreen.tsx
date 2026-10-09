@@ -86,7 +86,7 @@ export function OrderDetailsScreen({ navigation, route }: Props) {
               <StatusChip status={order.status} />
             </View>
             <View style={[styles.row, styles.meta]}>
-              <Text style={styles.phone}>☎ {order.customerMobile || 'Customer'}</Text>
+              <Text style={styles.phone}>☎ {[order.customerName, order.customerMobile].filter(Boolean).join(' · ') || 'Customer'}</Text>
               {order.type ? (
                 <View style={styles.type}>
                   <Text style={styles.typeLabel}>{formatOrderType(order.type)}</Text>

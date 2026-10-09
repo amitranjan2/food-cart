@@ -126,6 +126,8 @@ export function Cart({
   onSendOtp,
   onVerifyOtp,
   verified,
+  customerName,
+  onSaveName,
   onPay,
   paying,
   payError,
@@ -149,6 +151,9 @@ export function Cart({
   /** Checks the OTP with the server. Pay is enabled only once this succeeds. */
   onVerifyOtp: () => Promise<void>;
   verified: boolean;
+  /** Saved name; empty until the customer saves one. */
+  customerName: string;
+  onSaveName: (name: string) => Promise<void>;
   onPay: (type: OrderType, slot: string) => void;
   paying?: boolean;
   payError?: string;
@@ -161,9 +166,9 @@ export function Cart({
   const [onceSlot, setOnceSlot] = useState<Date | null>(null);
   const [subscribeMinutes, setSubscribeMinutes] = useState(() => minutesFromDate(nextHalfHour()));
 
-  // Keep the chosen slot only while the server still offers it; otherwise fall back to the earliest one.
+  // The customer must pick a slot; keep it only while the server still offers it.
   useEffect(() => {
-    setOnceSlot(current => (current && onceOptions.some(option => option.getTime() === current.getTime()) ? current : onceOptions[0] ?? null));
+    setOnceSlot(current => (current && onceOptions.some(option => option.getTime() === current.getTime()) ? current : null));
   }, [onceOptions]);
   const [editing, setEditing] = useState(false);
   const [slotDay, setSlotDay] = useState('');
@@ -173,6 +178,8 @@ export function Cart({
   const [otpSentTo, setOtpSentTo] = useState('');
   const [sendingOtp, setSendingOtp] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [nameDraft, setNameDraft] = useState('');
+  const [savingName, setSavingName] = useState(false);
   const [otpError, setOtpError] = useState('');
   const [resendIn, setResendIn] = useState(0);
   const otpSent = otpSentTo !== '' && otpSentTo === mobile;
@@ -182,6 +189,18 @@ export function Cart({
     const timer = window.setTimeout(() => setResendIn(value => value - 1), 1000);
     return () => clearTimeout(timer);
   }, [resendIn]);
+
+  async function saveName() {
+    setSavingName(true);
+    setOtpError('');
+    try {
+      await onSaveName(nameDraft.trim());
+    } catch (error) {
+      setOtpError(error instanceof Error ? error.message : 'Could not save your name.');
+    } finally {
+      setSavingName(false);
+    }
+  }
 
   async function verifyOtp() {
     setVerifying(true);
@@ -234,7 +253,7 @@ export function Cart({
   function selectPlan(next: Plan) {
     if (next === plan) return;
     if (next === 'subscribe') setSubscribeMinutes(minutesFromDate(onceSlot ?? nextHalfHour()));
-    else setOnceSlot(firstOnceSlotWithTime(onceOptions, subscribeMinutes) ?? onceOptions[0] ?? null);
+    else setOnceSlot(firstOnceSlotWithTime(onceOptions, subscribeMinutes) ?? null);
     setEditing(false);
     setPlan(next);
   }
@@ -249,9 +268,9 @@ export function Cart({
 
   const shownDay = onceGroups.find(group => group.key === slotDay) ?? onceGroups.find(group => onceSlot && group.key === slotKey(onceSlot).slice(0, 10)) ?? onceGroups[0];
   const slotPill = plan === 'once'
-    ? onceSlot ? slotLabel(onceSlot) : slots === null ? '…' : 'None'
+    ? onceSlot ? slotLabel(onceSlot) : slots === null ? '…' : onceOptions.length ? 'Select a time' : 'None'
     : clockLabel(dateAtMinutes(subscribeMinutes));
-  const slotProblem = slots === null || onceSlot ? ''
+  const slotProblem = slots === null || onceOptions.length ? ''
     : hoursSet ? 'No time slots left today or tomorrow.' : 'This vendor hasn’t set opening hours yet, so orders can’t be placed.';
   const needsAddress = fulfillment === 'delivery' && !address;
 
@@ -377,7 +396,7 @@ export function Cart({
               setEditing(value => !value);
             }}
           >
-            {editing ? 'Done' : 'Change'}
+            {editing ? 'Done' : onceSlot || plan !== 'once' ? 'Change' : 'Select'}
           </button>
         </div>
         {editing && plan === 'once' && shownDay && (
@@ -483,6 +502,16 @@ export function Cart({
       ) : (
       <>
       <section className="cart-auth" aria-label="Confirm mobile">
+        {verified && customerName ? (
+          <div className="cart-identity" aria-label="Ordering as">
+            <div>
+              <b>{customerName}</b>
+              <span>{mobile}</span>
+            </div>
+            <i aria-label="Verified">✓</i>
+          </div>
+        ) : (
+        <>
         <div className="cart-otp-row">
           <label className="cart-field">
             <input
@@ -529,6 +558,27 @@ export function Cart({
             />
           </label>
         )}
+        {verified && (
+          <div className="cart-otp-row">
+            <label className="cart-field">
+              <input
+                autoComplete="name"
+                maxLength={60}
+                placeholder="Your name"
+                value={nameDraft}
+                onChange={event => {
+                  setNameDraft(event.target.value);
+                  setOtpError('');
+                }}
+              />
+            </label>
+            <button type="button" className="cart-otp-send" disabled={savingName || nameDraft.trim() === ''} onClick={saveName}>
+              {savingName ? '…' : 'Save'}
+            </button>
+          </div>
+        )}
+        </>
+        )}
         {slotProblem || otpError || payError ? <p className="cart-pay-error">{slotProblem || otpError || payError}</p> : null}
       </section>
       {billOpen && <div className="bill-backdrop" aria-hidden="true" onClick={() => setBillOpen(false)} />}
@@ -559,7 +609,7 @@ export function Cart({
             </svg>
             <strong aria-live="polite">{formatRupee(total)}</strong>
           </button>
-          <button type="button" className="customizer-add" disabled={paying || !verified || !onceSlot} onClick={() => onceSlot && onPay(ORDER_TYPES[fulfillment], slotKey(onceSlot))}>{paying ? '…' : 'Pay'}</button>
+          <button type="button" className="customizer-add" disabled={paying || !verified || !customerName || !onceSlot} onClick={() => onceSlot && onPay(ORDER_TYPES[fulfillment], slotKey(onceSlot))}>{paying ? '…' : 'Pay'}</button>
         </footer>
       </div>
       </>

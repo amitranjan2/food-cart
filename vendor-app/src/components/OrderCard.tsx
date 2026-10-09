@@ -34,7 +34,7 @@ export function OrderCard({
       </View>
       <View style={[styles.row, styles.customerRow]}>
         <Text style={styles.customer} numberOfLines={1}>
-          {order.customerMobile || 'Customer'}
+          {[order.customerName, order.customerMobile].filter(Boolean).join(' · ') || 'Customer'}
         </Text>
         {typeLabel ? (
           <View style={styles.type}>

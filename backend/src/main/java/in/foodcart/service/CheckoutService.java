@@ -1,5 +1,6 @@
 package in.foodcart.service;
 
+import in.foodcart.data.CustomerEntity;
 import in.foodcart.data.CustomerRepository;
 import in.foodcart.data.CustomerVendorHistoryEntity;
 import in.foodcart.data.HistoryRepository;
@@ -55,7 +56,10 @@ public class CheckoutService {
     OrderEntity o = new OrderEntity();
     o.vendorId = v.id;
     o.customerId = customerId;
-    o.customerMobile = customers.findById(customerId).orElseThrow(() -> new SecurityException("Customer not found")).mobile;
+    CustomerEntity customer = customers.findById(customerId).orElseThrow(() -> new SecurityException("Customer not found"));
+    if (customer.name == null || customer.name.isBlank()) throw new IllegalStateException("Add your name before paying.");
+    o.customerMobile = customer.mobile;
+    o.customerName = customer.name;
     o.type = OrderType.parse(request.type());
     o.scheduledFor = checkedSlot(v, request.slot()).atZone(SlotRules.ZONE).toInstant();
     for (Line line : request.items()) {

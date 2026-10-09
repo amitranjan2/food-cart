@@ -34,13 +34,15 @@ public final class SlotRules {
 
   /**
    * Slot start times the customer may pick: every half hour inside opening hours, strictly after the
-   * current slot, through the end of tomorrow's opening (including its after-midnight part).
+   * current slot, up to the end of tomorrow (11:30 PM tomorrow is the last possible slot). After-midnight
+   * hours count on the calendar day they fall on: tonight's 12:30 AM is a tomorrow slot.
    * A slot starts before closing time, so 10:00-22:00 gives 10:00 ... 21:30.
    */
   public static List<LocalDateTime> slots(List<OpeningHours> hours, LocalDateTime now) {
     if (hours == null || hours.isEmpty()) return List.of();
     LocalDateTime currentSlot = now.truncatedTo(ChronoUnit.HOURS).plusMinutes(now.getMinute() / SLOT_MINUTES * SLOT_MINUTES);
     LocalDate today = now.toLocalDate();
+    LocalDateTime endOfTomorrow = today.plusDays(2).atStartOfDay();
     TreeSet<LocalDateTime> result = new TreeSet<>();
     // Yesterday's opening can still be running after midnight.
     for (LocalDate day = today.minusDays(1); !day.isAfter(today.plusDays(1)); day = day.plusDays(1)) {
@@ -51,7 +53,7 @@ public final class SlotRules {
         LocalDateTime start = day.atTime(opens);
         LocalDateTime end = closes.isAfter(opens) ? day.atTime(closes) : day.plusDays(1).atTime(closes);
         for (LocalDateTime t = start; t.isBefore(end); t = t.plusMinutes(SLOT_MINUTES)) {
-          if (t.isAfter(currentSlot)) result.add(t);
+          if (t.isAfter(currentSlot) && t.isBefore(endOfTomorrow)) result.add(t);
         }
       }
     }

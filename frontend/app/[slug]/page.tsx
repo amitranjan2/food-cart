@@ -36,6 +36,7 @@ export default function Store({ params }: { params: { slug: string } }) {
   const [otp, setOtp] = useState('');
   /** Set once the customer submits a correct OTP; Pay uses it. */
   const [customerToken, setCustomerToken] = useState('');
+  const [customerName, setCustomerName] = useState('');
   const homeScroll = useRef(0);
   const [order, setOrder] = useState<PlacedOrder>();
   const [query, setQuery] = useState('');
@@ -127,6 +128,7 @@ export default function Store({ params }: { params: { slug: string } }) {
   function changeMobile(next: string) {
     setMobile(next);
     setCustomerToken('');
+    setCustomerName('');
   }
 
   async function verifyOtp() {
@@ -134,7 +136,18 @@ export default function Store({ params }: { params: { slug: string } }) {
       method: 'POST',
       body: JSON.stringify({ mobile, otp }),
     });
+    // Returning customers already have a name and skip that step.
+    const profile = await request<{ name: string | null }>('/api/customers/me', {}, session.token);
+    setCustomerName(profile.name ?? '');
     setCustomerToken(session.token);
+  }
+
+  async function saveName(name: string) {
+    const profile = await request<{ name: string | null }>('/api/customers/me', {
+      method: 'PATCH',
+      body: JSON.stringify({ name }),
+    }, customerToken);
+    setCustomerName(profile.name ?? '');
   }
 
   // Slots move every half hour, so fetch them each time the cart opens.
@@ -306,6 +319,8 @@ export default function Store({ params }: { params: { slug: string } }) {
             onSendOtp={sendOtp}
             onVerifyOtp={verifyOtp}
             verified={customerToken !== ''}
+            customerName={customerName}
+            onSaveName={saveName}
             onPay={place}
             paying={paying}
             payError={payError}

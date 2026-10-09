@@ -58,10 +58,17 @@ class SlotRulesTest {
   }
 
   @Test
-  void tomorrowsLateNightTailIsIncluded() {
+  void endsAtTheEndOfTomorrowEvenIfTomorrowRunsPastMidnight() {
     List<OpeningHours> hours = List.of(new OpeningHours(DayOfWeek.SATURDAY, "20:00", "01:00"));
     List<LocalDateTime> slots = SlotRules.slots(hours, fri("12:00"));
-    assertEquals(LocalDateTime.parse("2026-10-11T00:30"), slots.get(slots.size() - 1));
+    assertEquals(LocalDateTime.parse("2026-10-10T23:30"), slots.get(slots.size() - 1)); // not Sunday 00:00/00:30
+  }
+
+  @Test
+  void tonightsAfterMidnightSlotsAreTomorrowSlots() {
+    List<OpeningHours> hours = List.of(new OpeningHours(DayOfWeek.FRIDAY, "20:00", "01:00"));
+    List<LocalDateTime> slots = SlotRules.slots(hours, fri("21:10"));
+    assertEquals(LocalDateTime.parse("2026-10-10T00:30"), slots.get(slots.size() - 1));
   }
 
   @Test

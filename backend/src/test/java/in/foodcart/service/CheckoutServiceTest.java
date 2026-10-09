@@ -37,6 +37,7 @@ class CheckoutServiceTest {
     CustomerEntity customer = new CustomerEntity();
     customer.id = "c1";
     customer.mobile = "9876543210";
+    customer.name = "Aakash";
     when(customers.findById("c1")).thenReturn(Optional.of(customer));
     MenuItemEntity momos = new MenuItemEntity();
     momos.id = "m1";
@@ -122,5 +123,18 @@ class CheckoutServiceTest {
     vendors.findById("v1").orElseThrow().openingHours.clear();
     IllegalStateException e = assertThrows(IllegalStateException.class, () -> checkout.create("c1", request("160")));
     assertEquals("This vendor isn't taking orders for any time slot right now.", e.getMessage());
+  }
+
+  @Test
+  void refusesOrdersFromCustomersWithoutAName() {
+    customers.findById("c1").orElseThrow().name = " ";
+    IllegalStateException e = assertThrows(IllegalStateException.class, () -> checkout.create("c1", request("160")));
+    assertEquals("Add your name before paying.", e.getMessage());
+    verify(orders, never()).save(any());
+  }
+
+  @Test
+  void copiesTheCustomersNameOntoTheOrder() {
+    assertEquals("Aakash", checkout.create("c1", request("160")).customerName);
   }
 }
