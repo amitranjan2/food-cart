@@ -22,6 +22,7 @@ import { useAuth } from '../../state/AuthContext';
 import { spacing } from '../../theme';
 import type { OrderStatus } from '../../types';
 import { formatDayTitle } from '../../utils/format';
+import { indiaDay } from '../../utils/orderDay';
 import type { OrdersStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<OrdersStackParamList, 'OrdersList'>;
@@ -50,14 +51,16 @@ export function OrdersScreen({ navigation }: Props) {
     }, [refresh]),
   );
 
-  const day = useMemo(() => {
-    const next = new Date();
-    next.setHours(0, 0, 0, 0);
-    next.setDate(next.getDate() + offset);
-    return next;
-  }, [offset]);
+  const day = useMemo(() => indiaDay(offset), [offset]);
 
   const shown = useMemo(() => filterOrders(orders, day, 'ALL', ''), [orders, day]);
+  // On today's page, point out advance orders so tomorrow's slots aren't missed.
+  const tomorrowCount = useMemo(() => {
+    if (offset !== 0) return 0;
+    const tomorrow = new Date(day);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return filterOrders(orders, tomorrow, 'ALL', '').filter(order => order.status !== 'REJECTED' && order.status !== 'CANCELLED').length;
+  }, [orders, day, offset]);
 
   async function toggleStore() {
     if (!token || !vendor) return;
@@ -122,6 +125,13 @@ export function OrdersScreen({ navigation }: Props) {
             onPrev={() => setOffset(value => value - 1)}
             onNext={() => setOffset(value => value + 1)}
           />
+          {tomorrowCount > 0 ? (
+            <Pressable onPress={() => setOffset(1)} style={styles.tomorrow} accessibilityRole="button">
+              <Text style={styles.tomorrowLabel}>
+                {tomorrowCount} {tomorrowCount === 1 ? 'order' : 'orders'} for tomorrow ›
+              </Text>
+            </Pressable>
+          ) : null}
           {actionError ? <Text style={styles.actionError}>{actionError}</Text> : null}
           {loading && orders.length === 0 ? (
             <LoadingState message="Loading orders…" />
@@ -172,6 +182,20 @@ export function OrdersScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
+  tomorrow: {
+    marginTop: 8,
+    marginBottom: 10,
+    marginHorizontal: 2,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    backgroundColor: '#FFF6D8',
+  },
+  tomorrowLabel: {
+    color: '#8a5d00',
+    fontSize: 14,
+    fontWeight: '700',
+  },
   canvas: {
     backgroundColor: '#F4F6F8',
   },

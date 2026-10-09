@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { ordersForDay, pagerDayKey } from '../utils/orderDay';
 import { getVendorOrders, handOverOrder, patchOrderStatus } from '../api/orders';
 import { isAuthFailure } from '../api/client';
 import { useAuth } from '../state/AuthContext';
@@ -78,16 +79,11 @@ export function filterOrders(
   query: string,
 ) {
   const needle = query.trim().toLowerCase();
-  return orders.filter(order => {
-    const created = order.createdAt ? new Date(order.createdAt) : new Date();
-    const sameDay =
-      created.getFullYear() === day.getFullYear() &&
-      created.getMonth() === day.getMonth() &&
-      created.getDate() === day.getDate();
-    if (!sameDay) return false;
+  // Orders belong to the day of their slot (an order placed tonight for tomorrow shows on tomorrow), earliest slot first.
+  return ordersForDay(orders, pagerDayKey(day)).filter(order => {
     if (status !== 'ALL' && order.status !== status) return false;
     if (!needle) return true;
-    const haystack = `${order.orderNumber} ${order.customerMobile ?? ''} ${order.items.map(item => item.name).join(' ')}`.toLowerCase();
+    const haystack = `${order.orderNumber} ${order.customerName ?? ''} ${order.customerMobile ?? ''} ${order.items.map(item => item.name).join(' ')}`.toLowerCase();
     return haystack.includes(needle);
   });
 }
