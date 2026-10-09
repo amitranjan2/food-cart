@@ -4,6 +4,9 @@ import Link from 'next/link';
 import type { Vendor } from '../../lib/api';
 
 export type PlacedOrder = {
+  id: string;
+  status: string;
+  payment?: { status: string } | null;
   orderNumber: number;
   type: 'PICKUP' | 'DINE_IN';
   /** Start of the chosen slot, e.g. "2026-10-09T09:30:00Z". */
@@ -25,7 +28,7 @@ export function OrderConfirmation({ vendor, order }: { vendor: Vendor; order: Pl
       <div className="mx-auto mt-10 max-w-lg rounded-[28px] bg-white p-6 shadow-xl">
         <p className="text-xs font-bold tracking-widest text-emerald-700">ORDER CONFIRMED</p>
         <h1 className="mt-2 text-4xl">#{order.orderNumber}</h1>
-        <p className="mt-4 rounded-xl bg-[#eef1e8] p-4 font-bold">Order is shared with the kitchen. We’ll keep you updated.</p>
+        <p className="mt-4 rounded-xl bg-[#eef1e8] p-4 font-bold">Paid ₹{order.total}. Your order is with the kitchen.</p>
         <div className="mt-5 rounded-2xl bg-stone-100 p-4">
           <b>{order.type === 'DINE_IN' ? 'Dine in at' : 'Pick up from'}</b>
           <p className="mt-2">{vendor.name}<br />{vendor.address}</p>

@@ -9,6 +9,8 @@ import { CategoryNav } from './components/CategoryNav';
 import { ItemCustomizer } from './components/ItemCustomizer';
 import { Menu } from './components/Menu';
 import { OrderConfirmation, type PlacedOrder } from './components/OrderConfirmation';
+import { TestCheckout } from './components/TestCheckout';
+import { openCheckout, type CheckoutOutcome, type StartedPayment } from '../lib/payments';
 import { StoreHeader, StoreSearch } from './components/StoreHeader';
 import { VendorInfo } from './components/VendorInfo';
 import {
@@ -57,6 +59,7 @@ export default function Store({ params }: { params: { slug: string } }) {
   /** Set once the customer submits a correct OTP; Pay uses it. */
   const [customerToken, setCustomerToken] = useState('');
   const [customerName, setCustomerName] = useState('');
+  const [testCheckout, setTestCheckout] = useState<{ amount: number; resolve: (outcome: CheckoutOutcome) => void } | null>(null);
   const homeScroll = useRef(0);
   const [order, setOrder] = useState<PlacedOrder>();
   const [query, setQuery] = useState('');
@@ -290,11 +293,21 @@ export default function Store({ params }: { params: { slug: string } }) {
     });
   }
 
+  async function waitForPayment(orderId: string) {
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const current = await request<PlacedOrder>('/api/orders/' + orderId, {}, customerToken);
+      if (current.status === 'PLACED') return current;
+      if (current.status !== 'PAYMENT_PENDING') throw new Error('This payment could not be used for the order. Any amount taken will be refunded.');
+      await new Promise(done => setTimeout(done, 1000));
+    }
+    throw new Error('We are still confirming your payment. Check your orders in a minute before paying again.');
+  }
+
   async function place(type: OrderType, slot: string) {
     setPaying(true);
     setPayError('');
     try {
-      const placed = await request<PlacedOrder>('/api/orders', {
+      const created = await request<{ order: PlacedOrder; payment: StartedPayment }>('/api/orders', {
         method: 'POST',
         body: JSON.stringify({
           vendorId: store.id,
@@ -314,17 +327,28 @@ export default function Store({ params }: { params: { slug: string } }) {
           }),
         }),
       }, customerToken);
+      const outcome = await openCheckout(created.payment, () => new Promise(resolve => setTestCheckout({ amount: created.order.total, resolve })));
+      setTestCheckout(null);
+      if (outcome === 'closed') throw new Error('Payment was not completed. Nothing was charged.');
+      if (outcome === 'failure') throw new Error('Payment failed. Nothing was charged; please try again.');
+      // The gateway's webhook confirms the payment on the server; wait for it rather than trusting the browser.
+      const placed = await waitForPayment(created.order.id);
       setOrder(placed);
     } catch (error) {
       setPayError(error instanceof Error ? error.message : 'Could not place the order.');
       // The chosen slot may have just expired; show the current ones.
       loadSlots();
     } finally {
+      setTestCheckout(null);
       setPaying(false);
     }
   }
 
   if (order) return <OrderConfirmation vendor={store} order={order} />;
+
+  const paymentSheet = testCheckout && (
+    <TestCheckout amount={testCheckout.amount} onChoose={outcome => testCheckout.resolve(outcome)} />
+  );
 
   const sheet = customizing && (
     <ItemCustomizer
@@ -409,6 +433,7 @@ export default function Store({ params }: { params: { slug: string } }) {
       </div>
       )}
       {sheet}
+      {paymentSheet}
     </main>
   );
 }

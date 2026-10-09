@@ -2,8 +2,6 @@ package in.foodcart.service;
 
 import in.foodcart.data.CustomerEntity;
 import in.foodcart.data.CustomerRepository;
-import in.foodcart.data.CustomerVendorHistoryEntity;
-import in.foodcart.data.HistoryRepository;
 import in.foodcart.data.MenuItemEntity;
 import in.foodcart.data.MenuItemRepository;
 import in.foodcart.data.OrderEntity;
@@ -13,6 +11,7 @@ import in.foodcart.data.VendorRepository;
 import in.foodcart.domain.OrderStatus;
 import in.foodcart.domain.OrderType;
 import in.foodcart.domain.VendorStatus;
+import in.foodcart.service.payments.PaymentService;
 import in.foodcart.service.slots.SlotRules;
 import org.springframework.stereotype.Service;
 
@@ -29,17 +28,17 @@ public class CheckoutService {
   private final VendorRepository vendors;
   private final MenuItemRepository items;
   private final OrderRepository orders;
-  private final HistoryRepository history;
   private final CustomerRepository customers;
+  private final PaymentService payments;
   /** Replaced in tests. */
   Clock clock = Clock.system(SlotRules.ZONE);
 
-  public CheckoutService(VendorRepository v, MenuItemRepository i, OrderRepository o, HistoryRepository h, CustomerRepository c) {
+  public CheckoutService(VendorRepository v, MenuItemRepository i, OrderRepository o, CustomerRepository c, PaymentService p) {
     vendors = v;
     items = i;
     orders = o;
-    history = h;
     customers = c;
+    payments = p;
   }
 
   public record Line(String menuItemId, int quantity, BigDecimal displayedPrice, String portion, String sizeId, List<MenuLinePrice.Pick> options) {}
@@ -91,17 +90,10 @@ public class CheckoutService {
       throw new IllegalStateException("Your cart total has changed. Please review your cart.");
     }
     o.orderNumber = 1000 + orders.count() + 1;
-    OrderEntity saved = orders.save(o);
-    CustomerVendorHistoryEntity h = history.findByCustomerIdAndVendorId(customerId, v.id).orElseGet(() -> {
-      CustomerVendorHistoryEntity x = new CustomerVendorHistoryEntity();
-      x.customerId = customerId;
-      x.vendorId = v.id;
-      return x;
-    });
-    h.totalOrders++;
-    h.lastOrderedAt = Instant.now();
-    history.save(h);
-    return saved;
+    // Pay first: the vendor only sees the order once the payment is confirmed (PaymentService).
+    o.status = OrderStatus.PAYMENT_PENDING;
+    o.paymentMethod = "ONLINE";
+    return orders.save(o);
   }
 
   /** The slot must still be one the vendor offers right now; slots in the past or outside opening hours are refused. */
@@ -131,7 +123,10 @@ public class CheckoutService {
     if (target == OrderStatus.PREPARING) o.preparingAt = now;
     if (target == OrderStatus.READY) o.readyAt = now;
     if (target == OrderStatus.COMPLETED) o.completedAt = now;
-    if (target == OrderStatus.REJECTED) o.rejectedAt = now;
+    if (target == OrderStatus.REJECTED) {
+      o.rejectedAt = now;
+      payments.refundIfPaid(o);
+    }
     return orders.save(o);
   }
 }

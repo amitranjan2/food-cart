@@ -5,6 +5,8 @@ import in.foodcart.domain.OrderType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import in.foodcart.domain.OrderStatus;
+import in.foodcart.service.payments.PaymentService;
 import in.foodcart.service.slots.SlotRules;
 
 import java.math.BigDecimal;
@@ -24,7 +26,8 @@ class CheckoutServiceTest {
   private final OrderRepository orders = mock(OrderRepository.class);
   private final HistoryRepository history = mock(HistoryRepository.class);
   private final CustomerRepository customers = mock(CustomerRepository.class);
-  private final CheckoutService checkout = new CheckoutService(vendors, items, orders, history, customers);
+  private final PaymentService payments = mock(PaymentService.class);
+  private final CheckoutService checkout = new CheckoutService(vendors, items, orders, customers, payments);
 
   @BeforeEach
   void setUp() {
@@ -136,5 +139,33 @@ class CheckoutServiceTest {
   @Test
   void copiesTheCustomersNameOntoTheOrder() {
     assertEquals("Aakash", checkout.create("c1", request("160")).customerName);
+  }
+
+  @Test
+  void newOrdersWaitForPaymentBeforeReachingTheVendor() {
+    OrderEntity order = checkout.create("c1", request("160"));
+    assertEquals(OrderStatus.PAYMENT_PENDING, order.status);
+    assertEquals("ONLINE", order.paymentMethod);
+  }
+
+  @Test
+  void rejectingAnOrderAsksForARefund() {
+    OrderEntity placed = new OrderEntity();
+    placed.id = "o1";
+    placed.vendorId = "v1";
+    placed.status = OrderStatus.PLACED;
+    when(orders.findByIdAndVendorId("o1", "v1")).thenReturn(Optional.of(placed));
+    checkout.status("v1", "o1", OrderStatus.REJECTED);
+    verify(payments).refundIfPaid(placed);
+  }
+
+  @Test
+  void unpaidOrdersCannotBeAcceptedByTheVendor() {
+    OrderEntity unpaid = new OrderEntity();
+    unpaid.id = "o2";
+    unpaid.vendorId = "v1";
+    unpaid.status = OrderStatus.PAYMENT_PENDING;
+    when(orders.findByIdAndVendorId("o2", "v1")).thenReturn(Optional.of(unpaid));
+    assertThrows(IllegalStateException.class, () -> checkout.status("v1", "o2", OrderStatus.ACCEPTED));
   }
 }

@@ -12,3 +12,5 @@ app:
   # Absolute address of this API, used to build image URLs (e.g. https://api.foodcart.in).
   public-base-url: ${PUBLIC_BASE_URL:http://localhost:8080}
   upload-dir: ${UPLOAD_DIR:uploads}
+  # Which payment gateway is active: "fake" (local profile only), later "cashfree" or "razorpay".
+  payments.gateway: ${PAYMENT_GATEWAY:fake}
