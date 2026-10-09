@@ -5,6 +5,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { putVendorProfile } from '../../api/vendor';
 import { isAuthFailure } from '../../api/client';
 import { Header } from '../../components/Header';
+import { OpeningHoursCard } from './OpeningHoursCard';
 import { Screen } from '../../components/Screen';
 import { useAuth } from '../../state/AuthContext';
 import { colors } from '../../theme';
@@ -94,6 +95,7 @@ export function SettingsScreen({ navigation }: Props) {
           </Pressable>
           {message ? <Text style={styles.message}>{message}</Text> : null}
         </View>
+        <OpeningHoursCard />
       </ScrollView>
     </Screen>
   );

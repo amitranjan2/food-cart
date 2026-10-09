@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../theme';
 import type { Order } from '../types';
-import { formatElapsed } from '../utils/format';
+import { formatElapsed, formatSlot } from '../utils/format';
 import { formatOrderType, ORDER_LIST_ACTION, orderStatusStartedAt } from '../utils/orderStatus';
 import { StatusChip } from './StatusChip';
 
@@ -23,6 +23,7 @@ export function OrderCard({
   const action = ORDER_LIST_ACTION[order.status];
   const elapsed = formatElapsed(orderStatusStartedAt(order), now);
   const typeLabel = formatOrderType(order.type);
+  const slotLabel = formatSlot(order.scheduledFor, now);
   const isNew = order.status === 'PLACED';
 
   return (
@@ -41,6 +42,7 @@ export function OrderCard({
           </View>
         ) : null}
       </View>
+      {slotLabel ? <Text style={styles.slot}>For {slotLabel}</Text> : null}
       <View style={styles.items}>
         {order.items?.map((item, index) => (
           <Text key={`${item.menuItemId ?? 'line'}-${index}`} style={styles.item}>
@@ -104,6 +106,12 @@ function portionLabel(portion: string) {
 }
 
 const styles = StyleSheet.create({
+  slot: {
+    marginTop: 6,
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.title,
+  },
   card: {
     backgroundColor: colors.white,
     borderRadius: 14,

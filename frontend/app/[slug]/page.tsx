@@ -31,6 +31,7 @@ export default function Store({ params }: { params: { slug: string } }) {
   const [closingCustomizer, setClosingCustomizer] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout>>();
   const [open, setOpen] = useState(false);
+  const [slots, setSlots] = useState<{ hoursSet: boolean; slots: string[] } | null>(null);
   const [mobile, setMobile] = useState('');
   const [otp, setOtp] = useState('');
   const [order, setOrder] = useState<PlacedOrder>();
@@ -108,6 +109,18 @@ export default function Store({ params }: { params: { slug: string } }) {
 
   const linked = useMemo(() => linkItemsToCategories(categories, items), [categories, items]);
   const customizing = linked.find(item => item.id === customizingId) ?? null;
+
+  // Slots move every half hour, so fetch them each time the cart opens.
+  useEffect(() => {
+    if (!open) return;
+    loadSlots();
+  }, [open, params.slug]);
+
+  function loadSlots() {
+    request<{ hoursSet: boolean; slots: string[] }>('/api/public/vendors/' + params.slug + '/slots')
+      .then(setSlots)
+      .catch(() => setSlots({ hoursSet: true, slots: [] }));
+  }
 
   if (!vendor) return <main className="storefront"><p className="store-loading">Loading…</p></main>;
   const store = vendor;
@@ -192,7 +205,7 @@ export default function Store({ params }: { params: { slug: string } }) {
     });
   }
 
-  async function place(type: OrderType) {
+  async function place(type: OrderType, slot: string) {
     setPaying(true);
     setPayError('');
     try {
@@ -205,6 +218,7 @@ export default function Store({ params }: { params: { slug: string } }) {
         body: JSON.stringify({
           vendorId: store.id,
           type,
+          slot,
           displayedTotal: total,
           items:chosen.map(item => {
             const config = configs[item.id];
@@ -222,6 +236,8 @@ export default function Store({ params }: { params: { slug: string } }) {
       setOrder(placed);
     } catch (error) {
       setPayError(error instanceof Error ? error.message : 'Could not place the order.');
+      // The chosen slot may have just expired; show the current ones.
+      loadSlots();
     } finally {
       setPaying(false);
     }
@@ -254,6 +270,8 @@ export default function Store({ params }: { params: { slug: string } }) {
             suggestions={suggestions}
             quantities={cart}
             total={total}
+            slots={slots?.slots ?? null}
+            hoursSet={slots?.hoursSet ?? true}
             mobile={mobile}
             otp={otp}
             fallbackImage={store.coverImageUrl}

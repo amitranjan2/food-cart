@@ -27,6 +27,8 @@ export type Order = {
   customerId: string;
   customerMobile?: string | null;
   type?: OrderType | string;
+  /** Start of the customer's 30-minute slot (ISO instant). */
+  scheduledFor?: string | null;
   paymentMethod?: string | null;
   rejectionReason?: string | null;
   rejectionNote?: string | null;

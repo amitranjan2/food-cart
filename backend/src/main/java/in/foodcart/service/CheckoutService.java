@@ -12,11 +12,15 @@ import in.foodcart.data.VendorRepository;
 import in.foodcart.domain.OrderStatus;
 import in.foodcart.domain.OrderType;
 import in.foodcart.domain.VendorStatus;
+import in.foodcart.service.slots.SlotRules;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 
 @Service
@@ -26,6 +30,8 @@ public class CheckoutService {
   private final OrderRepository orders;
   private final HistoryRepository history;
   private final CustomerRepository customers;
+  /** Replaced in tests. */
+  Clock clock = Clock.system(SlotRules.ZONE);
 
   public CheckoutService(VendorRepository v, MenuItemRepository i, OrderRepository o, HistoryRepository h, CustomerRepository c) {
     vendors = v;
@@ -37,8 +43,11 @@ public class CheckoutService {
 
   public record Line(String menuItemId, int quantity, BigDecimal displayedPrice, String portion, String sizeId, List<MenuLinePrice.Pick> options) {}
 
-  /** type is "PICKUP" or "DINE_IN". displayedTotal is the amount the customer saw; the order is refused if the server's bill differs. */
-  public record Request(String vendorId, String type, BigDecimal displayedTotal, List<Line> items) {}
+  /**
+   * type is "PICKUP" or "DINE_IN". slot is the chosen start time in India time, e.g. "2026-10-09T14:30".
+   * displayedTotal is the amount the customer saw; the order is refused if the server's bill differs.
+   */
+  public record Request(String vendorId, String type, String slot, BigDecimal displayedTotal, List<Line> items) {}
 
   public OrderEntity create(String customerId, Request request) {
     VendorEntity v = vendors.findById(request.vendorId()).orElseThrow(() -> new IllegalArgumentException("Vendor not found"));
@@ -48,6 +57,7 @@ public class CheckoutService {
     o.customerId = customerId;
     o.customerMobile = customers.findById(customerId).orElseThrow(() -> new SecurityException("Customer not found")).mobile;
     o.type = OrderType.parse(request.type());
+    o.scheduledFor = checkedSlot(v, request.slot()).atZone(SlotRules.ZONE).toInstant();
     for (Line line : request.items()) {
       MenuItemEntity m = items.findByIdAndVendorId(line.menuItemId(), v.id).orElseThrow(() -> new IllegalStateException("An item no longer exists."));
       MenuLinePrice.Quote quote = MenuLinePrice.quote(m, line.portion(), line.sizeId(), line.options());
@@ -88,6 +98,20 @@ public class CheckoutService {
     h.lastOrderedAt = Instant.now();
     history.save(h);
     return saved;
+  }
+
+  /** The slot must still be one the vendor offers right now; slots in the past or outside opening hours are refused. */
+  private LocalDateTime checkedSlot(VendorEntity v, String slot) {
+    List<LocalDateTime> open = SlotRules.slots(v.openingHours, LocalDateTime.now(clock));
+    if (open.isEmpty()) throw new IllegalStateException("This vendor isn't taking orders for any time slot right now.");
+    if (slot == null || slot.isBlank()) throw new IllegalArgumentException("Pick a time slot.");
+    try {
+      LocalDateTime chosen = LocalDateTime.parse(slot);
+      if (open.contains(chosen)) return chosen;
+    } catch (DateTimeParseException ignored) {
+      // fall through to the message below
+    }
+    throw new IllegalStateException("That time slot is no longer available. Please pick another.");
   }
 
   public OrderEntity status(String vendorId, String id, OrderStatus target) {

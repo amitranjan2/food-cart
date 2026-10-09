@@ -3,9 +3,11 @@ package in.foodcart.api;
 import in.foodcart.data.*;
 import in.foodcart.domain.VendorStatus;
 import in.foodcart.service.PublicMenuView;
+import in.foodcart.service.slots.SlotRules;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +35,18 @@ public class PublicVendorController {
   @GetMapping("/{slug}")
   public ResponseEntity<PublicVendor> vendor(@PathVariable String slug) {
     return vendors.findBySlug(slug).map(PublicVendor::from).map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
+  }
+
+  /** Slots the customer can pick now, in India time ("2026-10-09T14:30"). hoursSet is false until the vendor saves opening hours. */
+  @GetMapping("/{slug}/slots")
+  public ResponseEntity<Map<String, Object>> slots(@PathVariable String slug) {
+    return vendors.findBySlug(slug).map(v -> {
+      List<String> slots = SlotRules.slots(v.openingHours, LocalDateTime.now(SlotRules.ZONE)).stream().map(LocalDateTime::toString).toList();
+      Map<String, Object> result = new LinkedHashMap<>();
+      result.put("hoursSet", v.openingHours != null && !v.openingHours.isEmpty());
+      result.put("slots", slots);
+      return ResponseEntity.ok(result);
+    }).orElse(ResponseEntity.notFound().build());
   }
 
   @GetMapping("/{slug}/menu")

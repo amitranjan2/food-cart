@@ -11,7 +11,7 @@ import { useOrders } from '../../hooks/useOrders';
 import { isAuthFailure } from '../../api/client';
 import { useAuth } from '../../state/AuthContext';
 import { colors, spacing } from '../../theme';
-import { rupees } from '../../utils/format';
+import { formatSlot, rupees } from '../../utils/format';
 import { formatOrderType, ORDER_DETAIL_ACTION } from '../../utils/orderStatus';
 import type { OrdersStackParamList } from '../../navigation/types';
 
@@ -93,6 +93,7 @@ export function OrderDetailsScreen({ navigation, route }: Props) {
                 </View>
               ) : null}
             </View>
+            {order.scheduledFor ? <Text style={styles.slot}>For {formatSlot(order.scheduledFor)}</Text> : null}
             <View style={styles.items}>
               {order.items?.map((item, index) => (
                 <Text key={`${item.menuItemId ?? 'line'}-${index}`} style={styles.item}>
@@ -118,6 +119,12 @@ export function OrderDetailsScreen({ navigation, route }: Props) {
 }
 
 const styles = StyleSheet.create({
+  slot: {
+    marginTop: 8,
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.title,
+  },
   back: {
     backgroundColor: 'rgba(255,255,255,0.15)',
     borderRadius: 4,

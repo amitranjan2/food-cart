@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { MenuItem } from '../../lib/api';
 import { FEATURES } from '../../lib/features';
 import { formatRupee } from '../lib/customization';
@@ -41,18 +41,17 @@ function nextHalfHour(from = new Date()) {
   return next;
 }
 
-function slotsThroughTomorrow(from = new Date()) {
-  const start = nextHalfHour(from);
-  const end = new Date(from);
-  end.setDate(end.getDate() + 1);
-  end.setHours(23, 30, 0, 0);
-  const slots: Date[] = [];
-  const cursor = new Date(start);
-  while (cursor.getTime() <= end.getTime()) {
-    slots.push(new Date(cursor));
-    cursor.setMinutes(cursor.getMinutes() + 30);
-  }
-  return slots;
+/** Server slots are India wall-clock times ("2026-10-09T14:30"); they are shown as written, whatever the phone's time zone. */
+function slotDate(slot: string) {
+  const [day, time] = slot.split('T');
+  const [year, month, date] = day.split('-').map(Number);
+  const [hour, minute] = time.split(':').map(Number);
+  return new Date(year, month - 1, date, hour, minute);
+}
+
+function slotKey(date: Date) {
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 function clockLabel(date: Date) {
@@ -82,8 +81,8 @@ function dateAtMinutes(minutes: number) {
   return date;
 }
 
-function firstOnceSlotWithTime(minutes: number, from = new Date()) {
-  return slotsThroughTomorrow(from).find(slot => minutesFromDate(slot) === minutes);
+function firstOnceSlotWithTime(options: Date[], minutes: number) {
+  return options.find(slot => minutesFromDate(slot) === minutes);
 }
 
 function LinePhoto({ item, fallbackImage }: { item: MenuItem; fallbackImage?: string }) {
@@ -105,6 +104,8 @@ export function Cart({
   suggestions,
   quantities,
   total,
+  slots,
+  hoursSet,
   mobile,
   otp,
   fallbackImage,
@@ -122,6 +123,9 @@ export function Cart({
   suggestions: MenuItem[];
   quantities: Record<string, number>;
   total: number;
+  /** null while loading. */
+  slots: string[] | null;
+  hoursSet: boolean;
   mobile: string;
   otp: string;
   fallbackImage?: string;
@@ -131,7 +135,7 @@ export function Cart({
   onMobileChange: (mobile: string) => void;
   onOtpChange: (otp: string) => void;
   onSendOtp: () => Promise<void>;
-  onPay: (type: OrderType) => void;
+  onPay: (type: OrderType, slot: string) => void;
   paying?: boolean;
   payError?: string;
 }) {
@@ -139,9 +143,14 @@ export function Cart({
   const [fulfillment, setFulfillment] = useState<Fulfillment>('pickup');
   const [frequency, setFrequency] = useState<Frequency>('weekly');
   const [weekdays, setWeekdays] = useState<string[]>([]);
-  const [onceOptions] = useState(() => slotsThroughTomorrow());
-  const [onceSlot, setOnceSlot] = useState(() => onceOptions[0] ?? nextHalfHour());
-  const [subscribeMinutes, setSubscribeMinutes] = useState(() => minutesFromDate(onceOptions[0] ?? nextHalfHour()));
+  const onceOptions = useMemo(() => (slots ?? []).map(slotDate), [slots]);
+  const [onceSlot, setOnceSlot] = useState<Date | null>(null);
+  const [subscribeMinutes, setSubscribeMinutes] = useState(() => minutesFromDate(nextHalfHour()));
+
+  // Keep the chosen slot only while the server still offers it; otherwise fall back to the earliest one.
+  useEffect(() => {
+    setOnceSlot(current => (current && onceOptions.some(option => option.getTime() === current.getTime()) ? current : onceOptions[0] ?? null));
+  }, [onceOptions]);
   const [editing, setEditing] = useState(false);
   const [billOpen, setBillOpen] = useState(false);
   const [address, setAddress] = useState<SavedAddress | null>(null);
@@ -196,11 +205,8 @@ export function Cart({
 
   function selectPlan(next: Plan) {
     if (next === plan) return;
-    if (next === 'subscribe') setSubscribeMinutes(minutesFromDate(onceSlot));
-    else {
-      const match = firstOnceSlotWithTime(subscribeMinutes);
-      setOnceSlot(match ?? nextHalfHour());
-    }
+    if (next === 'subscribe') setSubscribeMinutes(minutesFromDate(onceSlot ?? nextHalfHour()));
+    else setOnceSlot(firstOnceSlotWithTime(onceOptions, subscribeMinutes) ?? onceOptions[0] ?? null);
     setEditing(false);
     setPlan(next);
   }
@@ -213,7 +219,11 @@ export function Cart({
     return list;
   }, []);
 
-  const slotPill = plan === 'once' ? slotLabel(onceSlot) : clockLabel(dateAtMinutes(subscribeMinutes));
+  const slotPill = plan === 'once'
+    ? onceSlot ? slotLabel(onceSlot) : slots === null ? '…' : 'None'
+    : clockLabel(dateAtMinutes(subscribeMinutes));
+  const slotProblem = slots === null || onceSlot ? ''
+    : hoursSet ? 'No time slots left today or tomorrow.' : 'This vendor hasn’t set opening hours yet, so orders can’t be placed.';
   const needsAddress = fulfillment === 'delivery' && !address;
 
   if (addressStep) {
@@ -326,7 +336,7 @@ export function Cart({
         <div className="slot-line">
           <span>Slot</span>
           <b>{slotPill}</b>
-          <button type="button" className="slot-edit" aria-expanded={editing} aria-label="Edit time slot" onClick={() => setEditing(value => !value)}>
+          <button type="button" className="slot-edit" disabled={onceOptions.length === 0} aria-expanded={editing} aria-label="Edit time slot" onClick={() => setEditing(value => !value)}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M4 20h4L18.5 9.5a1.4 1.4 0 0 0 0-2L16.5 5.5a1.4 1.4 0 0 0-2 0L4 16v4z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
               <path d="M13.5 6.5l4 4" stroke="currentColor" strokeWidth="1.8" />
@@ -343,7 +353,7 @@ export function Cart({
                     <button
                       key={time.getTime()}
                       type="button"
-                      className={onceSlot.getTime() === time.getTime() ? 'on' : undefined}
+                      className={onceSlot?.getTime() === time.getTime() ? 'on' : undefined}
                       onClick={() => {
                         setOnceSlot(time);
                         setEditing(false);
@@ -458,7 +468,7 @@ export function Cart({
             />
           </label>
         )}
-        {otpError || payError ? <p className="cart-pay-error">{otpError || payError}</p> : null}
+        {slotProblem || otpError || payError ? <p className="cart-pay-error">{slotProblem || otpError || payError}</p> : null}
       </section>
       {billOpen && <div className="bill-backdrop" aria-hidden="true" onClick={() => setBillOpen(false)} />}
       <div className={'bill-dock' + (billOpen ? ' open' : '')}>
@@ -488,7 +498,7 @@ export function Cart({
             </svg>
             <strong aria-live="polite">{formatRupee(total)}</strong>
           </button>
-          <button type="button" className="customizer-add" disabled={paying || !otpSent || otp.length !== 6} onClick={() => onPay(ORDER_TYPES[fulfillment])}>{paying ? '…' : 'Pay'}</button>
+          <button type="button" className="customizer-add" disabled={paying || !otpSent || otp.length !== 6 || !onceSlot} onClick={() => onceSlot && onPay(ORDER_TYPES[fulfillment], slotKey(onceSlot))}>{paying ? '…' : 'Pay'}</button>
         </footer>
       </div>
       </>
