@@ -194,7 +194,8 @@ export function DishFormSheet({ mode, item, categories, onClose, onSaved, onCate
     }
   }
 
-  const foodLabel = FOOD_TYPES.find(option => option.value === foodType)?.label ?? (foodType === 'OTHER' ? 'Other' : 'Type');
+  // A dish saved as OTHER (no longer offered) opens with an empty Type, so the vendor picks a real one before saving.
+  const foodLabel = FOOD_TYPES.find(option => option.value === foodType)?.label ?? 'Type';
   const typedName = name.trim();
   const title = scrolled && typedName ? typedName : mode === 'edit' ? 'Edit Dish' : 'Add Dish';
   const primaryLabel = busy ? 'Saving…' : typedName ? 'Done' : 'Add Dish';
@@ -323,7 +324,7 @@ export function DishFormSheet({ mode, item, categories, onClose, onSaved, onCate
               }}
               style={[styles.field, styles.splitField, ...paint('food')]}
             >
-              <Text style={textTone('food', true)}>{foodLabel}</Text>
+              <Text style={textTone('food', FOOD_TYPES.some(option => option.value === foodType))}>{foodLabel}</Text>
             </Pressable>
           </View>
           {picker?.kind === 'food' ? (
