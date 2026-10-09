@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { deleteMenuItem, getVendorMenu, patchItemAvailability } from '../../api/menu';
+import { deleteMenuItem, getVendorMenu, patchItemAvailability, patchItemSpecial, putCategoryOrder } from '../../api/menu';
 import { isAuthFailure, mediaUrl } from '../../api/client';
 import { EmptyState } from '../../components/EmptyState';
 import { ErrorState } from '../../components/ErrorState';
@@ -19,6 +19,7 @@ import { useFrameOverlay } from '../../components/Screen';
 import { useAuth } from '../../state/AuthContext';
 import { colors } from '../../theme';
 import type { FoodType, MenuCategory, MenuItem } from '../../types';
+import { ArrangeMenuSheet } from './ArrangeMenuSheet';
 import { DishFormSheet, type DishFormMode } from './DishFormSheet';
 import {
   CopyDishIcon,
@@ -72,6 +73,7 @@ export function MenuPanel() {
   const [availability, setAvailability] = useState<Availability>('ALL');
   const [statusOpen, setStatusOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<MenuItem | null>(null);
+  const [arranging, setArranging] = useState(false);
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -156,6 +158,24 @@ export function MenuPanel() {
     }
   }
 
+  async function toggleSpecial(item: MenuItem) {
+    if (!token) return;
+    try {
+      const saved = await patchItemSpecial(token, item.id, !item.special);
+      setItems(current => current.map(entry => (entry.id === saved.id ? saved : entry)));
+    } catch (e) {
+      if (isAuthFailure(e)) await logout();
+      else setError(e instanceof Error ? e.message : 'Could not update specials');
+    }
+  }
+
+  async function saveOrder(categoryIds: string[]) {
+    if (!token) return;
+    await putCategoryOrder(token, categoryIds);
+    setArranging(false);
+    await load();
+  }
+
   return (
     <View style={styles.body}>
       <View style={styles.titleRow}>
@@ -163,9 +183,14 @@ export function MenuPanel() {
           <Text style={styles.kicker}>MENU · LIVE CATALOGUE</Text>
           <Text style={styles.title}>Your dishes</Text>
         </View>
-        <Pressable onPress={() => setSheet({ mode: 'add' })} style={styles.add}>
-          <Text style={styles.addLabel}>+ Dish</Text>
-        </Pressable>
+        <View style={styles.titleActions}>
+          <Pressable accessibilityRole="button" onPress={() => setArranging(true)} style={styles.arrange}>
+            <Text style={styles.arrangeLabel}>⇅ Arrange</Text>
+          </Pressable>
+          <Pressable onPress={() => setSheet({ mode: 'add' })} style={styles.add}>
+            <Text style={styles.addLabel}>+ Dish</Text>
+          </Pressable>
+        </View>
       </View>
       <View style={styles.tools}>
         <TextInput
@@ -240,6 +265,16 @@ export function MenuPanel() {
                   <View style={styles.priceBadge}>
                     <Text style={styles.price}>{rupees(item.price)}</Text>
                   </View>
+                  <Pressable
+                    accessibilityRole="switch"
+                    accessibilityState={{ checked: !!item.special }}
+                    accessibilityLabel={`Special: ${item.name}`}
+                    onPress={() => toggleSpecial(item)}
+                    hitSlop={8}
+                    style={[styles.star, item.special && styles.starOn]}
+                  >
+                    <Text style={[styles.starLabel, item.special && styles.starLabelOn]}>{item.special ? '★' : '☆'}</Text>
+                  </Pressable>
                 </View>
                 <View style={styles.copy}>
                   <View style={styles.nameRow}>
@@ -288,6 +323,9 @@ export function MenuPanel() {
           }}
         />
       )}
+      {arranging ? (
+        <ArrangeMenuSheet categories={categories} items={items} onSave={saveOrder} onClose={() => setArranging(false)} />
+      ) : null}
       {pendingDelete ? (
         <View style={styles.confirmBackdrop}>
           <View style={styles.confirmCard}>
@@ -340,6 +378,45 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.title,
     letterSpacing: -1,
+  },
+  titleActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  arrange: {
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.header,
+    borderRadius: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  arrangeLabel: {
+    color: colors.header,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  star: {
+    position: 'absolute',
+    top: 5,
+    right: 5,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: 'rgba(255,255,255,0.85)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  starOn: {
+    backgroundColor: '#F79009',
+  },
+  starLabel: {
+    color: '#667085',
+    fontSize: 15,
+    lineHeight: 17,
+  },
+  starLabelOn: {
+    color: colors.white,
   },
   add: {
     backgroundColor: colors.header,

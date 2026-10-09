@@ -23,6 +23,15 @@ public final class PublicMenuView {
       List<CatalogCategoryEntity> catalog,
       List<MenuCategoryEntity> vendorCategories,
       List<MenuItemEntity> items) {
+    return assemble(catalog, vendorCategories, items, List.of());
+  }
+
+  /** categoryOrder is the vendor's arrangement (VendorEntity.categoryOrder); it wins over the default sort. */
+  public static Result assemble(
+      List<CatalogCategoryEntity> catalog,
+      List<MenuCategoryEntity> vendorCategories,
+      List<MenuItemEntity> items,
+      List<String> categoryOrder) {
     Map<String, Category> byName = new LinkedHashMap<>();
     for (CatalogCategoryEntity category : catalog == null ? List.<CatalogCategoryEntity>of() : catalog) {
       String key = key(category == null ? null : category.name);
@@ -64,7 +73,7 @@ public final class PublicMenuView {
     List<Category> categories = new ArrayList<>(used.values());
     categories.sort(Comparator.comparingInt((Category category) -> category.sortOrder).thenComparing(category -> category.name, String.CASE_INSENSITIVE_ORDER));
     Result result = new Result();
-    result.categories = categories;
+    result.categories = CategoryOrder.sort(categories, category -> category.id, categoryOrder);
     result.items = copies;
     return result;
   }
@@ -84,6 +93,7 @@ public final class PublicMenuView {
     item.available = source.available;
     item.halfAvailable = source.halfAvailable;
     item.sortOrder = source.sortOrder;
+    item.special = source.special;
     item.sizes = source.sizes;
     item.variants = source.variants;
     return item;

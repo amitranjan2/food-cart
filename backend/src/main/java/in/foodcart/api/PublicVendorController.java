@@ -52,7 +52,8 @@ public class PublicVendorController {
       PublicMenuView.Result menu = PublicMenuView.assemble(
           catalog.findAllByOrderBySortOrderAsc(),
           categories.findByVendorIdOrderBySortOrder(v.id),
-          items.findByVendorIdOrderBySortOrder(v.id));
+          items.findByVendorIdOrderBySortOrder(v.id),
+          v.categoryOrder);
       Map<String, Object> result = new LinkedHashMap<>();
       result.put("categories", menu.categories);
       result.put("items", menu.items);

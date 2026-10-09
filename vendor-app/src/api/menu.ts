@@ -29,6 +29,23 @@ export function patchItemAvailability(token: string, itemId: string, available: 
   });
 }
 
+export function patchItemSpecial(token: string, itemId: string, special: boolean) {
+  return request<MenuItem>(`/api/vendor/menu/items/${itemId}/special`, {
+    method: 'PATCH',
+    token,
+    body: { special },
+  });
+}
+
+/** Category ids top to bottom, as the storefront should show them. */
+export function putCategoryOrder(token: string, categoryIds: string[]) {
+  return request<string[]>('/api/vendor/menu/category-order', {
+    method: 'PUT',
+    token,
+    body: { categoryIds },
+  });
+}
+
 export function deleteMenuItem(token: string, itemId: string) {
   return request<void>(`/api/vendor/menu/items/${itemId}`, {
     method: 'DELETE',

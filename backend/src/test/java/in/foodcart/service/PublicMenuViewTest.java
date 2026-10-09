@@ -42,6 +42,20 @@ class PublicMenuViewTest {
     assertTrue(menu.categories.stream().noneMatch(category -> category.name.equals("Chaat")));
   }
 
+  @Test
+  void followsTheVendorsCategoryOrderAndKeepsSpecials() {
+    MenuItemEntity momo = item("momo", "cat-momos");
+    momo.special = true;
+    PublicMenuView.Result menu = PublicMenuView.assemble(
+        List.of(catalog("cat-momos", "Momos", 0), catalog("cat-rolls", "Rolls", 1), catalog("cat-drinks", "Drinks", 2)),
+        List.of(),
+        List.of(momo, item("roll", "cat-rolls"), item("tea", "cat-drinks")),
+        List.of("cat-drinks", "cat-momos"));
+    // Rolls was never placed by the vendor, so it comes after the placed ones.
+    assertEquals(List.of("Drinks", "Momos", "Rolls"), menu.categories.stream().map(category -> category.name).toList());
+    assertTrue(menu.items.get(0).special);
+  }
+
   private static CatalogCategoryEntity catalog(String id, String name, int sortOrder) {
     CatalogCategoryEntity category = new CatalogCategoryEntity();
     category.id = id;

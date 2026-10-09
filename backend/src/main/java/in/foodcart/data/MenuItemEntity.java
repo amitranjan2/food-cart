@@ -24,6 +24,8 @@ public class MenuItemEntity {
   public boolean available = true;
   public boolean halfAvailable = true;
   public int sortOrder;
+  /** Shown in the storefront's specials carousel. */
+  public boolean special;
   @JsonInclude(JsonInclude.Include.NON_NULL) public List<SizeOption> sizes = new ArrayList<>();
   @JsonInclude(JsonInclude.Include.NON_NULL) public List<CustomVariant> variants = new ArrayList<>();
 

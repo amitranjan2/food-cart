@@ -38,6 +38,8 @@ export type MenuItem = {
   available: boolean;
   halfAvailable?: boolean;
   sortOrder?: number;
+  /** Shown in the storefront's specials carousel. */
+  special?: boolean;
   sizes?: SizeOption[] | null;
   variants?: CustomVariant[] | null;
 };

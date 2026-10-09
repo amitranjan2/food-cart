@@ -86,11 +86,13 @@ export function Menu({
     return <p className="menu-empty">{searching ? 'No dishes match your search.' : 'Nothing on the menu yet.'}</p>;
   }
   const sections = sectionsFor(items, categories);
+  // The vendor stars these in the vendor app; no carousel when nothing is starred.
+  const specials = items.filter(item => item.special);
   return (
     <div id="menu-start">
       {!searching && (
         <>
-          <SpecialCarousel items={items} quantities={quantities} fallbackImage={fallbackImage} onAdd={onAdd} onQuantity={onQuantity} />
+          {specials.length > 0 && <SpecialCarousel items={specials} quantities={quantities} fallbackImage={fallbackImage} onAdd={onAdd} onQuantity={onQuantity} />}
           <section className="menu-section" aria-label="Order again">
             <h2>ORDER AGAIN!</h2>
             <DishRow items={items} variant="compact" quantities={quantities} fallbackImage={fallbackImage} onAdd={onAdd} onQuantity={onQuantity} className="card-row" label="Order again" />
