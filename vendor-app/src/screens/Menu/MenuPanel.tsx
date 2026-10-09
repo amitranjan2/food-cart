@@ -115,6 +115,9 @@ export function MenuPanel() {
         categories={categories}
         onClose={() => setSheet(null)}
         onSaved={() => load()}
+        onCategoryAdded={category =>
+          setCategories(current => (current.some(entry => entry.id === category.id) ? current : [...current, category]))
+        }
       />,
     );
   }, [sheet, categories, load, setOverlay]);
@@ -198,10 +201,11 @@ export function MenuPanel() {
 
   function arrangeRows(): ArrangeRow[] {
     if (arranging === 'categories') {
-      return categories.map(category => {
-        const count = items.filter(item => item.categoryId === category.id).length;
-        return { id: category.id, name: category.name, detail: count === 0 ? 'No dishes' : `${count} ${count === 1 ? 'dish' : 'dishes'}`, dimmed: count === 0 };
-      });
+      // The shared list holds every vendor's categories; only the ones this vendor uses are worth arranging.
+      return categories
+        .map(category => ({ category, count: items.filter(item => item.categoryId === category.id).length }))
+        .filter(entry => entry.count > 0)
+        .map(({ category, count }) => ({ id: category.id, name: category.name, detail: `${count} ${count === 1 ? 'dish' : 'dishes'}` }));
     }
     const section = sections.find(entry => entry.id === arranging?.categoryId);
     const dishes = items.filter(item => (section?.id ? item.categoryId === section.id : !item.categoryId || !known.has(item.categoryId)));
@@ -393,7 +397,7 @@ export function MenuPanel() {
           title={arranging === 'categories' ? 'Arrange categories' : `Arrange ${arranging.name}`}
           hint={
             arranging === 'categories'
-              ? 'Customers see your categories in this order. Categories without dishes stay hidden.'
+              ? 'Customers see your categories in this order.'
               : `Customers see the dishes in ${arranging.name} in this order.`
           }
           rows={arrangeRows()}

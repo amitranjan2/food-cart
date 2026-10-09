@@ -1,5 +1,5 @@
 import { mediaUrl, request } from './client';
-import type { MenuItem, MenuItemInput, VendorMenu } from '../types';
+import type { MenuCategory, MenuItem, MenuItemInput, VendorMenu } from '../types';
 
 export function getVendorMenu(token: string) {
   return request<VendorMenu>('/api/vendor/menu', { token });
@@ -52,6 +52,15 @@ export function putItemOrder(token: string, itemIds: string[]) {
     method: 'PUT',
     token,
     body: { itemIds },
+  });
+}
+
+/** Adds a category to the shared list, or returns the existing one with the same name. */
+export function addCatalogCategory(token: string, name: string) {
+  return request<{ category: MenuCategory; created: boolean }>('/api/vendor/menu/catalog-categories', {
+    method: 'POST',
+    token,
+    body: { name },
   });
 }
 

@@ -10,7 +10,8 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { createMenuItem, updateMenuItem, uploadMenuImage } from '../../api/menu';
+import { addCatalogCategory, createMenuItem, updateMenuItem, uploadMenuImage } from '../../api/menu';
+import { CategoryPicker } from './CategoryPicker';
 import { isAuthFailure, mediaUrl } from '../../api/client';
 import { useAuth } from '../../state/AuthContext';
 import { colors } from '../../theme';
@@ -31,6 +32,8 @@ type Props = {
   categories: MenuCategory[];
   onClose: () => void;
   onSaved: () => void;
+  /** A category this vendor just added to the shared list. */
+  onCategoryAdded?: (category: MenuCategory) => void;
 };
 
 type SizeDraft = {
@@ -65,7 +68,7 @@ type Picker =
   | { kind: 'food' }
   | { kind: 'option'; key: string };
 
-export function DishFormSheet({ mode, item, categories, onClose, onSaved }: Props) {
+export function DishFormSheet({ mode, item, categories, onClose, onSaved, onCategoryAdded }: Props) {
   const { token, logout } = useAuth();
   const keepIds = mode === 'edit';
   const startingCategory = categories.find(entry => entry.id === item?.categoryId);
@@ -263,30 +266,27 @@ export function DishFormSheet({ mode, item, categories, onClose, onSaved }: Prop
             <Text style={textTone('category', Boolean(categoryLabel))}>{categoryLabel || 'Category'}</Text>
           </Pressable>
           {picker?.kind === 'category' ? (
-            <View style={styles.menu}>
-              {categories.length === 0 ? (
-                <Text style={styles.menuEmpty}>No categories yet</Text>
-              ) : (
-                categories.map(category => (
-                  <Pressable
-                    key={category.id}
-                    onPress={() => {
-                      setCategoryId(category.id);
-                      setCategoryLabel(category.name);
-                      setPicker(null);
-                      setFocused(null);
-                      clearInvalid('category');
-                    }}
-                    style={styles.menuItem}
-                  >
-                    {category.imageUrl ? (
-                      <Image source={{ uri: mediaUrl(category.imageUrl) }} style={styles.categoryImage} />
-                    ) : null}
-                    <Text style={styles.menuItemLabel}>{category.name}</Text>
-                  </Pressable>
-                ))
-              )}
-            </View>
+            <CategoryPicker
+              categories={categories}
+              onPick={category => {
+                setCategoryId(category.id);
+                setCategoryLabel(category.name);
+                setPicker(null);
+                setFocused(null);
+                clearInvalid('category');
+              }}
+              onAdd={async typed => {
+                if (!token) throw new Error('Sign in again to add a category.');
+                try {
+                  const { category } = await addCatalogCategory(token, typed);
+                  onCategoryAdded?.(category);
+                  return category;
+                } catch (e) {
+                  if (isAuthFailure(e)) await logout();
+                  throw e;
+                }
+              }}
+            />
           ) : null}
 
           <TextInput
@@ -889,11 +889,6 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     overflow: 'hidden',
   },
-  menuEmpty: {
-    padding: 12,
-    fontSize: 12,
-    color: '#667085',
-  },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -904,11 +899,6 @@ const styles = StyleSheet.create({
   menuItemLabel: {
     fontSize: 14,
     color: '#3d5366',
-  },
-  categoryImage: {
-    width: 28,
-    height: 28,
-    borderRadius: 6,
   },
   imageSlot: {
     width: 56,

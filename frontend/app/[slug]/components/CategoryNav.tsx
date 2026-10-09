@@ -84,11 +84,16 @@ export function CategoryNav({
               onClick={() => onSelect(category.id)}
               className={'cat-chip' + (selected ? ' selected' : '')}
             >
-              <svg viewBox="0 0 72 72" aria-hidden="true">
-                <circle cx="36" cy="36" r="33" fill="none" stroke="currentColor" strokeWidth="1.4" />
-                <circle cx="36" cy="36" r="27" fill="none" stroke="currentColor" strokeWidth="1.2" />
-                {glyph(category.name)}
-              </svg>
+              {category.imageUrl ? (
+                // Approved category art (line drawing on a plate); categories without one get a drawn glyph.
+                <img className="cat-chip-art" src={category.imageUrl} alt="" />
+              ) : (
+                <svg viewBox="0 0 72 72" aria-hidden="true">
+                  <circle cx="36" cy="36" r="33" fill="none" stroke="currentColor" strokeWidth="1.4" />
+                  <circle cx="36" cy="36" r="27" fill="none" stroke="currentColor" strokeWidth="1.2" />
+                  {glyph(category.name)}
+                </svg>
+              )}
               <span>{category.name}</span>
             </button>
           );
