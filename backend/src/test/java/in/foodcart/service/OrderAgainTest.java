@@ -22,7 +22,18 @@ class OrderAgainTest {
   }
 
   @Test
-  void mostRecentlyOrderedFirstEachOnce() {
+  void mostOftenOrderedFirstCountingOrdersNotPlates() {
+    List<OrderEntity> newestFirst = List.of(
+        order(OrderStatus.COMPLETED, "roll"),
+        order(OrderStatus.COMPLETED, "momos", "momos", "momos"),
+        order(OrderStatus.COMPLETED, "momos", "coffee"),
+        order(OrderStatus.COMPLETED, "momos", "coffee"));
+    // momos in 3 orders, coffee in 2, roll in 1 (though it's the latest)
+    assertEquals(List.of("momos", "coffee", "roll"), OrderAgain.dishIds(newestFirst));
+  }
+
+  @Test
+  void tiesGoToTheMostRecentlyOrdered() {
     List<OrderEntity> newestFirst = List.of(
         order(OrderStatus.COMPLETED, "roll", "coffee"),
         order(OrderStatus.PLACED, "momos", "roll"),
