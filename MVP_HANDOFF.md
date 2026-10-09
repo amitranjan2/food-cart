@@ -16,14 +16,8 @@ Context carried over from a previous Claude session (Oct 9, 2026). Read this bef
   - Start Razorpay KYC now; approval takes days.
 - **Still open:** SMS/OTP provider (suggested MSG91; start DLT registration early because it takes days); image storage (server disk vs R2/S3); delete the old Next.js `/vendor` console (duplicates the Expo vendor app)?
 
-## Step 1 (security) — written, NOT yet applied or tested
-Patch file: `step1-security.patch` in this folder. Apply and test:
-
-```
-git checkout -b mvp/step1-security storefront-development
-git am step1-security.patch
-cd backend && mvn test
-```
+## Step 1 (security): applied and verified (Oct 9, 2026)
+Branch `mvp/step1-security`, commit `4028c66`. Start Step 2 from this branch.
 
 What it does:
 - Real OTP: random 6-digit code, stored hashed, 5-minute expiry, 5 wrong attempts, 30s resend gap, 5 sends/hour (`service/otp/*`). `DevOtpSender` (always 123456) loads only in the `local` profile. In any other profile the API **refuses to start** until a real `OtpSender` exists. Next: implement the chosen SMS provider's `OtpSender`.
@@ -32,7 +26,17 @@ What it does:
 - Uploads: type detected from file bytes, extension chosen by the server, absolute URLs via `PUBLIC_BASE_URL`, 5 MB multipart limit.
 - `spring.data.mongodb.auto-index-creation: true` (unique slug, mobile and token indexes plus the session TTL were never being created).
 - Storefront cart: "Send OTP" step before paying. Vendor app resend timer changed to 30s.
-- Checked only the pure Java parts (`OtpRules`, `ImageType`). The Spring code and the storefront TSX were not compiled, so `mvn test` and `next build` are the real checks.
+
+Verified:
+- `mvn test`: 21/21 pass.
+- With no profile, the API refuses to start ("No SMS provider is configured").
+- With the `local` profile, against a live MongoDB: public vendor JSON has no mobile; OTP verify without a request, resend inside 30s, wrong code, reused code, invalid mobile and unknown vendor all return 400; customer and vendor login return tokens; an HTML file uploaded as `.jpg` is rejected and a real PNG is accepted; indexes are created (unique slug, customer mobile and token; TTL indexes on sessions and OTP challenges).
+- The storefront TSX added by Step 1 type-checks. `tsc` shows 3 older errors in other files (`CategoryMenu.tsx:30`, `[slug]/page.tsx:272` `query` prop, `vendor/page.tsx:23`) that `ignoreBuildErrors` hides (see Step 4).
+- Not yet checked by hand: the OTP screens in the storefront and the vendor app.
+
+Notes:
+- The API now needs MongoDB reachable at startup (index creation runs when it boots).
+- **Open:** `vendors.mobile` is indexed but **not unique**, yet vendor login looks vendors up by mobile. Decide whether one number can run two stalls. If not, make it unique, and drop the old `mobile` index first, or startup index creation fails.
 
 ## Remaining V1 checklist
 **Step 2: ordering flow**
