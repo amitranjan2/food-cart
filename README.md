@@ -62,3 +62,13 @@ API_BASE=https://api.suprmama.in ADMIN_TOKEN='…' ops/create-vendor.sh "Raju Mo
 ```
 
 Creates the stall (one mobile number per stall; store links that clash with site pages such as `terms` are refused) and prints its link. The vendor signs in to the vendor app with that number and fills Settings: location, colours and opening hours (no orders until hours are set). **Menu → Share your store** shows the QR code, copies the link and opens the printable A4 "Scan to order" poster (`/{store-link}/qr`).
+
+## Refunding an order the stall can't make
+
+Vendors can't cancel an order after accepting it. If a stall can't make one (a dish ran out), call the stall, then:
+
+```
+API_BASE=https://api.suprmama.in ADMIN_TOKEN='…' ops/refund-order.sh raju-momos 1043 "Ran out of momos, confirmed on call"
+```
+
+It shows the order, asks for the order number again, then cancels it and refunds the customer in full. Only paid orders not yet handed over; the reason is kept in `supportActions`, not shown to the customer or vendor.

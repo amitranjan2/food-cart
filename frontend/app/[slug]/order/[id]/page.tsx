@@ -7,6 +7,7 @@ import { indiaTime, type CustomerOrder, type OrderView } from '../../../lib/orde
 import { storedSession } from '../../../lib/session';
 import { formatRupee } from '../../lib/customization';
 import { themeStyle } from '../../../lib/theme';
+import { LEGAL } from '../../../lib/legal';
 
 /** Statuses that never change again; the page stops refreshing once it reaches one. */
 const FINAL = new Set<CustomerOrder['status']>(['COMPLETED', 'REJECTED', 'CANCELLED', 'EXPIRED']);
@@ -29,8 +30,9 @@ function copyFor(order: CustomerOrder, vendorName: string) {
     case 'COMPLETED':
       return { title: dineIn ? 'Served' : 'Picked up', message: `Enjoy your meal! Thanks for ordering from ${vendorName}.` };
     case 'REJECTED':
-    case 'CANCELLED':
       return { title: 'Cancelled', message: 'The kitchen couldn’t accept this order. Any amount paid will be refunded in 3–5 business days.' };
+    case 'CANCELLED':
+      return { title: 'Cancelled', message: 'This order was cancelled with Supr-Mama support. Your payment is refunded in full and reaches you in 3–5 business days.' };
     case 'EXPIRED':
       return { title: 'Payment not completed', message: 'This order wasn’t paid in time, so it was not sent to the kitchen. If any amount was taken, it will be refunded.' };
   }
@@ -196,6 +198,7 @@ export default function OrderStatus({ params }: { params: { slug: string; id: st
         {view.vendor.phone ? (
           <a className="status-help" href={'tel:+91' + view.vendor.phone}>Need help? Call {vendorName}</a>
         ) : null}
+        <Link className="status-help status-support" href="/contact">Problem with this order? Contact {LEGAL.brand} support</Link>
         {error ? <p className="cart-pay-error">{error}</p> : null}
       </div>
     </main>

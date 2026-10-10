@@ -13,7 +13,7 @@ export const LEGAL = {
   /** Registered office address, one line. */
   address: null as string | null,
   /** Support inbox customers and vendors write to. */
-  email: null as string | null,
+  email: 'tech@suprmama.in' as string | null,
   /** Support phone with country code, e.g. "+91 98765 43210". */
   phone: null as string | null,
   /** Support hours, e.g. "10 AM – 8 PM, Monday to Saturday". */

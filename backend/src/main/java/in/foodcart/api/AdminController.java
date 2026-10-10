@@ -2,6 +2,7 @@ package in.foodcart.api;
 
 import in.foodcart.data.VendorEntity;
 import in.foodcart.service.StoreLinks;
+import in.foodcart.service.SupportRefunds;
 import in.foodcart.service.VendorOnboarding;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,22 +27,31 @@ public class AdminController {
   private final byte[] token;
   private final StoreLinks links;
   private final VendorOnboarding onboarding;
+  private final SupportRefunds refunds;
 
-  public AdminController(@Value("${ADMIN_TOKEN:}") String token, StoreLinks links, VendorOnboarding onboarding) {
+  public AdminController(@Value("${ADMIN_TOKEN:}") String token, StoreLinks links, VendorOnboarding onboarding, SupportRefunds refunds) {
     this.token = token.length() >= 24 ? token.getBytes(StandardCharsets.UTF_8) : null;
     if (!token.isEmpty() && this.token == null) log.warn("ADMIN_TOKEN is shorter than 24 characters, so the admin API stays off.");
     this.links = links;
     this.onboarding = onboarding;
+    this.refunds = refunds;
   }
 
-  /** Body: {"name": "...", "mobile": "98…", "slug": "optional-link-name"}. */
-  @PostMapping("/vendors")
-  public ResponseEntity<Map<String, Object>> createVendor(@RequestHeader(value = "X-Admin-Token", required = false) String given, @RequestBody VendorOnboarding.Request request) {
+  /** null when the caller may go on; otherwise the response to send. */
+  private ResponseEntity<Map<String, Object>> refuse(String given) {
     if (token == null) return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "The admin API is off (set ADMIN_TOKEN)."));
     if (given == null || !MessageDigest.isEqual(token, given.getBytes(StandardCharsets.UTF_8))) {
       log.warn("Admin call with a wrong token");
       return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "Wrong admin token."));
     }
+    return null;
+  }
+
+  /** Body: {"name": "...", "mobile": "98…", "slug": "optional-link-name"}. */
+  @PostMapping("/vendors")
+  public ResponseEntity<Map<String, Object>> createVendor(@RequestHeader(value = "X-Admin-Token", required = false) String given, @RequestBody VendorOnboarding.Request request) {
+    ResponseEntity<Map<String, Object>> refused = refuse(given);
+    if (refused != null) return refused;
     VendorEntity v = onboarding.create(request);
     log.info("Created vendor {} ({})", v.slug, v.id);
     Map<String, Object> body = new LinkedHashMap<>();
@@ -51,5 +61,25 @@ public class AdminController {
     body.put("slug", v.slug);
     body.put("storeUrl", links.store(v.slug));
     return ResponseEntity.status(HttpStatus.CREATED).body(body);
+  }
+
+  /** An order as support sees it before refunding (ops/refund-order.sh). */
+  @GetMapping("/orders")
+  public ResponseEntity<Map<String, Object>> order(@RequestHeader(value = "X-Admin-Token", required = false) String given, @RequestParam String slug, @RequestParam long number) {
+    ResponseEntity<Map<String, Object>> refused = refuse(given);
+    if (refused != null) return refused;
+    return ResponseEntity.ok(refunds.describe(slug, number));
+  }
+
+  public record Refund(String slug, long orderNumber, String reason) {}
+
+  /** Cancels a paid order the stall can't make and refunds it in full (tracker S3.7). */
+  @PostMapping("/orders/refund")
+  public ResponseEntity<Map<String, Object>> refund(@RequestHeader(value = "X-Admin-Token", required = false) String given, @RequestBody Refund body) {
+    ResponseEntity<Map<String, Object>> refused = refuse(given);
+    if (refused != null) return refused;
+    Map<String, Object> done = refunds.refund(body.slug(), body.orderNumber(), body.reason());
+    log.info("Support refunded order #{} at {}", body.orderNumber(), body.slug());
+    return ResponseEntity.ok(done);
   }
 }

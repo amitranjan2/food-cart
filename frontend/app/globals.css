@@ -374,3 +374,4 @@ html.scroll-locked,html.scroll-locked body,.storefront.scroll-locked{overflow:hi
 .store-missing p{margin:0;font-size:var(--fs-sm);opacity:.8}
 .store-missing a{margin-top:8px;border-radius:12px;background:var(--store-ink);color:#fff;font-weight:800;padding:12px 18px;text-decoration:none}
 .store-closed{margin:12px 12px 0;padding:12px 14px;border-radius:14px;background:#fff4d6;color:#7a4b06;font-size:var(--fs-sm);line-height:1.4}
+.status-support{background:transparent;color:var(--store-ink);border:1.5px solid var(--store-ink)}

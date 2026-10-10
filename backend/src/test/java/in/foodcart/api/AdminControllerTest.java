@@ -2,6 +2,7 @@ package in.foodcart.api;
 
 import in.foodcart.data.VendorEntity;
 import in.foodcart.service.StoreLinks;
+import in.foodcart.service.SupportRefunds;
 import in.foodcart.service.VendorOnboarding;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
@@ -19,14 +20,14 @@ class AdminControllerTest {
 
   @Test
   void offWithoutAToken() {
-    assertEquals(404, new AdminController("", new StoreLinks("https://suprmama.in"), onboarding).createVendor(TOKEN, request).getStatusCode().value());
-    assertEquals(404, new AdminController("short-token", new StoreLinks("https://suprmama.in"), onboarding).createVendor("short-token", request).getStatusCode().value());
+    assertEquals(404, new AdminController("", new StoreLinks("https://suprmama.in"), onboarding, mock(SupportRefunds.class)).createVendor(TOKEN, request).getStatusCode().value());
+    assertEquals(404, new AdminController("short-token", new StoreLinks("https://suprmama.in"), onboarding, mock(SupportRefunds.class)).createVendor("short-token", request).getStatusCode().value());
     verifyNoInteractions(onboarding);
   }
 
   @Test
   void wrongOrMissingTokenIsRefused() {
-    AdminController admin = new AdminController(TOKEN, new StoreLinks("https://suprmama.in"), onboarding);
+    AdminController admin = new AdminController(TOKEN, new StoreLinks("https://suprmama.in"), onboarding, mock(SupportRefunds.class));
     assertEquals(403, admin.createVendor(null, request).getStatusCode().value());
     assertEquals(403, admin.createVendor(TOKEN + "x", request).getStatusCode().value());
     verifyNoInteractions(onboarding);
@@ -40,7 +41,7 @@ class AdminControllerTest {
     v.mobile = "9876543210";
     v.slug = "raju-momos";
     when(onboarding.create(any())).thenReturn(v);
-    ResponseEntity<Map<String, Object>> response = new AdminController(TOKEN, new StoreLinks("https://suprmama.in/"), onboarding).createVendor(TOKEN, request);
+    ResponseEntity<Map<String, Object>> response = new AdminController(TOKEN, new StoreLinks("https://suprmama.in/"), onboarding, mock(SupportRefunds.class)).createVendor(TOKEN, request);
     assertEquals(201, response.getStatusCode().value());
     assertEquals("https://suprmama.in/raju-momos", response.getBody().get("storeUrl"));
   }
