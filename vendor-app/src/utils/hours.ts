@@ -1,5 +1,4 @@
 import type { OpeningHours, Weekday } from '../types';
-import { clock12 } from './format';
 
 /** Opening hours as the profile page edits them: each day's slots in time order. Mirrors the API's SlotRules. */
 export type Slot = { opens: string; closes: string };
@@ -27,11 +26,9 @@ export function fromMinutes(minutes: number) {
   return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
 }
 
-/** "9:30 AM"; a closing "24:00" reads "12:00 midnight". */
+/** 24-hour "09:30"; the day runs 00:00 → 24:00, so a closing "24:00" is shown as it is (open until midnight). */
 export function timeLabel(time: string) {
-  if (time === '24:00') return '12:00 midnight';
-  const minutes = toMinutes(time);
-  return clock12(Math.floor(minutes / 60), minutes % 60);
+  return time;
 }
 
 export function toWeek(hours: OpeningHours[] | undefined): Week {

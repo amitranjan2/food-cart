@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { CopyDishIcon } from '../../components/icons/MenuActionIcons';
 import { colors } from '../../theme';
 import type { Weekday } from '../../types';
 import { DAYS, endChoices, nextSlot, setEnd, setStart, startChoices, timeLabel, type Week } from '../../utils/hours';
@@ -7,7 +8,7 @@ import { DAYS, endChoices, nextSlot, setEnd, setStart, startChoices, timeLabel, 
 type Editing = { day: Weekday; index: number; field: 'opens' | 'closes' } | null;
 
 /**
- * Each day's opening slots in time order. A slot lies inside the day (latest close: 12:00 midnight); the next slot
+ * Each day's opening slots in time order, in 24-hour time. A slot lies inside the day (00:00 → 24:00); the next slot
  * starts at or after the previous one ends. A day with no slots is closed. "Copy to…" repeats a day's slots on others.
  */
 export function HoursEditor({ week, onChange }: { week: Week; onChange: (week: Week) => void }) {
@@ -49,9 +50,10 @@ export function HoursEditor({ week, onChange }: { week: Week; onChange: (week: W
                     setCopyTo([]);
                     setEditing(null);
                   }}
-                  style={styles.link}
+                  hitSlop={8}
+                  style={[styles.copyIcon, copying && styles.copyIconOn]}
                 >
-                  <Text style={styles.linkLabel}>⧉ Copy to…</Text>
+                  <CopyDishIcon size={18} />
                 </Pressable>
               ) : null}
             </View>
@@ -124,7 +126,7 @@ export function HoursEditor({ week, onChange }: { week: Week; onChange: (week: W
                 <Text style={styles.linkLabel}>+ {slots.length ? 'Add slot' : 'Open this day'}</Text>
               </Pressable>
             ) : slots.length ? (
-              <Text style={styles.full}>Open until midnight</Text>
+              <Text style={styles.full}>Open until 24:00</Text>
             ) : null}
 
             {copying ? (
@@ -270,6 +272,18 @@ const styles = StyleSheet.create({
   chipOnLabel: {
     color: colors.white,
     fontWeight: '800',
+  },
+  copyIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.white,
+  },
+  copyIconOn: {
+    borderWidth: 1.5,
+    borderColor: colors.header,
   },
   link: {
     alignSelf: 'flex-start',

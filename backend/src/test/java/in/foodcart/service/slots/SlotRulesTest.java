@@ -92,7 +92,7 @@ class SlotRulesTest {
     }
     IllegalArgumentException overlap = assertThrows(IllegalArgumentException.class, () -> SlotRules.validate(List.of(
         new OpeningHours(DayOfWeek.MONDAY, "09:00", "14:00"), new OpeningHours(DayOfWeek.MONDAY, "13:00", "17:00"))));
-    assertEquals("Monday: slots overlap (9 AM–2 PM and 1 PM–5 PM).", overlap.getMessage());
+    assertEquals("Monday: slots overlap (09:00–14:00 and 13:00–17:00).", overlap.getMessage());
     List<OpeningHours> tooMany = new ArrayList<>();
     for (int i = 0; i < 7; i++) tooMany.add(new OpeningHours(DayOfWeek.MONDAY, String.format("%02d:00", i * 2), String.format("%02d:00", i * 2 + 1)));
     assertThrows(IllegalArgumentException.class, () -> SlotRules.validate(tooMany));

@@ -154,8 +154,9 @@ export function SettingsScreen({ navigation }: Props) {
 
         <Text style={styles.section}>Opening hours</Text>
         <Text style={[styles.hint, styles.sectionHint]}>
-          Add one or more slots a day, earliest first. The last slot can stay open until 12:00 midnight; open past midnight by adding a
-          slot from 12:00 AM on the next day. Customers pick 30-minute pickup times inside these slots.
+          Add one or more slots a day, earliest first, between 00:00 and 24:00. To stay open past midnight, add a slot from 00:00 on
+          the next day. Use the copy button to repeat a day&apos;s hours on other days. Customers pick 30-minute pickup times inside
+          these slots.
         </Text>
         {noHours ? <Text style={[styles.warning, styles.sectionHint]}>Not set yet: customers can&apos;t order until you add and save your hours.</Text> : null}
         <HoursEditor week={week} onChange={setWeek} />

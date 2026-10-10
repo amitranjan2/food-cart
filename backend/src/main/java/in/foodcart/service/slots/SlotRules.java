@@ -33,7 +33,7 @@ public final class SlotRules {
       int opens = minutes(h.opens, h.day, false);
       int closes = minutes(h.closes, h.day, true);
       if (closes <= opens) {
-        throw new IllegalArgumentException(label(h.day) + ": a slot must end after it starts. For hours after midnight, add a slot on the next day from 12:00 AM.");
+        throw new IllegalArgumentException(label(h.day) + ": a slot must end after it starts. For hours after midnight, add a slot on the next day from 00:00.");
       }
       byDay.computeIfAbsent(h.day, d -> new ArrayList<>()).add(new int[] {opens, closes});
     }
@@ -130,15 +130,9 @@ public final class SlotRules {
     return String.format("%02d:%02d", minutes / 60, minutes % 60);
   }
 
+  /** "09:00–14:00", in the same 24-hour form as the vendor app's hours editor. */
   private static String range(int[] slot) {
-    return clock(slot[0]) + "–" + clock(slot[1]);
-  }
-
-  private static String clock(int minutes) {
-    if (minutes == DAY_MINUTES) return "midnight";
-    int h = minutes / 60;
-    int m = minutes % 60;
-    return (h % 12 == 0 ? 12 : h % 12) + (m == 0 ? "" : ":" + String.format("%02d", m)) + (h < 12 ? " AM" : " PM");
+    return text(slot[0]) + "–" + text(slot[1]);
   }
 
   private static String label(DayOfWeek day) {
