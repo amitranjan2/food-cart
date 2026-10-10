@@ -24,6 +24,9 @@ import {
   type StoredConfiguration,
 } from './lib/customization';
 import { linkItemsToCategories } from './lib/menuLinks';
+import { addLine, lastLineOf, linesOf, quantitiesByItem, setLineQuantity, type CartEntry } from './lib/cartLines';
+import { RepeatPrompt } from './components/RepeatPrompt';
+import { PolicyFooter } from '../components/LegalPage';
 
 /** Most dishes shown in the cart's "You may also like" row. */
 const SUGGESTION_LIMIT = 12;
@@ -33,8 +36,9 @@ export default function Store({ params }: { params: { slug: string } }) {
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [items, setItems] = useState<MenuItem[]>([]);
-  const [cart, setCart] = useState<Record<string, number>>({});
-  const [configs, setConfigs] = useState<Record<string, StoredConfiguration>>({});
+  const [lines, setLines] = useState<CartEntry[]>([]);
+  /** Dish whose "Repeat last / Choose again" prompt is open. */
+  const [repeatId, setRepeatId] = useState<string | null>(null);
   const [customizingId, setCustomizingId] = useState<string | null>(null);
   const [closingCustomizer, setClosingCustomizer] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout>>();
@@ -221,8 +225,12 @@ export default function Store({ params }: { params: { slug: string } }) {
   if (!vendor) return <main className="storefront"><p className="store-loading">Loading…</p></main>;
   const store = vendor;
 
-  const chosen = linked.filter(item => cart[item.id]);
-  const total = chosen.reduce((sum, item) => sum + (configs[item.id]?.unitPrice ?? item.price) * cart[item.id], 0);
+  const cart = quantitiesByItem(lines);
+  const chosen = lines.flatMap(line => {
+    const item = linked.find(entry => entry.id === line.itemId);
+    return item ? [{ line, item }] : [];
+  });
+  const total = chosen.reduce((sum, { line }) => sum + line.config.unitPrice * line.quantity, 0);
   // Cheapest first across the whole menu (not grouped by category): easy add-ons at the front. Capped so it stays a nudge.
   const suggestions = linked
     .filter(item => item.available && !cart[item.id])
@@ -239,25 +247,24 @@ export default function Store({ params }: { params: { slug: string } }) {
     return counts;
   }, {});
 
+  /** + / − on a menu card, which shows the dish's total across its cart lines. */
   function changeQuantity(item: MenuItem, next: number) {
-    setCart(current => {
-      const updated = { ...current };
-      if (next < 1) delete updated[item.id];
-      else updated[item.id] = next;
-      return updated;
-    });
-    if (next < 1) {
-      setConfigs(current => {
-        const updated = { ...current };
-        delete updated[item.id];
-        return updated;
-      });
+    const own = linesOf(lines, item.id);
+    const current = own.reduce((sum, line) => sum + line.quantity, 0);
+    if (next > current) {
+      if (own.length === 0) addItem(item);
+      // A dish with choices asks whether to repeat the last one or pick again (a new line).
+      else if (needsCustomization(customizationFor(item))) setRepeatId(item.id);
+      else setLines(all => setLineQuantity(all, own[0].key, own[0].quantity + 1));
+      return;
     }
+    if (own.length === 1) setLines(all => setLineQuantity(all, own[0].key, next));
+    // Several versions in the cart: the card can't tell which one to remove, so show them in the cart.
+    else if (own.length > 1) openCart();
   }
 
   function addConfigured(item: MenuItem, configuration: StoredConfiguration) {
-    setCart(current => ({ ...current, [item.id]: (current[item.id] ?? 0) + 1 }));
-    setConfigs(current => ({ ...current, [item.id]: configuration }));
+    setLines(all => addLine(all, item.id, configuration));
     if (customizingId) closeCustomizer();
   }
 
@@ -326,17 +333,14 @@ export default function Store({ params }: { params: { slug: string } }) {
           type,
           slot,
           displayedTotal: total,
-          items:chosen.map(item => {
-            const config = configs[item.id];
-            return {
-              menuItemId: item.id,
-              quantity: cart[item.id],
-              portion: config?.portion ?? 'FULL',
-              sizeId: config?.sizeId,
-              options: config?.options ?? [],
-              displayedPrice: config?.unitPrice ?? item.price,
-            };
-          }),
+          items: chosen.map(({ line, item }) => ({
+            menuItemId: item.id,
+            quantity: line.quantity,
+            portion: line.config.portion,
+            sizeId: line.config.sizeId,
+            options: line.config.options,
+            displayedPrice: line.config.unitPrice,
+          })),
         }),
       }, customerToken);
       const outcome = await openCheckout(created.payment, () => new Promise(resolve => setTestCheckout({ amount: created.order.total, resolve })));
@@ -356,6 +360,24 @@ export default function Store({ params }: { params: { slug: string } }) {
     }
   }
 
+
+  const repeatItem = repeatId ? linked.find(item => item.id === repeatId) : undefined;
+  const repeatLast = repeatId ? lastLineOf(lines, repeatId) : undefined;
+  const repeatSheet = repeatItem && repeatLast && (
+    <RepeatPrompt
+      item={repeatItem}
+      last={repeatLast.config}
+      onRepeat={() => {
+        setLines(all => setLineQuantity(all, repeatLast.key, repeatLast.quantity + 1));
+        setRepeatId(null);
+      }}
+      onChooseAgain={() => {
+        setRepeatId(null);
+        openCustomizer(repeatItem.id);
+      }}
+      onClose={() => setRepeatId(null)}
+    />
+  );
 
   const paymentSheet = testCheckout && (
     <TestCheckout amount={testCheckout.amount} onChoose={outcome => testCheckout.resolve(outcome)} />
@@ -377,11 +399,12 @@ export default function Store({ params }: { params: { slug: string } }) {
       {open ? (
         <div className={underlay} aria-hidden={customizing ? true : undefined}>
           <Cart
-            lines={chosen.map(item => ({
+            lines={chosen.map(({ line, item }) => ({
+              key: line.key,
               item,
-              quantity: cart[item.id],
-              unitPrice: configs[item.id]?.unitPrice ?? item.price,
-              summary: configs[item.id]?.summary,
+              quantity: line.quantity,
+              unitPrice: line.config.unitPrice,
+              summary: line.config.summary,
             }))}
             suggestions={suggestions}
             quantities={cart}
@@ -393,6 +416,7 @@ export default function Store({ params }: { params: { slug: string } }) {
             fallbackImage={store.coverImageUrl}
             onBack={() => setOpen(false)}
             onQuantity={changeQuantity}
+            onLineQuantity={(key, next) => setLines(all => setLineQuantity(all, key, next))}
             onAdd={addItem}
             onMobileChange={changeMobile}
             onOtpChange={setOtp}
@@ -425,10 +449,11 @@ export default function Store({ params }: { params: { slug: string } }) {
           fallbackImage={store.coverImageUrl}
           nav={<CategoryNav categories={shownCategories} selectedId={categoryId} onSelect={selectCategory} />}
         />
+        <PolicyFooter />
       </div>
       {!customizing && chosen.length > 0 && (
         <CartBar
-          itemCount={chosen.reduce((sum, item) => sum + cart[item.id], 0)}
+          itemCount={chosen.reduce((sum, { line }) => sum + line.quantity, 0)}
           total={total}
           onOpen={openCart}
         />
@@ -445,6 +470,7 @@ export default function Store({ params }: { params: { slug: string } }) {
       </div>
       )}
       {sheet}
+      {repeatSheet}
       {paymentSheet}
     </main>
   );

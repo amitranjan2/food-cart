@@ -2,6 +2,8 @@ package in.foodcart.service.payments;
 
 import in.foodcart.data.*;
 import in.foodcart.domain.OrderStatus;
+import in.foodcart.service.CustomerHistory;
+import in.foodcart.service.OrderNumbers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -24,11 +26,12 @@ public class PaymentService {
 
   private final PaymentGateway gateway;
   private final OrderRepository orders;
-  private final HistoryRepository history;
+  private final CustomerHistory customerHistory;
+  private final OrderNumbers numbers;
   /** Replaced in tests. */
   Clock clock = Clock.systemUTC();
 
-  public PaymentService(ObjectProvider<PaymentGateway> gateways, OrderRepository orders, HistoryRepository history) {
+  public PaymentService(ObjectProvider<PaymentGateway> gateways, OrderRepository orders, CustomerHistory customerHistory, OrderNumbers numbers) {
     this.gateway = gateways.getIfAvailable();
     if (this.gateway == null) {
       throw new IllegalStateException(
@@ -36,7 +39,8 @@ public class PaymentService {
               + "Run with the 'local' profile for development, or configure a gateway for production.");
     }
     this.orders = orders;
-    this.history = history;
+    this.customerHistory = customerHistory;
+    this.numbers = numbers;
   }
 
   /** What the browser needs to open the active gateway's checkout. */
@@ -44,7 +48,7 @@ public class PaymentService {
 
   /** Creates the gateway payment for a new PAYMENT_PENDING order, always for the server's total. */
   public Started start(OrderEntity o) {
-    PaymentGateway.Checkout checkout = gateway.create(o.id, o.orderNumber, o.total, o.customerName, o.customerMobile);
+    PaymentGateway.Checkout checkout = gateway.create(o.id, o.total, o.customerName, o.customerMobile);
     PaymentInfo p = new PaymentInfo();
     p.gateway = gateway.name();
     p.gatewayOrderId = checkout.gatewayOrderId();
@@ -80,6 +84,7 @@ public class PaymentService {
           refund(o);
         } else if (o.status == OrderStatus.PAYMENT_PENDING) {
           o.status = OrderStatus.PLACED;
+          if (o.orderNumber == 0) o.orderNumber = numbers.next(o.vendorId);
           recordVisit(o);
         } else {
           // Paid after the order expired: the vendor never saw it, so give the money back.
@@ -126,18 +131,6 @@ public class PaymentService {
   }
 
   private void recordVisit(OrderEntity o) {
-    CustomerVendorHistoryEntity h = history.findByCustomerIdAndVendorId(o.customerId, o.vendorId).orElseGet(() -> {
-      CustomerVendorHistoryEntity x = new CustomerVendorHistoryEntity();
-      x.customerId = o.customerId;
-      x.vendorId = o.vendorId;
-      return x;
-    });
-    Instant now = Instant.now(clock);
-    h.totalOrders++;
-    if (h.firstOrderedAt == null) h.firstOrderedAt = now;
-    h.lastOrderedAt = now;
-    if (h.firstVisitedAt == null) h.firstVisitedAt = now;
-    h.lastVisitedAt = now;
-    history.save(h);
+    customerHistory.recordOrder(o.customerId, o.vendorId, Instant.now(clock));
   }
 }

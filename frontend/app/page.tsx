@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { request, type Vendor } from './lib/api';
 import { savedVendorSlugs } from './lib/savedVendors';
 import { storedSession } from './lib/session';
+import { PolicyFooter } from './components/LegalPage';
 
 type Saved = { vendor: Vendor; totalOrders: number };
 
@@ -77,6 +78,7 @@ export default function Home() {
             </Link>
           ))
         )}
+        <PolicyFooter />
       </div>
     </main>
   );

@@ -282,6 +282,9 @@ html.scroll-locked,html.scroll-locked body,.storefront.scroll-locked{overflow:hi
 .test-checkout-kicker{margin:0;font-size:var(--fs-xs);font-weight:800;letter-spacing:.08em;color:#b54708}
 .test-checkout-sheet strong{font-size:32px;font-weight:800}
 .test-checkout-sheet p{margin:0;font-size:var(--fs-sm);color:#717c86}
+.repeat-kicker{color:#717c86}
+.repeat-sheet .repeat-last{font-size:var(--fs-md);color:#30404e}
+.repeat-sheet .repeat-last b{font-weight:800}
 .test-checkout-sheet .customizer-add{width:100%;height:50px}
 .test-checkout-fail,.test-checkout-close{height:44px;border:0;border-radius:12px;background:#e8edf1;color:#30404e;font:800 14px/1 var(--store-font-body)}
 .test-checkout-close{background:transparent}
@@ -319,3 +322,18 @@ html.scroll-locked,html.scroll-locked body,.storefront.scroll-locked{overflow:hi
 .home-empty-icon{margin:0;font-size:44px;line-height:1;color:#8b969f}
 .home-empty h2{margin:0;font-size:var(--fs-lg);font-weight:800}
 .home-empty p{margin:0;max-width:300px;font-size:var(--fs-sm);font-weight:600;color:#5d6b76;line-height:1.45}
+.legal .status-body{padding-top:28px}
+.legal-draft{margin:0;padding:12px 14px;border-radius:14px;background:#fff4e5;color:#7a4b00;font-size:var(--fs-sm);font-weight:700;line-height:1.45}
+.legal-body{gap:8px;font-size:var(--fs-sm);line-height:1.6;color:#3b4957}
+.legal-body h2{margin:14px 0 0}
+.legal-body p,.legal-body ul,.legal-body dl{margin:0}
+.legal-body ul{padding-left:20px;display:grid;gap:4px;list-style:disc}
+.legal-body a{color:#30404e;font-weight:700;text-decoration:underline}
+.legal-gap{padding:0 4px;border-radius:4px;background:#ffe2b8;color:#7a4b00;font-weight:700}
+.legal-contact{display:grid;grid-template-columns:auto 1fr;gap:4px 14px}
+.legal-contact dt{font-weight:800;color:#30404e}
+.legal-contact dd{margin:0}
+.policy-footer{display:grid;gap:6px;justify-items:center;padding:18px 12px 8px;color:#717c86;font-size:var(--fs-xs)}
+.policy-footer nav{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 14px}
+.policy-footer a{color:#3b4957;font-weight:700;text-decoration:none}
+.policy-footer p{margin:0}
