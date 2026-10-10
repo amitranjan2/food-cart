@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Badge, Button, Card, Chip, IconButton, Panel } from '../../ui';
 import { AddIcon, CopyDishIcon, EditDishIcon } from '../../components/icons/MenuActionIcons';
-import { colors } from '../../theme';
+import { colors, radius, typography } from '../../theme';
 import type { Weekday } from '../../types';
 import { DAYS, endChoices, nextSlot, setEnd, setStart, startChoices, timeLabel, type Week } from '../../utils/hours';
 
@@ -41,10 +42,11 @@ export function HoursEditor({ week, onChange }: { week: Week; onChange: (week: W
         const copying = copyFrom === day;
         const open = editDay === day;
         return (
-          <View key={day} style={styles.day} accessibilityLabel={label}>
+          <Card key={day} style={styles.day}>
+            <View accessibilityLabel={label} style={styles.dayInner}>
             <View style={styles.dayHead}>
-              <Text style={styles.dayName}>{label}</Text>
-              <Text style={[styles.state, slots.length ? styles.open : styles.closed]}>{slots.length ? 'Open' : 'Closed'}</Text>
+              <Text style={[typography.heading, styles.dayName]}>{label}</Text>
+              <Badge label={slots.length ? 'Open' : 'Closed'} tone={slots.length ? 'success' : 'danger'} />
               <View style={styles.spacer} />
               <Pressable
                 accessibilityRole="button"
@@ -99,18 +101,19 @@ export function HoursEditor({ week, onChange }: { week: Week; onChange: (week: W
                       </View>
                     ))}
                     {open ? (
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={`Remove ${label} slot ${index + 1}`}
-                      onPress={() => {
-                        change(day, slots.filter((_, i) => i !== index));
-                        setEditing(null);
-                      }}
-                      hitSlop={8}
-                      style={styles.remove}
-                    >
-                      <Text style={styles.removeLabel}>✕</Text>
-                    </Pressable>
+                      <View style={styles.remove}>
+                        <IconButton
+                          icon="close"
+                          label={`Remove ${label} slot ${index + 1}`}
+                          tone="none"
+                          size={32}
+                          color={colors.muted}
+                          onPress={() => {
+                            change(day, slots.filter((_, i) => i !== index));
+                            setEditing(null);
+                          }}
+                        />
+                      </View>
                     ) : null}
                   </View>
                   {editingThis ? (
@@ -118,16 +121,15 @@ export function HoursEditor({ week, onChange }: { week: Week; onChange: (week: W
                       {choices.map(time => {
                         const on = slot[editingThis.field] === time;
                         return (
-                          <Pressable
+                          <Chip
                             key={time}
+                            label={timeLabel(time)}
+                            selected={on}
                             onPress={() => {
                               change(day, editingThis.field === 'opens' ? setStart(slots, index, time) : setEnd(slots, index, time));
                               setEditing(null);
                             }}
-                            style={[styles.chip, on && styles.chipOn]}
-                          >
-                            <Text style={[styles.chipLabel, on && styles.chipOnLabel]}>{timeLabel(time)}</Text>
-                          </Pressable>
+                          />
                         );
                       })}
                     </ScrollView>
@@ -150,42 +152,39 @@ export function HoursEditor({ week, onChange }: { week: Week; onChange: (week: W
                 <AddIcon size={18} />
               </Pressable>
             ) : open && slots.length ? (
-              <Text style={styles.full}>Open until 24:00, no more slots fit</Text>
+              <Text style={typography.caption}>Open until 24:00, no more slots fit</Text>
             ) : null}
 
             {copying ? (
-              <View style={styles.copyBox}>
-                <Text style={styles.copyTitle}>Copy {label}&apos;s hours to</Text>
+              <Panel>
+                <Text style={typography.bodyStrong}>Copy {label}&apos;s hours to</Text>
                 <View style={styles.copyDays}>
                   {DAYS.filter(entry => entry.day !== day).map(entry => {
                     const on = copyTo.includes(entry.day);
                     return (
-                      <Pressable
+                      <Chip
                         key={entry.day}
+                        label={entry.label}
+                        selected={on}
                         accessibilityRole="checkbox"
-                        accessibilityState={{ checked: on }}
                         onPress={() => setCopyTo(current => (on ? current.filter(d => d !== entry.day) : [...current, entry.day]))}
-                        style={[styles.copyDay, on && styles.chipOn]}
-                      >
-                        <Text style={[styles.chipLabel, on && styles.chipOnLabel]}>{entry.label}</Text>
-                      </Pressable>
+                      />
                     );
                   })}
                 </View>
                 <View style={styles.copyActions}>
-                  <Pressable
+                  <Button
+                    label={copyTo.length === DAYS.length - 1 ? 'Clear' : 'All days'}
+                    variant="quiet"
+                    size="sm"
                     onPress={() => setCopyTo(current => (current.length === DAYS.length - 1 ? [] : DAYS.map(d => d.day).filter(d => d !== day)))}
-                    style={styles.link}
-                  >
-                    <Text style={styles.linkLabel}>{copyTo.length === DAYS.length - 1 ? 'Clear' : 'All days'}</Text>
-                  </Pressable>
-                  <Pressable disabled={copyTo.length === 0} onPress={applyCopy} style={[styles.apply, copyTo.length === 0 && styles.disabled]}>
-                    <Text style={styles.applyLabel}>Copy</Text>
-                  </Pressable>
+                  />
+                  <Button label="Copy" size="sm" disabled={copyTo.length === 0} onPress={applyCopy} />
                 </View>
-              </View>
+              </Panel>
             ) : null}
-          </View>
+            </View>
+          </Card>
         );
       })}
     </View>
@@ -197,9 +196,9 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   day: {
-    backgroundColor: '#E7F3FC',
-    borderRadius: 14,
     padding: 12,
+  },
+  dayInner: {
     gap: 8,
   },
   dayHead: {
@@ -209,25 +208,6 @@ const styles = StyleSheet.create({
   },
   dayName: {
     width: 40,
-    color: colors.title,
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  state: {
-    fontSize: 11,
-    fontWeight: '800',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
-    overflow: 'hidden',
-  },
-  open: {
-    color: colors.onText,
-    backgroundColor: colors.onBg,
-  },
-  closed: {
-    color: colors.offText,
-    backgroundColor: colors.offBg,
   },
   spacer: {
     flex: 1,
@@ -247,125 +227,53 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   time: {
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.white,
-    borderRadius: 8,
-    paddingHorizontal: 10,
+    backgroundColor: colors.tint,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+    borderRadius: radius.sm,
+    paddingHorizontal: 12,
     paddingVertical: 8,
   },
   timeActive: {
-    borderColor: colors.header,
+    borderColor: colors.primary,
   },
   timeLabel: {
-    color: colors.title,
-    fontSize: 13,
-    fontWeight: '700',
+    ...typography.bodyStrong,
+    fontVariant: ['tabular-nums'],
   },
   remove: {
     marginLeft: 'auto',
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  removeLabel: {
-    color: colors.muted,
-    fontSize: 14,
-    fontWeight: '700',
   },
   picker: {
     gap: 6,
     paddingVertical: 4,
   },
-  chip: {
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    backgroundColor: colors.white,
-  },
-  chipOn: {
-    backgroundColor: colors.header,
-  },
-  chipLabel: {
-    color: colors.title,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  chipOnLabel: {
-    color: colors.white,
-    fontWeight: '800',
-  },
   copyIcon: {
     marginLeft: 4,
-    width: 34,
-    height: 34,
-    borderRadius: 8,
+    width: 36,
+    height: 36,
+    borderRadius: radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.white,
+    backgroundColor: colors.tint,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
   },
   addIcon: {
     marginLeft: 0,
     alignSelf: 'flex-start',
   },
   copyIconOn: {
-    borderWidth: 1.5,
-    borderColor: colors.header,
-  },
-  link: {
-    alignSelf: 'flex-start',
-    paddingVertical: 4,
-  },
-  linkLabel: {
-    color: '#2F6BFF',
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  full: {
-    color: colors.muted,
-    fontSize: 12,
-  },
-  copyBox: {
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    padding: 10,
-    gap: 8,
-  },
-  copyTitle: {
-    color: colors.title,
-    fontSize: 13,
-    fontWeight: '700',
+    borderColor: colors.primary,
   },
   copyDays: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
   },
-  copyDay: {
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: colors.filterBg,
-  },
   copyActions: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-  },
-  apply: {
-    backgroundColor: colors.header,
-    borderRadius: 5,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  applyLabel: {
-    color: colors.white,
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  disabled: {
-    opacity: 0.45,
   },
 });

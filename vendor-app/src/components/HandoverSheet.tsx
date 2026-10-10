@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { colors } from '../theme';
+import { StyleSheet, Text } from 'react-native';
+import { colors, typography } from '../theme';
 import type { Order } from '../types';
-import { FrameModal } from './FrameModal';
+import { Button, Field, Sheet } from '../ui';
 
 /**
  * Asks for the code the customer shows. The order completes only if it matches; the vendor never sees the code.
@@ -36,97 +36,43 @@ export function HandoverSheet({
   }
 
   return (
-    <FrameModal onRequestClose={onClose}>
-      <View style={styles.sheet}>
-        <Text style={styles.title}>Hand over order #{order.orderNumber}</Text>
-        {customer ? <Text style={styles.hint}>{customer}</Text> : null}
-        <Text style={styles.hint}>Ask the customer for the 4-digit code on their order page.</Text>
-        <TextInput
-          value={code}
-          onChangeText={value => {
-            setCode(value.replace(/\D/g, '').slice(0, 4));
-            setError('');
-          }}
-          keyboardType="number-pad"
-          maxLength={4}
-          autoFocus
-          placeholder="••••"
-          placeholderTextColor="#98a8b6"
-          style={styles.input}
-          accessibilityLabel="Handover code"
-        />
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-        <Pressable disabled={busy || code.length !== 4} onPress={submit} style={[styles.confirm, busy || code.length !== 4 ? styles.disabled : null]}>
-          <Text style={styles.confirmLabel}>{busy ? 'CHECKING…' : 'CONFIRM HANDOVER'}</Text>
-        </Pressable>
-        <Pressable onPress={onClose} style={styles.cancel}>
-          <Text style={styles.cancelLabel}>Cancel</Text>
-        </Pressable>
-      </View>
-    </FrameModal>
+    <Sheet
+      title={`Hand over order #${order.orderNumber}`}
+      hint="Ask the customer for the 4-digit code on their order page."
+      onClose={onClose}
+      footer={<Button label="Confirm handover" grow busy={busy} disabled={code.length !== 4} onPress={submit} />}
+    >
+      {customer ? <Text style={typography.bodyStrong}>{customer}</Text> : null}
+      <Field
+        value={code}
+        onChangeText={value => {
+          setCode(value.replace(/\D/g, '').slice(0, 4));
+          setError('');
+        }}
+        keyboardType="number-pad"
+        maxLength={4}
+        autoFocus
+        placeholder="••••"
+        invalid={!!error}
+        style={styles.code}
+        accessibilityLabel="Handover code"
+      />
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+    </Sheet>
   );
 }
 
 const styles = StyleSheet.create({
-  sheet: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: colors.white,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    gap: 10,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: colors.title,
-  },
-  hint: {
-    fontSize: 14,
-    color: colors.muted,
-  },
-  input: {
-    marginTop: 6,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    paddingVertical: 12,
+  code: {
     textAlign: 'center',
     fontSize: 28,
     fontWeight: '800',
     letterSpacing: 10,
-    color: colors.title,
+    paddingVertical: 12,
   },
   error: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
-    color: colors.error,
-  },
-  confirm: {
-    marginTop: 4,
-    backgroundColor: colors.header,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  disabled: {
-    opacity: 0.45,
-  },
-  confirmLabel: {
-    color: colors.white,
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  cancel: {
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  cancelLabel: {
-    color: colors.muted,
-    fontSize: 14,
-    fontWeight: '700',
+    color: colors.danger,
   },
 });

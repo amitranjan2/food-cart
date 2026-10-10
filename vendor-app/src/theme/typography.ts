@@ -1,12 +1,14 @@
+import type { TextStyle } from 'react-native';
+import { colors } from './colors';
+
+/** The type scale. Nothing smaller than 11 px; labels are sentence case except `overline`. */
 export const typography = {
-  kicker: { fontSize: 10, fontWeight: '700' as const, letterSpacing: 2 },
-  title: { fontSize: 25, fontWeight: '700' as const, letterSpacing: -1 },
-  screenTitle: { fontSize: 24, fontWeight: '700' as const, letterSpacing: -1 },
-  sectionLabel: { fontSize: 9, fontWeight: '800' as const },
-  body: { fontSize: 12, fontWeight: '400' as const },
-  cardTitle: { fontSize: 13, fontWeight: '700' as const },
-  cardMeta: { fontSize: 10, fontWeight: '400' as const },
-  button: { fontSize: 12, fontWeight: '700' as const },
-  chip: { fontSize: 9, fontWeight: '700' as const },
-  empty: { fontSize: 12, fontWeight: '400' as const },
-};
+  display: { fontSize: 24, fontWeight: '800', letterSpacing: -0.6, color: colors.text },
+  title: { fontSize: 18, fontWeight: '800', color: colors.text },
+  heading: { fontSize: 16, fontWeight: '800', color: colors.text },
+  body: { fontSize: 14, fontWeight: '500', color: colors.text },
+  bodyStrong: { fontSize: 14, fontWeight: '700', color: colors.text },
+  small: { fontSize: 13, fontWeight: '500', lineHeight: 18, color: colors.muted },
+  caption: { fontSize: 12, fontWeight: '600', color: colors.muted },
+  overline: { fontSize: 11, fontWeight: '800', letterSpacing: 1, color: colors.muted },
+} satisfies Record<string, TextStyle>;

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Modal, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { colors } from '../theme';
 import { FRAME_MAX_WIDTH } from '../theme/layout';
 
 /**
@@ -25,7 +26,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     left: 0,
-    backgroundColor: 'rgba(30,42,54,0.45)',
+    backgroundColor: colors.scrim,
   },
   column: {
     flex: 1,

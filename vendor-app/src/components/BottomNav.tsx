@@ -1,21 +1,30 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors } from '../theme';
+import { colors, radius } from '../theme';
+import { Icon, type IconName } from '../ui';
 
-export function BottomNav({
-  tab,
-  onChange,
-}: {
-  tab: 'menu' | 'orders';
-  onChange: (tab: 'menu' | 'orders') => void;
-}) {
+const TABS: { key: 'menu' | 'orders'; label: string; icon: IconName }[] = [
+  { key: 'menu', label: 'Menu', icon: 'dishes' },
+  { key: 'orders', label: 'Orders', icon: 'orders' },
+];
+
+export function BottomNav({ tab, onChange }: { tab: 'menu' | 'orders'; onChange: (tab: 'menu' | 'orders') => void }) {
   return (
-    <View style={styles.bar}>
-      <Pressable onPress={() => onChange('menu')} style={[styles.item, tab === 'menu' && styles.selected]}>
-        <Text style={[styles.label, tab === 'menu' && styles.selectedLabel]}>▣  Menu</Text>
-      </Pressable>
-      <Pressable onPress={() => onChange('orders')} style={[styles.item, tab === 'orders' && styles.selected]}>
-        <Text style={[styles.label, tab === 'orders' && styles.selectedLabel]}>🛒  Orders</Text>
-      </Pressable>
+    <View style={styles.bar} accessibilityRole="tablist">
+      {TABS.map(entry => {
+        const on = tab === entry.key;
+        return (
+          <Pressable
+            key={entry.key}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: on }}
+            onPress={() => onChange(entry.key)}
+            style={[styles.item, on && styles.selected]}
+          >
+            <Icon name={entry.icon} size={18} color={on ? colors.primary : colors.onPrimary} />
+            <Text style={[styles.label, on && styles.selectedLabel]}>{entry.label}</Text>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
@@ -26,27 +35,29 @@ const styles = StyleSheet.create({
     left: 14,
     right: 14,
     bottom: 12,
-    height: 52,
-    backgroundColor: colors.header,
-    borderRadius: 18,
+    height: 56,
+    backgroundColor: colors.primary,
+    borderRadius: radius.lg + 2,
     padding: 4,
     flexDirection: 'row',
   },
   item: {
     flex: 1,
-    borderRadius: 14,
+    flexDirection: 'row',
+    gap: 8,
+    borderRadius: radius.md + 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
   selected: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
   },
   label: {
-    color: colors.white,
-    fontSize: 13,
-    fontWeight: '700',
+    color: colors.onPrimary,
+    fontSize: 14,
+    fontWeight: '800',
   },
   selectedLabel: {
-    color: colors.header,
+    color: colors.primary,
   },
 });

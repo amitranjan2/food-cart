@@ -11,5 +11,5 @@ export function ErrorState({ message }: { message: string }) {
 
 const styles = StyleSheet.create({
   wrap: { paddingVertical: 30, paddingHorizontal: 16 },
-  text: { textAlign: 'center', fontSize: 12, color: colors.error, fontWeight: '600' },
+  text: { textAlign: 'center', fontSize: 14, color: colors.danger, fontWeight: '600' },
 });

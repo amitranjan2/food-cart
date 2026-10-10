@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Linking, Platform, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Platform, Share, StyleSheet, Text, View } from 'react-native';
 import { SvgXml } from 'react-native-svg';
 import { getStoreShare, type StoreShare } from '../api/vendor';
-import { colors } from '../theme';
-import { FrameModal } from './FrameModal';
+import { colors, radius, typography } from '../theme';
+import { Button, Sheet } from '../ui';
 
 /** The store link and QR code, to send to regulars or print for the counter. */
 export function ShareStoreSheet({ token, name, onClose }: { token: string; name: string; onClose: () => void }) {
@@ -35,125 +35,61 @@ export function ShareStoreSheet({ token, name, onClose }: { token: string; name:
   }
 
   return (
-    <FrameModal onRequestClose={onClose}>
-      <View style={styles.sheet}>
-        <Text style={styles.title}>Share your store</Text>
-        <Text style={styles.hint}>Customers scan the code or open the link to see your menu and order.</Text>
-        {error ? (
-          <Text style={styles.error}>{error}</Text>
-        ) : !share ? (
-          <ActivityIndicator color={colors.header} style={styles.loading} />
-        ) : (
+    <Sheet
+      title="Share your store"
+      hint="Customers scan the code or open the link to see your menu and order."
+      onClose={onClose}
+      footer={
+        share ? (
           <>
-            <View style={styles.qr} accessibilityLabel={`QR code for ${share.storeUrl}`}>
-              <SvgXml xml={share.qrSvg} width="100%" height="100%" />
-            </View>
-            <Text selectable style={styles.link}>{share.storeUrl.replace(/^https?:\/\//, '')}</Text>
-            <View style={styles.actions}>
-              <Pressable onPress={sendLink} style={styles.primary} accessibilityRole="button">
-                <Text style={styles.primaryLabel}>{canCopy ? 'Copy link' : 'Share link'}</Text>
-              </Pressable>
-              <Pressable onPress={() => Linking.openURL(share.posterUrl)} style={styles.secondary} accessibilityRole="button">
-                <Text style={styles.secondaryLabel}>Print poster</Text>
-              </Pressable>
-            </View>
-            {note ? <Text style={styles.note}>{note}</Text> : null}
+            <Button label={canCopy ? 'Copy link' : 'Share link'} grow onPress={sendLink} />
+            <Button label="Print poster" variant="secondary" grow onPress={() => Linking.openURL(share.posterUrl)} />
           </>
-        )}
-        <Pressable onPress={onClose} style={styles.close} accessibilityRole="button">
-          <Text style={styles.closeLabel}>Close</Text>
-        </Pressable>
-      </View>
-    </FrameModal>
+        ) : undefined
+      }
+    >
+      {error ? (
+        <Text style={styles.error}>{error}</Text>
+      ) : !share ? (
+        <ActivityIndicator color={colors.primary} style={styles.loading} />
+      ) : (
+        <View style={styles.center}>
+          <View style={styles.qr} accessibilityLabel={`QR code for ${share.storeUrl}`}>
+            <SvgXml xml={share.qrSvg} width="100%" height="100%" />
+          </View>
+          <Text selectable style={typography.heading}>
+            {share.storeUrl.replace(/^https?:\/\//, '')}
+          </Text>
+          {note ? <Text style={styles.note}>{note}</Text> : null}
+        </View>
+      )}
+    </Sheet>
   );
 }
 
 const styles = StyleSheet.create({
-  sheet: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: colors.white,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    gap: 10,
-    alignItems: 'stretch',
-  },
-  title: {
-    color: colors.title,
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  hint: {
-    color: colors.muted,
-    fontSize: 12,
-    lineHeight: 17,
-  },
   loading: {
     marginVertical: 60,
   },
   error: {
-    color: colors.error,
-    fontSize: 12,
-    fontWeight: '700',
+    color: colors.danger,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  center: {
+    alignItems: 'center',
+    gap: 10,
   },
   qr: {
-    alignSelf: 'center',
-    width: 200,
-    height: 200,
-    marginVertical: 6,
-  },
-  link: {
-    alignSelf: 'center',
-    color: colors.header,
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 4,
-  },
-  primary: {
-    flex: 1,
-    backgroundColor: colors.header,
-    borderRadius: 10,
-    paddingVertical: 13,
-    alignItems: 'center',
-  },
-  primaryLabel: {
-    color: colors.white,
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  secondary: {
-    flex: 1,
+    width: 208,
+    height: 208,
+    padding: 4,
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.header,
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  secondaryLabel: {
-    color: colors.header,
-    fontSize: 14,
-    fontWeight: '800',
+    borderColor: colors.line,
   },
   note: {
-    alignSelf: 'center',
-    color: colors.onText,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  close: {
-    alignSelf: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-  },
-  closeLabel: {
-    color: colors.muted,
+    color: colors.success,
     fontSize: 13,
     fontWeight: '700',
   },

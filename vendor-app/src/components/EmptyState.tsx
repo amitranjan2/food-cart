@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { colors } from '../theme';
+import { typography } from '../theme';
 
 export function EmptyState({ message }: { message: string }) {
   return (
@@ -11,5 +11,5 @@ export function EmptyState({ message }: { message: string }) {
 
 const styles = StyleSheet.create({
   wrap: { paddingVertical: 30, paddingHorizontal: 16 },
-  text: { textAlign: 'center', fontSize: 12, color: colors.ink },
+  text: { ...typography.small, textAlign: 'center', fontSize: 14 },
 });

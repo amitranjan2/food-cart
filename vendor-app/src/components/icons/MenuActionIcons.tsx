@@ -33,7 +33,7 @@ export function CopyDishIcon({ size = 18 }: IconProps) {
 }
 
 export function PauseDishIcon({ size = 18, color }: IconProps & { color?: string }) {
-  const paused = color === '#E53935';
+  const paused = !!color;
   return (
     <View style={[styles.box, { width: size, height: size }]}>
       <Image

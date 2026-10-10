@@ -1,17 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import {
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { requestVendorOtp } from '../../api/auth';
-import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
 import { useAuth } from '../../state/AuthContext';
-import { colors } from '../../theme';
+import { colors, radius, typography } from '../../theme';
+import { Button, Card, Field } from '../../ui';
 
 const OTP_LENGTH = 6;
 const RESEND_SECONDS = 30;
@@ -93,130 +87,117 @@ export function LoginScreen() {
   }
 
   return (
-    <Screen style={styles.page}>
+    <Screen>
       <StatusBar style="dark" />
-      {step === 'mobile' ? (
-        <View style={styles.block}>
-          <Text style={styles.title}>Supr-Mama</Text>
-          <Text style={styles.subtitle}>Built for every chef's kitchen!</Text>
-          <TextInput
-            value={mobile}
-            onChangeText={value => {
-              setMobile(value.replace(/\D/g, '').slice(0, 10));
-              if (error) setError('');
-            }}
-            placeholder="Enter Mobile Number"
-            placeholderTextColor="#8b969f"
-            keyboardType="number-pad"
-            maxLength={10}
-            autoComplete="tel"
-            style={styles.input}
-          />
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-          <PrimaryButton
-            label="Continue"
-            disabled={busy}
-            style={styles.button}
-            onPress={continueWithMobile}
-          />
-        </View>
-      ) : (
-        <View style={styles.block}>
-          <Text style={styles.title}>Enter OTP!</Text>
-          <Text style={styles.subtitle}>Enter the {OTP_LENGTH} digit code sent on WhatsApp.</Text>
-          <View style={styles.otpWrap}>
-            <TextInput
-              ref={otpRef}
-              value={otp}
-              onChangeText={value => {
-                setOtp(value.replace(/\D/g, '').slice(0, OTP_LENGTH));
-                if (error) setError('');
-              }}
-              keyboardType="number-pad"
-              maxLength={OTP_LENGTH}
-              autoFocus
-              caretHidden
-              style={styles.hiddenInput}
-            />
-            <Pressable onPress={() => otpRef.current?.focus()} style={styles.otpRow}>
-              {Array.from({ length: OTP_LENGTH }, (_, index) => (
-                <View key={index} style={styles.otpBox}>
-                  <Text style={styles.otpDigit}>{otp[index] ?? ''}</Text>
-                </View>
-              ))}
-            </Pressable>
-          </View>
-          <Pressable onPress={resend} disabled={seconds > 0 || busy} style={styles.resend}>
-            <Text style={styles.resendLabel}>
-              Resend{seconds > 0 ? ` ${formatTimer(seconds)}` : ''}
+      <View style={styles.page}>
+        {step === 'mobile' ? (
+          <>
+            <Text style={typography.overline}>VENDOR APP</Text>
+            <Text style={styles.brand}>Supr-Mama</Text>
+            <Text style={styles.subtitle}>Built for every chef&apos;s kitchen!</Text>
+            <Card style={styles.card}>
+              <Text style={typography.bodyStrong}>Mobile number</Text>
+              <Field
+                value={mobile}
+                onChangeText={value => {
+                  setMobile(value.replace(/\D/g, '').slice(0, 10));
+                  if (error) setError('');
+                }}
+                placeholder="10-digit mobile number"
+                keyboardType="number-pad"
+                maxLength={10}
+                autoComplete="tel"
+                invalid={!!error}
+                accessibilityLabel="Mobile number"
+              />
+              {error ? <Text style={styles.error}>{error}</Text> : null}
+              <Text style={typography.caption}>We send a login code on WhatsApp.</Text>
+              <Button label="Continue" busy={busy} onPress={continueWithMobile} style={styles.action} />
+            </Card>
+          </>
+        ) : (
+          <>
+            <Text style={typography.overline}>VENDOR APP</Text>
+            <Text style={styles.brand}>Enter code</Text>
+            <Text style={styles.subtitle}>
+              Enter the {OTP_LENGTH}-digit code sent on WhatsApp to {mobile}.
             </Text>
-          </Pressable>
-          <PrimaryButton
-            label="Continue"
-            disabled={busy}
-            style={styles.button}
-            onPress={continueWithOtp}
-          />
-          {error ? <Text style={[styles.error, styles.otpError]}>{error}</Text> : null}
-          <Text style={styles.hint}>Didn&apos;t get it? Make sure {mobile} is on WhatsApp.</Text>
-          <Pressable onPress={() => { setStep('mobile'); setError(''); setOtp(''); }}>
-            <Text style={styles.changeNumber}>Change number</Text>
-          </Pressable>
-        </View>
-      )}
+            <Card style={styles.card}>
+              <View style={styles.otpWrap}>
+                <TextInput
+                  ref={otpRef}
+                  value={otp}
+                  onChangeText={value => {
+                    setOtp(value.replace(/\D/g, '').slice(0, OTP_LENGTH));
+                    if (error) setError('');
+                  }}
+                  keyboardType="number-pad"
+                  maxLength={OTP_LENGTH}
+                  autoFocus
+                  caretHidden
+                  accessibilityLabel="Login code"
+                  style={styles.hiddenInput}
+                />
+                <Pressable onPress={() => otpRef.current?.focus()} style={styles.otpRow}>
+                  {Array.from({ length: OTP_LENGTH }, (_, index) => (
+                    <View key={index} style={[styles.otpBox, index === otp.length && styles.otpBoxActive, !!error && styles.otpBoxError]}>
+                      <Text style={styles.otpDigit}>{otp[index] ?? ''}</Text>
+                    </View>
+                  ))}
+                </Pressable>
+              </View>
+              {error ? <Text style={[styles.error, styles.center]}>{error}</Text> : null}
+              <Button label="Continue" busy={busy} onPress={continueWithOtp} style={styles.action} />
+              <View style={styles.links}>
+                <Button label="Change number" variant="quiet" size="sm" onPress={() => { setStep('mobile'); setError(''); setOtp(''); }} />
+                <Button label={seconds > 0 ? `Resend in ${formatTimer(seconds)}` : 'Resend code'} variant="quiet" size="sm" disabled={seconds > 0 || busy} onPress={resend} />
+              </View>
+            </Card>
+            <Text style={[typography.caption, styles.center]}>Didn&apos;t get it? Make sure {mobile} is on WhatsApp.</Text>
+          </>
+        )}
+      </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  hint: {
-    marginTop: 14,
-    textAlign: 'center',
-    color: '#5f6f7c',
-    fontSize: 12,
-  },
   page: {
-    backgroundColor: colors.login,
-    paddingHorizontal: 36,
+    flex: 1,
     justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingBottom: 40,
   },
-  block: {
-    marginTop: -40,
-  },
-  title: {
-    color: colors.header,
-    fontSize: 28,
-    fontWeight: '800',
-    letterSpacing: -0.4,
+  brand: {
+    ...typography.display,
+    fontSize: 30,
+    marginTop: 4,
   },
   subtitle: {
-    marginTop: 10,
-    marginBottom: 36,
-    color: colors.header,
-    fontSize: 15,
-    fontWeight: '700',
-    lineHeight: 22,
+    ...typography.body,
+    color: colors.muted,
+    marginTop: 6,
+    marginBottom: 20,
+    lineHeight: 20,
   },
-  input: {
-    height: 48,
-    backgroundColor: colors.white,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.header,
+  card: {
+    gap: 10,
+    marginBottom: 14,
+  },
+  action: {
+    marginTop: 4,
   },
   error: {
-    marginTop: 10,
-    color: colors.error,
+    color: colors.danger,
     fontSize: 13,
     fontWeight: '600',
   },
-  otpError: {
+  center: {
     textAlign: 'center',
   },
-  button: {
-    marginTop: 28,
+  links: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
   otpWrap: {
     position: 'relative',
@@ -240,40 +221,22 @@ const styles = StyleSheet.create({
     flex: 1,
     aspectRatio: 0.85,
     maxHeight: 56,
-    backgroundColor: colors.white,
-    borderRadius: 8,
+    backgroundColor: colors.tint,
+    borderRadius: radius.md,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
   },
+  otpBoxActive: {
+    borderColor: colors.primary,
+  },
+  otpBoxError: {
+    borderColor: colors.danger,
+  },
   otpDigit: {
     fontSize: 22,
-    fontWeight: '700',
-    color: colors.header,
-  },
-  resend: {
-    marginTop: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  resendLabel: {
-    fontSize: 15,
     fontWeight: '800',
-    color: colors.header,
-  },
-  resendWait: {
-    opacity: 0.85,
-  },
-  timer: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.header,
-  },
-  changeNumber: {
-    marginTop: 18,
-    textAlign: 'center',
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.muted,
+    color: colors.text,
   },
 });

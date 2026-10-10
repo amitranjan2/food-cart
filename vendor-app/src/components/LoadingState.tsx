@@ -4,7 +4,7 @@ import { colors, typography } from '../theme';
 export function LoadingState({ message = 'Loading…' }: { message?: string }) {
   return (
     <View style={styles.wrap}>
-      <ActivityIndicator color={colors.header} />
+      <ActivityIndicator color={colors.primary} />
       <Text style={styles.text}>{message}</Text>
     </View>
   );
@@ -19,8 +19,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   text: {
-    ...typography.body,
-    color: colors.ink,
-    fontWeight: '700',
+    ...typography.bodyStrong,
+    color: colors.muted,
   },
 });

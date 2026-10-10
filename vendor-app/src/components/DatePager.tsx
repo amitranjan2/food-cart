@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
-import { Animated, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors } from '../theme';
+import { Animated, Platform, StyleSheet, Text, View } from 'react-native';
+import { colors, radius, shadow, typography } from '../theme';
+import { IconButton } from '../ui';
 
 export function DatePager({
   title,
@@ -30,23 +31,20 @@ export function DatePager({
 
   return (
     <View style={styles.bar}>
-      <Pressable accessibilityRole="button" accessibilityLabel="Previous day" onPress={onPrev} style={styles.arrow}>
-        <Text style={styles.arrowLabel}>‹</Text>
-      </Pressable>
-      <Text style={styles.title}>{title}</Text>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={nextCount > 0 ? `Next day, ${nextCount} upcoming ${nextCount === 1 ? 'order' : 'orders'}` : 'Next day'}
-        onPress={onNext}
-        style={styles.arrow}
-      >
-        <Text style={styles.arrowLabel}>›</Text>
+      <IconButton icon="chevronLeft" label="Previous day" onPress={onPrev} />
+      <Text style={typography.bodyStrong}>{title}</Text>
+      <View>
+        <IconButton
+          icon="chevronRight"
+          label={nextCount > 0 ? `Next day, ${nextCount} upcoming ${nextCount === 1 ? 'order' : 'orders'}` : 'Next day'}
+          onPress={onNext}
+        />
         {nextCount > 0 ? (
-          <Animated.View style={[styles.badge, { transform: [{ scale }] }]}>
+          <Animated.View pointerEvents="none" style={[styles.badge, { transform: [{ scale }] }]}>
             <Text style={styles.badgeLabel}>{nextCount > 9 ? '9+' : nextCount}</Text>
           </Animated.View>
         ) : null}
-      </Pressable>
+      </View>
     </View>
   );
 }
@@ -56,27 +54,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: colors.white,
-    borderRadius: 12,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
     padding: 6,
     marginBottom: 12,
-    shadowColor: '#101828',
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 1 },
-  },
-  title: {
-    color: '#1d2939',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  arrow: {
-    width: 36,
-    height: 36,
-    backgroundColor: '#F2F4F7',
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
+    ...shadow,
   },
   badge: {
     position: 'absolute',
@@ -86,22 +68,16 @@ const styles = StyleSheet.create({
     height: 20,
     paddingHorizontal: 5,
     borderRadius: 10,
-    backgroundColor: colors.error,
+    backgroundColor: colors.danger,
     borderWidth: 2,
-    borderColor: colors.white,
+    borderColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
   badgeLabel: {
-    color: colors.white,
+    color: colors.onPrimary,
     fontSize: 11,
     lineHeight: 13,
     fontWeight: '800',
-  },
-  arrowLabel: {
-    color: '#344054',
-    fontSize: 20,
-    lineHeight: 22,
-    fontWeight: '600',
   },
 });

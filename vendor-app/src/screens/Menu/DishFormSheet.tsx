@@ -1,20 +1,11 @@
 import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
-import {
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { addCatalogCategory, createMenuItem, updateMenuItem, uploadMenuImage } from '../../api/menu';
 import { CategoryPicker } from './CategoryPicker';
 import { isAuthFailure, mediaUrl } from '../../api/client';
 import { useAuth } from '../../state/AuthContext';
-import { colors } from '../../theme';
+import { colors, radius, typography } from '../../theme';
+import { Button, Field, FieldButton, Icon, IconButton, Panel, Sheet, ToggleRow } from '../../ui';
 import type { CustomVariant, FoodType, MenuCategory, MenuItem, MenuItemInput, SelectionMode, SizeOption } from '../../types';
 
 const FOOD_TYPES: { value: Exclude<FoodType, 'OTHER'>; label: string }[] = [
@@ -85,37 +76,8 @@ export function DishFormSheet({ mode, item, categories, onClose, onSaved, onCate
   const [picker, setPicker] = useState<Picker>(null);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
-  const [focused, setFocused] = useState<string | null>(null);
   const [invalid, setInvalid] = useState<Record<string, boolean>>({});
   const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
-    const id = 'dish-form-focus';
-    let style = document.getElementById(id) as HTMLStyleElement | null;
-    if (!style) {
-      style = document.createElement('style');
-      style.id = id;
-      document.head.appendChild(style);
-    }
-    style.textContent = `
-      input:focus, textarea:focus { outline: none !important; box-shadow: none !important; }
-      input[placeholder="Name"]:focus, input[placeholder="Description"]:focus,
-      input[placeholder="Price"]:focus {
-        background-color: #ffffff !important;
-        color: #3d5366 !important;
-        caret-color: #3d5366;
-        border-color: #3d5366 !important;
-      }
-      input[placeholder="Option"]:focus, input[placeholder="Size"]:focus,
-      input[placeholder="Variant name"]:focus {
-        background-color: #d8ecff !important;
-        color: #3d5366 !important;
-        caret-color: #3d5366;
-        border-color: #3d5366 !important;
-      }
-    `;
-  }, []);
 
   useEffect(() => {
     if (!item?.categoryId || categoryLabel) return;
@@ -197,405 +159,306 @@ export function DishFormSheet({ mode, item, categories, onClose, onSaved, onCate
   // A dish saved as OTHER (no longer offered) opens with an empty Type, so the vendor picks a real one before saving.
   const foodLabel = FOOD_TYPES.find(option => option.value === foodType)?.label ?? 'Type';
   const typedName = name.trim();
-  const title = scrolled && typedName ? typedName : mode === 'edit' ? 'Edit Dish' : 'Add Dish';
-  const primaryLabel = busy ? 'Saving…' : typedName ? 'Done' : 'Add Dish';
-
-  function bind(key: string) {
-    return {
-      onFocus: () => setFocused(key),
-      onBlur: () => setFocused(current => (current === key ? null : current)),
-      ...(Platform.OS === 'web'
-        ? { onClick: () => setFocused(key) }
-        : { onTouchStart: () => setFocused(key) }),
-    };
-  }
-
-  function paint(key: string) {
-    return [focused === key && styles.fieldFocus, invalid[key] && styles.fieldError];
-  }
+  const title = scrolled && typedName ? typedName : mode === 'edit' ? 'Edit dish' : 'Add dish';
+  const primaryLabel = mode === 'edit' ? 'Save changes' : 'Add dish';
 
   function clearInvalid(key: string) {
     setInvalid(current => (current[key] ? { ...current, [key]: false } : current));
   }
 
-  function textTone(_key: string, filled: boolean) {
-    return filled ? styles.fieldValue : styles.fieldPlaceholder;
-  }
-
   return (
-    <KeyboardAvoidingView style={styles.overlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <Pressable style={styles.backdrop} onPress={onClose} accessibilityRole="button" />
-      <View style={styles.sheet}>
-        <View style={styles.handleRow}>
-          <View style={styles.handle} />
-        </View>
-        <View style={styles.namePin}>
-          <Text style={styles.screenTitle} numberOfLines={1}>{title}</Text>
-        </View>
-        <ScrollView
-          style={styles.scroller}
-          contentContainerStyle={styles.body}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-          scrollEventThrottle={16}
-          onScroll={event => {
-            const next = event.nativeEvent.contentOffset.y > 12;
-            setScrolled(current => (current === next ? current : next));
+    <Sheet
+      inline
+      title={title}
+      onClose={onClose}
+      onScrollY={y => setScrolled(current => (current === y > 12 ? current : y > 12))}
+      footer={
+        <>
+          <Button label={primaryLabel} grow busy={busy} onPress={save} />
+          <Button label="Cancel" variant="secondary" grow onPress={onClose} />
+        </>
+      }
+    >
+      <Field
+        value={name}
+        onChangeText={value => {
+          setName(value);
+          clearInvalid('name');
+        }}
+        placeholder="Name"
+        invalid={invalid.name}
+        accessibilityLabel="Dish name"
+      />
+      <FieldButton
+        value={categoryLabel}
+        placeholder="Category"
+        active={picker?.kind === 'category'}
+        invalid={invalid.category}
+        onPress={() => {
+          togglePicker({ kind: 'category' });
+          clearInvalid('category');
+        }}
+      />
+      {picker?.kind === 'category' ? (
+        <CategoryPicker
+          categories={categories}
+          onPick={category => {
+            setCategoryId(category.id);
+            setCategoryLabel(category.name);
+            setPicker(null);
+            clearInvalid('category');
           }}
-        >
-          <TextInput
-            value={name}
-            onChangeText={value => {
-              setName(value);
-              clearInvalid('name');
-            }}
-            placeholder="Name"
-            placeholderTextColor="#98a8b6"
-            underlineColorAndroid="transparent"
-            selectionColor={colors.header}
-            {...bind('name')}
-            style={[styles.field, ...paint('name')]}
-          />
-          <Pressable
-            onPress={() => {
-              togglePicker({ kind: 'category' });
-              setFocused('category');
-              clearInvalid('category');
-            }}
-            style={[styles.field, ...paint('category')]}
-          >
-            <Text style={textTone('category', Boolean(categoryLabel))}>{categoryLabel || 'Category'}</Text>
-          </Pressable>
-          {picker?.kind === 'category' ? (
-            <CategoryPicker
-              categories={categories}
-              onPick={category => {
-                setCategoryId(category.id);
-                setCategoryLabel(category.name);
-                setPicker(null);
-                setFocused(null);
-                clearInvalid('category');
-              }}
-              onAdd={async typed => {
-                if (!token) throw new Error('Sign in again to add a category.');
-                try {
-                  const { category } = await addCatalogCategory(token, typed);
-                  onCategoryAdded?.(category);
-                  return category;
-                } catch (e) {
-                  if (isAuthFailure(e)) await logout();
-                  throw e;
-                }
-              }}
-            />
-          ) : null}
+          onAdd={async typed => {
+            if (!token) throw new Error('Sign in again to add a category.');
+            try {
+              const { category } = await addCatalogCategory(token, typed);
+              onCategoryAdded?.(category);
+              return category;
+            } catch (e) {
+              if (isAuthFailure(e)) await logout();
+              throw e;
+            }
+          }}
+        />
+      ) : null}
 
-          <TextInput
-            value={description}
-            onChangeText={setDescription}
-            placeholder="Description"
-            placeholderTextColor="#98a8b6"
-            underlineColorAndroid="transparent"
-            selectionColor={colors.header}
-            {...bind('description')}
-            style={[styles.field, ...paint('description')]}
-          />
+      <Field value={description} onChangeText={setDescription} placeholder="Description" accessibilityLabel="Description" />
 
-          <View style={styles.splitRow}>
-            <TextInput
-              value={price}
-              onChangeText={value => {
-                setPrice(value);
-                clearInvalid('price');
-              }}
-              placeholder="Price"
-              placeholderTextColor="#98a8b6"
-              keyboardType="decimal-pad"
-              underlineColorAndroid="transparent"
-              selectionColor={colors.header}
-              {...bind('price')}
-              style={[styles.field, styles.splitField, ...paint('price')]}
-            />
-            <Pressable
-              onPress={() => {
-                togglePicker({ kind: 'food' });
-                setFocused('food');
-                clearInvalid('food');
-              }}
-              style={[styles.field, styles.splitField, ...paint('food')]}
-            >
-              <Text style={textTone('food', FOOD_TYPES.some(option => option.value === foodType))}>{foodLabel}</Text>
-            </Pressable>
-          </View>
-          {picker?.kind === 'food' ? (
-            <View style={styles.menu}>
-              {FOOD_TYPES.map(option => (
-                <Pressable
-                  key={option.value}
-                  onPress={() => {
-                    setFoodType(option.value);
-                    setPicker(null);
-                    setFocused(null);
-                  }}
-                  style={styles.menuItem}
-                >
-                  <Text style={styles.menuItemLabel}>{option.label}</Text>
-                </Pressable>
-              ))}
-            </View>
-          ) : null}
-
-          <Pressable
-            onPress={() => {
-              clearInvalid('image');
-              void chooseImage();
-            }}
-            style={[styles.imageSlot, invalid.image && styles.fieldError]}
-            accessibilityLabel="Add dish image"
-          >
-            {imageUrl ? (
-              <Image source={{ uri: mediaUrl(imageUrl) }} style={styles.imagePreview} />
-            ) : (
-              <Text style={styles.imagePlus}>+</Text>
-            )}
-          </Pressable>
-
-          <View style={styles.variantCard}>
-            <Pressable onPress={toggleSizes} style={styles.variantHead}>
-              <View style={styles.variantHeadLeft}>
-                <Checkbox checked={sizeVariant} />
-                <Text style={styles.variantTitle}>Size Variant</Text>
-              </View>
-            </Pressable>
-            {sizeVariant ? (
-              <>
-                {sizes.map(size => (
-                  <View key={size.key} style={styles.optionRow}>
-                    <TextInput
-                      value={size.name}
-                      onChangeText={value => {
-                        setSizes(current => current.map(entry => (entry.key === size.key ? { ...entry, name: value } : entry)));
-                        clearInvalid(`size-${size.key}-name`);
-                      }}
-                      placeholder="Size"
-                      placeholderTextColor="#7f95a8"
-                      underlineColorAndroid="transparent"
-                      selectionColor={colors.header}
-                      {...bind(`size-${size.key}-name`)}
-                      style={[styles.optionInput, styles.sizeName, ...paint(`size-${size.key}-name`)]}
-                    />
-                    <TextInput
-                      value={size.price}
-                      onChangeText={value => {
-                        setSizes(current => current.map(entry => (entry.key === size.key ? { ...entry, price: value } : entry)));
-                        clearInvalid(`size-${size.key}-price`);
-                      }}
-                      placeholder="Price"
-                      placeholderTextColor="#7f95a8"
-                      keyboardType="decimal-pad"
-                      underlineColorAndroid="transparent"
-                      selectionColor={colors.header}
-                      {...bind(`size-${size.key}-price`)}
-                      style={[styles.optionInput, styles.sizePrice, ...paint(`size-${size.key}-price`)]}
-                    />
-                    <Pressable
-                      accessibilityLabel="Remove size"
-                      onPress={() => setSizes(current => current.filter(entry => entry.key !== size.key))}
-                      style={styles.remove}
-                    >
-                      <Text style={styles.removeLabel}>×</Text>
-                    </Pressable>
-                  </View>
-                ))}
-                <Pressable
-                  accessibilityLabel="Add size"
-                  onPress={() => setSizes(current => [...current, blankSize()])}
-                  style={styles.rowAdd}
-                >
-                  <Text style={styles.rowAddLabel}>+</Text>
-                </Pressable>
-              </>
-            ) : null}
-          </View>
-
-          {variants.map(variant => (
-            <View key={variant.key} style={styles.variantCard}>
-              <View style={styles.variantHead}>
-                <Pressable
-                  accessibilityLabel={variant.enabled ? 'Turn off custom variant' : 'Turn on custom variant'}
-                  onPress={() => setVariants(current => current.map(entry => (entry.key === variant.key ? { ...entry, enabled: !entry.enabled } : entry)))}
-                >
-                  <Checkbox checked={variant.enabled} />
-                </Pressable>
-                <TextInput
-                  value={variant.name}
-                  onChangeText={value => {
-                    setVariants(current => current.map(entry => (entry.key === variant.key ? { ...entry, name: value } : entry)));
-                    clearInvalid(`variant-${variant.key}`);
-                  }}
-                  placeholder="Variant name"
-                  placeholderTextColor="#98a8b6"
-                  underlineColorAndroid="transparent"
-                  selectionColor={colors.header}
-                  {...bind(`variant-${variant.key}`)}
-                  style={[styles.variantName, ...paint(`variant-${variant.key}`)]}
-                />
-              </View>
-              {variant.enabled ? (
-                <>
-                  <ToggleRow
-                    label={variant.required ? 'Mandatory' : 'Optional'}
-                    value={variant.required}
-                    onChange={value => setVariants(current => current.map(entry => (entry.key === variant.key ? { ...entry, required: value } : entry)))}
-                  />
-                  <ToggleRow
-                    label={variant.selection === 'MULTIPLE' ? 'Multiple' : 'Single'}
-                    value={variant.selection === 'MULTIPLE'}
-                    onChange={value =>
-                      setVariants(current =>
-                        current.map(entry => (entry.key === variant.key ? { ...entry, selection: value ? 'MULTIPLE' : 'SINGLE' } : entry)),
-                      )
-                    }
-                  />
-                  <ToggleRow
-                    label={variant.priceIncreases ? 'Adds price' : 'No price'}
-                    value={variant.priceIncreases}
-                    onChange={value => setVariants(current => current.map(entry => (entry.key === variant.key ? { ...entry, priceIncreases: value } : entry)))}
-                  />
-                  {variant.options.map(option => (
-                    <View key={option.key}>
-                      <View style={styles.optionRow}>
-                        <TextInput
-                          value={option.name}
-                          onChangeText={value => {
-                            updateOption(setVariants, variant.key, option.key, { name: value });
-                            clearInvalid(`option-${option.key}-name`);
-                          }}
-                          placeholder="Option"
-                          placeholderTextColor="#7f95a8"
-                          underlineColorAndroid="transparent"
-                          selectionColor={colors.header}
-                          {...bind(`option-${option.key}-name`)}
-                          style={[styles.optionInput, styles.optionName, ...paint(`option-${option.key}-name`)]}
-                        />
-                        <Pressable
-                          onPress={() => {
-                            togglePicker({ kind: 'option', key: option.key });
-                            setFocused(`option-${option.key}-type`);
-                          }}
-                          style={[styles.optionType, ...paint(`option-${option.key}-type`)]}
-                        >
-                          <Text style={styles.optionTypeLabel} numberOfLines={1}>
-                            {FOOD_TYPES.find(entry => entry.value === option.foodType)?.label}
-                          </Text>
-                        </Pressable>
-                        {variant.priceIncreases ? (
-                          <TextInput
-                            value={option.price}
-                            onChangeText={value => {
-                              updateOption(setVariants, variant.key, option.key, { price: value });
-                              clearInvalid(`option-${option.key}-price`);
-                            }}
-                            placeholder="Price"
-                            placeholderTextColor="#7f95a8"
-                            keyboardType="decimal-pad"
-                            underlineColorAndroid="transparent"
-                            selectionColor={colors.header}
-                            {...bind(`option-${option.key}-price`)}
-                            style={[styles.optionInput, styles.optionPrice, ...paint(`option-${option.key}-price`)]}
-                          />
-                        ) : null}
-                        <Pressable
-                          accessibilityLabel="Remove option"
-                          onPress={() =>
-                            setVariants(current =>
-                              current.map(entry =>
-                                entry.key === variant.key ? { ...entry, options: entry.options.filter(row => row.key !== option.key) } : entry,
-                              ),
-                            )
-                          }
-                          style={styles.remove}
-                        >
-                          <Text style={styles.removeLabel}>×</Text>
-                        </Pressable>
-                      </View>
-                      {picker?.kind === 'option' && picker.key === option.key ? (
-                        <View style={styles.menu}>
-                          {FOOD_TYPES.map(entry => (
-                            <Pressable
-                              key={entry.value}
-                              onPress={() => {
-                                updateOption(setVariants, variant.key, option.key, { foodType: entry.value });
-                                setPicker(null);
-                                setFocused(null);
-                              }}
-                              style={styles.menuItem}
-                            >
-                              <Text style={styles.menuItemLabel}>{entry.label}</Text>
-                            </Pressable>
-                          ))}
-                        </View>
-                      ) : null}
-                    </View>
-                  ))}
-                  <Pressable
-                    accessibilityLabel="Add option"
-                    onPress={() =>
-                      setVariants(current =>
-                        current.map(entry => (entry.key === variant.key ? { ...entry, options: [...entry.options, blankOption()] } : entry)),
-                      )
-                    }
-                    style={styles.rowAdd}
-                  >
-                    <Text style={styles.rowAddLabel}>+</Text>
-                  </Pressable>
-                </>
-              ) : null}
-            </View>
-          ))}
-
-          <Pressable
-            accessibilityLabel="Add variant"
-            onPress={() => setVariants(current => [...current, blankVariant()])}
-            style={styles.addVariant}
-            hitSlop={8}
-          >
-            <Text style={styles.addVariantLabel}>+ Variant</Text>
-          </Pressable>
-
-          {message ? <Text style={styles.error}>{message}</Text> : null}
-        </ScrollView>
-
-        <View style={styles.footer}>
-          <Pressable disabled={busy} onPress={save} style={styles.done}>
-            <Text style={styles.doneLabel}>{primaryLabel}</Text>
-          </Pressable>
-          <Pressable onPress={onClose} style={styles.cancel}>
-            <Text style={styles.cancelLabel}>Cancel</Text>
-          </Pressable>
-        </View>
+      <View style={styles.splitRow}>
+        <Field
+          value={price}
+          onChangeText={value => {
+            setPrice(value);
+            clearInvalid('price');
+          }}
+          placeholder="Price"
+          keyboardType="decimal-pad"
+          invalid={invalid.price}
+          style={styles.split}
+          accessibilityLabel="Price"
+        />
+        <FieldButton
+          value={FOOD_TYPES.some(option => option.value === foodType) ? foodLabel : ''}
+          placeholder="Type"
+          active={picker?.kind === 'food'}
+          invalid={invalid.food}
+          style={styles.split}
+          onPress={() => {
+            togglePicker({ kind: 'food' });
+            clearInvalid('food');
+          }}
+        />
       </View>
-    </KeyboardAvoidingView>
+      {picker?.kind === 'food' ? (
+        <FoodMenu
+          value={foodType}
+          onPick={value => {
+            setFoodType(value);
+            setPicker(null);
+          }}
+        />
+      ) : null}
+
+      <Pressable
+        onPress={() => {
+          clearInvalid('image');
+          void chooseImage();
+        }}
+        style={styles.imageRow}
+        accessibilityRole="button"
+        accessibilityLabel={imageUrl ? 'Change dish image' : 'Add dish image'}
+      >
+        <View style={[styles.imageSlot, invalid.image && styles.invalid]}>
+          {imageUrl ? <Image source={{ uri: mediaUrl(imageUrl) }} style={styles.imagePreview} /> : <Icon name="image" size={24} color={colors.muted} />}
+        </View>
+        <View style={styles.imageCopy}>
+          <Text style={typography.bodyStrong}>{imageUrl ? 'Dish photo' : 'Add a photo'}</Text>
+          <Text style={typography.caption}>{imageUrl ? 'Tap to change' : 'Required. Customers order by sight.'}</Text>
+        </View>
+      </Pressable>
+
+      <Panel>
+        <Pressable onPress={toggleSizes} style={styles.panelHead} accessibilityRole="checkbox" accessibilityState={{ checked: sizeVariant }}>
+          <Checkbox checked={sizeVariant} />
+          <Text style={typography.bodyStrong}>Size variants</Text>
+        </Pressable>
+        {sizeVariant ? (
+          <>
+            {sizes.map(size => (
+              <View key={size.key} style={styles.optionRow}>
+                <Field
+                  value={size.name}
+                  onChangeText={value => {
+                    setSizes(current => current.map(entry => (entry.key === size.key ? { ...entry, name: value } : entry)));
+                    clearInvalid(`size-${size.key}-name`);
+                  }}
+                  placeholder="Size"
+                  compact
+                  invalid={invalid[`size-${size.key}-name`]}
+                  style={styles.sizeName}
+                />
+                <Field
+                  value={size.price}
+                  onChangeText={value => {
+                    setSizes(current => current.map(entry => (entry.key === size.key ? { ...entry, price: value } : entry)));
+                    clearInvalid(`size-${size.key}-price`);
+                  }}
+                  placeholder="Price"
+                  keyboardType="decimal-pad"
+                  compact
+                  invalid={invalid[`size-${size.key}-price`]}
+                  style={styles.sizePrice}
+                />
+                <IconButton icon="close" label="Remove size" tone="none" size={32} color={colors.muted} onPress={() => setSizes(current => current.filter(entry => entry.key !== size.key))} />
+              </View>
+            ))}
+            <Button label="Add size" icon="plus" variant="quiet" size="sm" onPress={() => setSizes(current => [...current, blankSize()])} />
+          </>
+        ) : null}
+      </Panel>
+
+      {variants.map(variant => (
+        <Panel key={variant.key}>
+          <View style={styles.panelHead}>
+            <Pressable
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: variant.enabled }}
+              accessibilityLabel={variant.enabled ? 'Turn off custom variant' : 'Turn on custom variant'}
+              onPress={() => setVariants(current => current.map(entry => (entry.key === variant.key ? { ...entry, enabled: !entry.enabled } : entry)))}
+              hitSlop={6}
+            >
+              <Checkbox checked={variant.enabled} />
+            </Pressable>
+            <Field
+              value={variant.name}
+              onChangeText={value => {
+                setVariants(current => current.map(entry => (entry.key === variant.key ? { ...entry, name: value } : entry)));
+                clearInvalid(`variant-${variant.key}`);
+              }}
+              placeholder="Variant name, e.g. Spice level"
+              compact
+              invalid={invalid[`variant-${variant.key}`]}
+              style={styles.grow}
+              accessibilityLabel="Variant name"
+            />
+          </View>
+          {variant.enabled ? (
+            <>
+              <ToggleRow
+                label={variant.required ? 'Mandatory' : 'Optional'}
+                value={variant.required}
+                onChange={value => setVariants(current => current.map(entry => (entry.key === variant.key ? { ...entry, required: value } : entry)))}
+              />
+              <ToggleRow
+                label={variant.selection === 'MULTIPLE' ? 'Multiple choice' : 'Single choice'}
+                value={variant.selection === 'MULTIPLE'}
+                onChange={value =>
+                  setVariants(current => current.map(entry => (entry.key === variant.key ? { ...entry, selection: value ? 'MULTIPLE' : 'SINGLE' } : entry)))
+                }
+              />
+              <ToggleRow
+                label={variant.priceIncreases ? 'Adds to the price' : 'No extra price'}
+                value={variant.priceIncreases}
+                onChange={value => setVariants(current => current.map(entry => (entry.key === variant.key ? { ...entry, priceIncreases: value } : entry)))}
+              />
+              {variant.options.map(option => (
+                <View key={option.key}>
+                  <View style={styles.optionRow}>
+                    <Field
+                      value={option.name}
+                      onChangeText={value => {
+                        updateOption(setVariants, variant.key, option.key, { name: value });
+                        clearInvalid(`option-${option.key}-name`);
+                      }}
+                      placeholder="Option"
+                      compact
+                      invalid={invalid[`option-${option.key}-name`]}
+                      style={styles.optionName}
+                    />
+                    <FieldButton
+                      value={FOOD_TYPES.find(entry => entry.value === option.foodType)?.label}
+                      placeholder="Type"
+                      compact
+                      active={picker?.kind === 'option' && picker.key === option.key}
+                      style={styles.optionType}
+                      onPress={() => togglePicker({ kind: 'option', key: option.key })}
+                    />
+                    {variant.priceIncreases ? (
+                      <Field
+                        value={option.price}
+                        onChangeText={value => {
+                          updateOption(setVariants, variant.key, option.key, { price: value });
+                          clearInvalid(`option-${option.key}-price`);
+                        }}
+                        placeholder="₹"
+                        keyboardType="decimal-pad"
+                        compact
+                        invalid={invalid[`option-${option.key}-price`]}
+                        style={styles.optionPrice}
+                        accessibilityLabel="Option price"
+                      />
+                    ) : null}
+                    <IconButton
+                      icon="close"
+                      label="Remove option"
+                      tone="none"
+                      size={32}
+                      color={colors.muted}
+                      onPress={() =>
+                        setVariants(current =>
+                          current.map(entry => (entry.key === variant.key ? { ...entry, options: entry.options.filter(row => row.key !== option.key) } : entry)),
+                        )
+                      }
+                    />
+                  </View>
+                  {picker?.kind === 'option' && picker.key === option.key ? (
+                    <FoodMenu
+                      value={option.foodType}
+                      onPick={value => {
+                        updateOption(setVariants, variant.key, option.key, { foodType: value });
+                        setPicker(null);
+                      }}
+                    />
+                  ) : null}
+                </View>
+              ))}
+              <Button
+                label="Add option"
+                icon="plus"
+                variant="quiet"
+                size="sm"
+                onPress={() =>
+                  setVariants(current => current.map(entry => (entry.key === variant.key ? { ...entry, options: [...entry.options, blankOption()] } : entry)))
+                }
+              />
+            </>
+          ) : null}
+        </Panel>
+      ))}
+
+      <Button label="Add variant" icon="plus" variant="secondary" onPress={() => setVariants(current => [...current, blankVariant()])} accessibilityLabel="Add variant" />
+
+      {message ? <Text style={styles.error}>{message}</Text> : null}
+    </Sheet>
   );
 }
 
-function ToggleRow({ label, value, onChange }: { label: string; value: boolean; onChange: (value: boolean) => void }) {
+/** The food-type choices under a Type field. */
+function FoodMenu({ value, onPick }: { value: FoodType; onPick: (value: Exclude<FoodType, 'OTHER'>) => void }) {
   return (
-    <Pressable onPress={() => onChange(!value)} style={styles.toggleRow} accessibilityRole="switch" accessibilityState={{ checked: value }}>
-      <Text style={styles.toggleLabel}>{label}</Text>
-      <View style={[styles.track, value && styles.trackOn]}>
-        <View style={styles.thumb} />
-      </View>
-    </Pressable>
+    <Panel style={styles.menu}>
+      {FOOD_TYPES.map(option => (
+        <Pressable key={option.value} onPress={() => onPick(option.value)} style={styles.menuItem} accessibilityRole="button" accessibilityState={{ selected: value === option.value }}>
+          <Text style={typography.body}>{option.label}</Text>
+          {value === option.value ? <Icon name="check" size={16} /> : null}
+        </Pressable>
+      ))}
+    </Panel>
   );
 }
 
 function Checkbox({ checked }: { checked: boolean }) {
-  return (
-    <View style={[styles.checkbox, checked && styles.checkboxOn]}>
-      {checked ? <Text style={styles.checkmark}>✓</Text> : null}
-    </View>
-  );
+  return <View style={[styles.checkbox, checked && styles.checkboxOn]}>{checked ? <Icon name="check" size={13} color={colors.onPrimary} /> : null}</View>;
 }
 
 function updateOption(
@@ -800,331 +663,99 @@ function pickWebImage() {
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    ...StyleSheet.absoluteFill,
-    zIndex: 40,
-    justifyContent: 'flex-end',
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(29, 41, 57, 0.4)',
-  },
-  sheet: {
-    width: '100%',
-    maxHeight: '88%',
-    backgroundColor: colors.page,
-    borderTopLeftRadius: 18,
-    borderTopRightRadius: 18,
-    overflow: 'hidden',
-  },
-  namePin: {
-    paddingHorizontal: 14,
-    paddingBottom: 6,
-    backgroundColor: colors.page,
-    zIndex: 2,
-  },
-  scroller: {
-    flexGrow: 1,
-    flexShrink: 1,
-  },
-  handleRow: {
-    alignItems: 'center',
-    paddingTop: 10,
-    paddingBottom: 4,
-  },
-  handle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#CBD5E1',
-  },
-  body: {
-    paddingHorizontal: 14,
-    paddingTop: 4,
-    paddingBottom: 12,
-  },
-  screenTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#2f3f4f',
-    marginBottom: 12,
-    letterSpacing: 0.3,
-  },
-  field: {
-    backgroundColor: colors.white,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-    fontSize: 14,
-    color: '#3d5366',
-    marginBottom: 10,
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: 'transparent',
-    ...Platform.select({ web: { outlineStyle: 'none', outlineWidth: 0 }, default: {} }),
-  },
-  fieldFocus: {
-    borderColor: colors.header,
-  },
-  fieldError: {
-    borderColor: colors.error,
-  },
-  fieldPlaceholder: {
-    fontSize: 14,
-    color: '#98a8b6',
-  },
-  fieldValue: {
-    fontSize: 14,
-    color: '#3d5366',
-  },
   splitRow: {
     flexDirection: 'row',
     gap: 10,
   },
-  splitField: {
+  split: {
+    flex: 1,
+  },
+  grow: {
     flex: 1,
   },
   menu: {
-    backgroundColor: colors.white,
-    borderRadius: 10,
-    marginBottom: 10,
-    overflow: 'hidden',
+    padding: 4,
+    gap: 0,
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 14,
+    justifyContent: 'space-between',
+    paddingHorizontal: 10,
     paddingVertical: 11,
   },
-  menuItemLabel: {
-    fontSize: 14,
-    color: '#3d5366',
+  imageRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   imageSlot: {
-    width: 56,
-    height: 56,
-    backgroundColor: colors.white,
-    borderRadius: 10,
+    width: 64,
+    height: 64,
+    backgroundColor: colors.tint,
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 14,
     overflow: 'hidden',
     borderWidth: 1.5,
     borderColor: 'transparent',
   },
-  imagePlus: {
-    fontSize: 28,
-    lineHeight: 30,
-    color: '#667085',
-    fontWeight: '300',
+  invalid: {
+    borderColor: colors.danger,
   },
   imagePreview: {
     width: '100%',
     height: '100%',
   },
-  variantCard: {
-    backgroundColor: colors.white,
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 12,
-    overflow: 'hidden',
-  },
-  variantHead: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 10,
-  },
-  variantHeadLeft: {
+  imageCopy: {
     flex: 1,
+    gap: 2,
+  },
+  panelHead: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-  },
-  variantTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#3d5366',
-  },
-  variantName: {
-    flex: 1,
-    backgroundColor: '#d8ecff',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#3d5366',
-    borderWidth: 1.5,
-    borderColor: 'transparent',
-    ...Platform.select({ web: { outlineStyle: 'none', outlineWidth: 0 }, default: {} }),
-  },
-  toggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#d8ecff',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginBottom: 8,
-  },
-  toggleLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#3d5366',
-  },
-  track: {
-    width: 36,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#c5d4e2',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 2,
-  },
-  trackOn: {
-    backgroundColor: '#3d5366',
-    justifyContent: 'flex-end',
-  },
-  thumb: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: colors.white,
+    gap: 10,
   },
   checkbox: {
-    width: 18,
-    height: 18,
-    borderRadius: 4,
+    width: 20,
+    height: 20,
+    borderRadius: 6,
     borderWidth: 1.5,
-    borderColor: '#98a8b6',
+    borderColor: colors.faint,
     alignItems: 'center',
     justifyContent: 'center',
   },
   checkboxOn: {
-    borderColor: '#3d5366',
-    backgroundColor: '#eef4f8',
-  },
-  checkmark: {
-    fontSize: 11,
-    color: '#3d5366',
-    fontWeight: '700',
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
   },
   optionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
-  },
-  optionInput: {
-    flex: 1,
-    minWidth: 0,
-    backgroundColor: '#d8ecff',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    fontSize: 13,
-    color: '#3d5366',
-    borderWidth: 1.5,
-    borderColor: 'transparent',
-    ...Platform.select({ web: { outlineStyle: 'none', outlineWidth: 0 }, default: {} }),
+    gap: 6,
   },
   sizeName: {
     flex: 2.4,
+    minWidth: 0,
   },
   sizePrice: {
     flex: 1,
+    minWidth: 0,
     maxWidth: 96,
   },
   optionName: {
-    flex: 2.2,
-  },
-  optionPrice: {
-    flex: 1,
-    maxWidth: 72,
+    flex: 2,
+    minWidth: 0,
   },
   optionType: {
-    width: 84,
-    flexGrow: 0,
-    flexShrink: 0,
-    backgroundColor: '#d8ecff',
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 10,
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: 'transparent',
+    width: 92,
   },
-  optionTypeLabel: {
-    fontSize: 13,
-    color: '#3d5366',
-  },
-  remove: {
-    width: 22,
-    alignItems: 'center',
-  },
-  removeLabel: {
-    fontSize: 18,
-    color: '#667085',
-  },
-  rowAdd: {
-    alignItems: 'center',
-    paddingTop: 2,
-  },
-  rowAddLabel: {
-    fontSize: 18,
-    color: '#667085',
-  },
-  addVariant: {
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  addVariantLabel: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#2F6BFF',
+  optionPrice: {
+    width: 64,
   },
   error: {
-    color: colors.error,
-    fontSize: 12,
+    color: colors.danger,
+    fontSize: 13,
     fontWeight: '600',
-    marginTop: 4,
-  },
-  footer: {
-    flexDirection: 'row',
-    gap: 12,
-    paddingHorizontal: 14,
-    paddingTop: 8,
-    paddingBottom: 14,
-    backgroundColor: colors.page,
-  },
-  done: {
-    flex: 1,
-    backgroundColor: '#3d5366',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  doneLabel: {
-    color: colors.white,
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  cancel: {
-    flex: 1,
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  cancelLabel: {
-    color: '#3d5366',
-    fontSize: 15,
-    fontWeight: '700',
   },
 });

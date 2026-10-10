@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, Text } from 'react-native';
 import * as Location from 'expo-location';
 import { reverseGeocode, searchPlaces, type Place } from '../../api/vendor';
-import { colors } from '../../theme';
+import { colors, radius, typography } from '../../theme';
 import type { VendorLocation } from '../../types';
-import { FrameModal } from '../../components/FrameModal';
+import { Button, Field, Icon, Panel, Sheet } from '../../ui';
 
 type Point = { lat: number; lng: number; accuracy?: number; fromSearch?: boolean };
 
@@ -85,180 +85,101 @@ export function LocationSheet({
 
   const mapUrl = point ? `https://www.google.com/maps/search/?api=1&query=${point.lat},${point.lng}` : '';
 
-  return (
-    <FrameModal onRequestClose={onClose}>
-      <View style={styles.sheet}>
-        <View style={styles.head}>
-          {step === 'details' ? (
-            <Pressable onPress={() => setStep('find')} accessibilityRole="button" accessibilityLabel="Back" hitSlop={8}>
-              <Text style={styles.back}>←</Text>
-            </Pressable>
-          ) : null}
-          <Text style={styles.title}>{step === 'find' ? 'Stall location' : 'Stall address'}</Text>
-        </View>
+  const address = [shop, landmark, area].map(part => part.trim()).filter(Boolean).join(', ');
 
-        {step === 'find' ? (
-          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.body}>
-            <Text style={styles.hint}>Stand at your stall and use your current location, so customers&apos; directions lead to the right spot.</Text>
-            <Pressable disabled={busy} onPress={useCurrentLocation} style={[styles.primary, busy && styles.disabled]} accessibilityRole="button">
-              {busy ? <ActivityIndicator color={colors.white} /> : <Text style={styles.primaryLabel}>📍 Use current location</Text>}
+  if (step === 'find') {
+    return (
+      <Sheet
+        title="Stall location"
+        hint="Stand at your stall and use your current location, so customers' directions lead to the right spot."
+        onClose={onClose}
+        footer={<Button label="Next" grow disabled={!point} onPress={() => setStep('details')} />}
+      >
+        <Button label="Use current location" icon="pin" busy={busy} onPress={useCurrentLocation} />
+        <Text style={styles.or}>or search your area</Text>
+        <Field value={query} onChangeText={setQuery} placeholder="e.g. Sector 29 market, Gurugram" accessibilityLabel="Search area" />
+        {results.map((place, index) => (
+          <Pressable key={index} onPress={() => pick(place)} style={styles.result} accessibilityRole="button">
+            <Icon name="pin" size={16} color={colors.muted} />
+            <Text style={[typography.body, styles.resultLabel]}>{place.area}</Text>
+          </Pressable>
+        ))}
+        {point ? (
+          <Panel>
+            <Text style={typography.heading}>{area || 'Location set'}</Text>
+            <Text style={typography.caption}>
+              {point.lat.toFixed(5)}, {point.lng.toFixed(5)}
+              {point.accuracy ? ` · accurate to about ${Math.round(point.accuracy)} m` : ''}
+            </Text>
+            {point.fromSearch ? <Text style={styles.warn}>This is the area&apos;s centre, not your stall. Use current location at the stall for the exact spot.</Text> : null}
+            <Pressable onPress={() => Linking.openURL(mapUrl)} accessibilityRole="link" style={styles.linkRow}>
+              <Text style={styles.link}>Check on map</Text>
+              <Icon name="external" size={14} color={colors.link} />
             </Pressable>
-            <Text style={styles.or}>or search your area</Text>
-            <TextInput
-              value={query}
-              onChangeText={setQuery}
-              placeholder="e.g. Sector 29 market, Gurugram"
-              placeholderTextColor="#8aa0b2"
-              style={styles.input}
-              accessibilityLabel="Search area"
-            />
-            {results.map((place, index) => (
-              <Pressable key={index} onPress={() => pick(place)} style={styles.result} accessibilityRole="button">
-                <Text style={styles.resultLabel}>{place.area}</Text>
-              </Pressable>
-            ))}
-            {point ? (
-              <View style={styles.found}>
-                <Text style={styles.foundArea}>{area || 'Location set'}</Text>
-                <Text style={styles.foundMeta}>
-                  {point.lat.toFixed(5)}, {point.lng.toFixed(5)}
-                  {point.accuracy ? ` · accurate to about ${Math.round(point.accuracy)} m` : ''}
-                </Text>
-                {point.fromSearch ? <Text style={styles.warn}>This is the area&apos;s centre, not your stall. Use current location at the stall for the exact spot.</Text> : null}
-                <Pressable onPress={() => Linking.openURL(mapUrl)} accessibilityRole="link">
-                  <Text style={styles.link}>Check on map ↗</Text>
-                </Pressable>
-              </View>
-            ) : null}
-            {note ? <Text style={styles.note}>{note}</Text> : null}
-            <Pressable disabled={!point} onPress={() => setStep('details')} style={[styles.primary, !point && styles.disabled]} accessibilityRole="button">
-              <Text style={styles.primaryLabel}>Next</Text>
-            </Pressable>
-          </ScrollView>
-        ) : (
-          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.body}>
-            <TextInput value={shop} onChangeText={setShop} placeholder="Shop / stall number (optional)" placeholderTextColor="#8aa0b2" maxLength={60} style={styles.input} />
-            <TextInput value={landmark} onChangeText={setLandmark} placeholder="Landmark, e.g. Near City Mall gate 2 (optional)" placeholderTextColor="#8aa0b2" maxLength={80} style={styles.input} />
-            <TextInput value={area} onChangeText={setArea} placeholder="Street, area and city" placeholderTextColor="#8aa0b2" maxLength={160} style={styles.input} multiline />
-            <Text style={styles.hint}>Customers see: {[shop, landmark, area].map(part => part.trim()).filter(Boolean).join(', ') || '…'}</Text>
-            <Pressable
-              disabled={!point || !area.trim()}
-              onPress={() => point && onDone({ lat: point.lat, lng: point.lng, shop: shop.trim(), landmark: landmark.trim(), area: area.trim() })}
-              style={[styles.primary, (!point || !area.trim()) && styles.disabled]}
-              accessibilityRole="button"
-            >
-              <Text style={styles.primaryLabel}>Use this address</Text>
-            </Pressable>
-          </ScrollView>
-        )}
-      </View>
-    </FrameModal>
+          </Panel>
+        ) : null}
+        {note ? <Text style={styles.note}>{note}</Text> : null}
+      </Sheet>
+    );
+  }
+
+  return (
+    <Sheet
+      title="Stall address"
+      hint={`Customers see: ${address || '…'}`}
+      onClose={onClose}
+      onBack={() => setStep('find')}
+      footer={
+        <Button
+          label="Use this address"
+          grow
+          disabled={!point || !area.trim()}
+          onPress={() => point && onDone({ lat: point.lat, lng: point.lng, shop: shop.trim(), landmark: landmark.trim(), area: area.trim() })}
+        />
+      }
+    >
+      <Field value={shop} onChangeText={setShop} placeholder="Shop / stall number (optional)" maxLength={60} />
+      <Field value={landmark} onChangeText={setLandmark} placeholder="Landmark, e.g. Near City Mall gate 2 (optional)" maxLength={80} />
+      <Field value={area} onChangeText={setArea} placeholder="Street, area and city" maxLength={160} multiline />
+    </Sheet>
   );
 }
 
 const styles = StyleSheet.create({
-  sheet: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    maxHeight: '88%',
-    backgroundColor: colors.page,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingTop: 18,
-  },
-  head: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 18,
-  },
-  back: {
-    color: colors.title,
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  title: {
-    color: colors.title,
-    fontSize: 20,
-    fontWeight: '800',
-  },
-  body: {
-    padding: 18,
-    gap: 10,
-  },
-  hint: {
-    color: colors.muted,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  primary: {
-    backgroundColor: colors.header,
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  primaryLabel: {
-    color: colors.white,
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  disabled: {
-    opacity: 0.45,
-  },
   or: {
-    color: colors.muted,
-    fontSize: 12,
-    fontWeight: '700',
+    ...typography.caption,
     textAlign: 'center',
   },
-  input: {
-    backgroundColor: colors.white,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    fontSize: 14,
-    color: colors.title,
-  },
   result: {
-    backgroundColor: colors.white,
-    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.tint,
+    borderRadius: radius.md,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 11,
   },
   resultLabel: {
-    color: colors.title,
-    fontSize: 13,
-  },
-  found: {
-    backgroundColor: '#E7F3FC',
-    borderRadius: 12,
-    padding: 12,
-    gap: 4,
-  },
-  foundArea: {
-    color: colors.title,
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  foundMeta: {
-    color: colors.muted,
-    fontSize: 12,
+    flex: 1,
   },
   warn: {
-    color: '#b54708',
-    fontSize: 12,
+    color: colors.warning,
+    fontSize: 13,
     fontWeight: '600',
   },
-  link: {
-    color: '#2F6BFF',
-    fontSize: 13,
-    fontWeight: '800',
+  linkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     marginTop: 2,
   },
+  link: {
+    color: colors.link,
+    fontSize: 13,
+    fontWeight: '800',
+  },
   note: {
-    color: colors.error,
+    color: colors.danger,
     fontSize: 13,
     fontWeight: '600',
   },

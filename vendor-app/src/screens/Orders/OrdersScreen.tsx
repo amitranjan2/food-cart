@@ -21,7 +21,8 @@ import { useNewOrderAlert } from '../../hooks/useNewOrderAlert';
 import { patchVendorStatus } from '../../api/vendor';
 import { isAuthFailure } from '../../api/client';
 import { useAuth } from '../../state/AuthContext';
-import { spacing } from '../../theme';
+import { colors, spacing } from '../../theme';
+import { ConfirmDialog, PageHeading } from '../../ui';
 import type { Order, OrderStatus } from '../../types';
 import { formatDayTitle, formatSlot } from '../../utils/format';
 import { futureOrderCount, indiaDay, orderDayKey, pagerDayKey } from '../../utils/orderDay';
@@ -44,6 +45,7 @@ export function OrdersScreen({ navigation }: Props) {
   const busyRef = useRef(false);
   const listRef = useRef<FlatList<Order>>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
+  const [rejecting, setRejecting] = useState<Order | null>(null);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
@@ -130,7 +132,7 @@ export function OrdersScreen({ navigation }: Props) {
   if (!vendor) return null;
 
   return (
-    <Screen style={tab === 'orders' ? styles.canvas : undefined}>
+    <Screen>
       <StatusBar style="light" />
       <Header
         title={vendor.name}
@@ -139,7 +141,7 @@ export function OrdersScreen({ navigation }: Props) {
         notice={
           alert.latest
             ? {
-                title: `🔔 New order #${alert.latest.orderNumber}`,
+                title: `New order #${alert.latest.orderNumber}`,
                 detail: [alert.latest.customerName, formatSlot(alert.latest.scheduledFor, now), 'tap to view'].filter(Boolean).join(' · '),
                 onPress: () => {
                   const order = alert.latest;
@@ -173,6 +175,7 @@ export function OrdersScreen({ navigation }: Props) {
 
       {tab === 'orders' ? (
         <View style={styles.body}>
+          <PageHeading overline="ORDERS · LIVE" title={offset === 0 ? "Today's orders" : 'Orders'} />
           <DatePager
             title={formatDayTitle(offset, day)}
             onPrev={() => setOffset(value => value - 1)}
@@ -192,7 +195,7 @@ export function OrdersScreen({ navigation }: Props) {
               keyExtractor={item => item.id}
               contentContainerStyle={styles.list}
               refreshControl={
-                <RefreshControl refreshing={refreshing} onRefresh={() => refresh(true)} tintColor="#243447" />
+                <RefreshControl refreshing={refreshing} onRefresh={() => refresh(true)} tintColor={colors.primary} />
               }
               ListEmptyComponent={
                 <EmptyState
@@ -206,7 +209,7 @@ export function OrdersScreen({ navigation }: Props) {
                   now={now}
                   highlighted={highlightId === item.id}
                   onAdvance={() => (item.status === 'READY' ? setHandoverId(item.id) : advance(item.id))}
-                  onReject={() => advance(item.id, 'REJECTED')}
+                  onReject={() => setRejecting(item)}
                 />
               )}
             />
@@ -226,6 +229,19 @@ export function OrdersScreen({ navigation }: Props) {
           }}
         />
       ) : null}
+      {rejecting ? (
+        <ConfirmDialog
+          title={`Reject order #${rejecting.orderNumber}?`}
+          message="The customer is refunded in full. This can't be undone."
+          confirmLabel="Reject order"
+          onCancel={() => setRejecting(null)}
+          onConfirm={() => {
+            const order = rejecting;
+            setRejecting(null);
+            advance(order.id, 'REJECTED');
+          }}
+        />
+      ) : null}
       {sharing && token ? <ShareStoreSheet token={token} name={vendor.name} onClose={() => setSharing(false)} /> : null}
     </Screen>
   );
@@ -234,9 +250,6 @@ export function OrdersScreen({ navigation }: Props) {
 const POLL_MS = 10_000;
 
 const styles = StyleSheet.create({
-  canvas: {
-    backgroundColor: '#F4F6F8',
-  },
   backdrop: {
     ...StyleSheet.absoluteFill,
     top: 62,
@@ -244,12 +257,12 @@ const styles = StyleSheet.create({
   },
   body: {
     flex: 1,
-    padding: spacing.md,
+    padding: spacing.gutter,
     paddingBottom: 84,
   },
   actionError: {
-    color: '#d8424a',
-    fontSize: 12,
+    color: colors.danger,
+    fontSize: 13,
     fontWeight: '600',
     marginBottom: 8,
   },

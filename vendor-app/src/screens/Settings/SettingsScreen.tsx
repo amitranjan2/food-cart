@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { getThemes, putVendorHours, putVendorProfile } from '../../api/vendor';
@@ -7,7 +7,8 @@ import { isAuthFailure } from '../../api/client';
 import { Header } from '../../components/Header';
 import { Screen } from '../../components/Screen';
 import { useAuth } from '../../state/AuthContext';
-import { colors } from '../../theme';
+import { colors, radius, spacing, typography } from '../../theme';
+import { Button, Card, Field, Icon, PageHeading, SectionHeading } from '../../ui';
 import type { StoreTheme, VendorLocation } from '../../types';
 import { fromWeek, sameWeek, toWeek } from '../../utils/hours';
 import type { OrdersStackParamList } from '../../navigation/types';
@@ -78,47 +79,44 @@ export function SettingsScreen({ navigation }: Props) {
     }
   }
 
+  const dirty = profileChanged || hoursChanged;
+
   return (
     <Screen>
       <StatusBar style="light" />
-      <Header
-        title={name.trim() || vendor.name}
-        left={
-          <Pressable onPress={() => navigation.goBack()} style={styles.back} accessibilityRole="button" accessibilityLabel="Back">
-            <Text style={styles.backLabel}>←</Text>
-          </Pressable>
-        }
-      />
+      <Header title={name.trim() || vendor.name} onBack={() => navigation.goBack()} />
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-        <Text style={styles.kicker}>STORE · PROFILE</Text>
-        <Text style={styles.title}>Your storefront</Text>
+        <PageHeading overline="STORE · PROFILE" title="Your storefront" />
 
-        <Text style={styles.section}>Business name</Text>
-        <View style={styles.card}>
-          <TextInput value={name} onChangeText={setName} maxLength={60} placeholder="Business name" placeholderTextColor="#8aa0b2" style={styles.input} accessibilityLabel="Business name" />
-          <Text style={styles.hint}>Shown at the top of your storefront and on customers&apos; orders.</Text>
-        </View>
+        <SectionHeading title="Business name" />
+        <Card>
+          <Field value={name} onChangeText={setName} maxLength={60} placeholder="Business name" accessibilityLabel="Business name" />
+          <Text style={typography.caption}>Shown at the top of your storefront and on customers&apos; orders.</Text>
+        </Card>
 
-        <Text style={styles.section}>Location</Text>
-        <View style={styles.card}>
+        <SectionHeading title="Location" />
+        <Card>
           {location ? (
             <>
-              <Text style={styles.address}>{addressOf(location)}</Text>
-              <Text style={styles.hint}>📍 Directions point set ({location.lat.toFixed(4)}, {location.lng.toFixed(4)})</Text>
+              <Text style={typography.bodyStrong}>{addressOf(location)}</Text>
+              <View style={styles.inline}>
+                <Icon name="pin" size={14} color={colors.success} />
+                <Text style={typography.caption}>
+                  Directions point set ({location.lat.toFixed(4)}, {location.lng.toFixed(4)})
+                </Text>
+              </View>
             </>
           ) : (
             <>
-              {vendor.address ? <Text style={styles.address}>{vendor.address}</Text> : null}
+              {vendor.address ? <Text style={typography.bodyStrong}>{vendor.address}</Text> : null}
               <Text style={styles.warning}>No map location yet: customers can&apos;t get directions to your stall.</Text>
             </>
           )}
-          <Pressable onPress={() => setLocating(true)} style={styles.secondary} accessibilityRole="button">
-            <Text style={styles.secondaryLabel}>{location ? 'Change location' : 'Set location'}</Text>
-          </Pressable>
-        </View>
+          <Button label={location ? 'Change location' : 'Set location'} icon="pin" variant="secondary" size="sm" style={styles.start} onPress={() => setLocating(true)} />
+        </Card>
 
-        <Text style={styles.section}>Colours</Text>
-        <View style={styles.card}>
+        <SectionHeading title="Colours" />
+        <Card>
           <ThemePicker themes={themes} value={theme} onChange={setTheme} />
           {chosen ? (
             <View style={[styles.preview, { backgroundColor: chosen.light }]} accessibilityLabel="Storefront preview">
@@ -136,24 +134,23 @@ export function SettingsScreen({ navigation }: Props) {
               </View>
             </View>
           ) : null}
-        </View>
+        </Card>
 
-        <Text style={styles.section}>Description</Text>
-        <View style={styles.card}>
-          <TextInput
+        <SectionHeading title="Description" />
+        <Card>
+          <Field
             value={description}
             onChangeText={setDescription}
             maxLength={160}
             multiline
             placeholder="e.g. Hand-folded momos and street-food favourites"
-            placeholderTextColor="#8aa0b2"
-            style={[styles.input, styles.multiline]}
+            style={styles.multiline}
             accessibilityLabel="Description"
           />
-        </View>
+        </Card>
 
-        <Text style={styles.section}>Opening hours</Text>
-        <Text style={[styles.hint, styles.sectionHint]}>
+        <SectionHeading title="Opening hours" />
+        <Text style={[typography.small, styles.sectionHint]}>
           Tap the pencil to change a day: set times, remove slots or add one below the last, between 00:00 and 24:00. To stay open past
           midnight, add a slot from 00:00 on the next day. The copy button repeats a day&apos;s hours on other days. Customers pick
           30-minute pickup times inside these slots.
@@ -164,14 +161,7 @@ export function SettingsScreen({ navigation }: Props) {
 
       <View style={styles.saveBar}>
         {message ? <Text style={message.failed ? styles.saveError : styles.saveOk}>{message.text}</Text> : null}
-        <Pressable
-          disabled={busy || (!profileChanged && !hoursChanged)}
-          onPress={save}
-          style={[styles.save, (busy || (!profileChanged && !hoursChanged)) && styles.disabled]}
-          accessibilityRole="button"
-        >
-          <Text style={styles.saveLabel}>{busy ? 'Saving…' : profileChanged || hoursChanged ? 'Save changes' : 'All changes saved'}</Text>
-        </Pressable>
+        <Button label={busy ? 'Saving…' : dirty ? 'Save changes' : 'All changes saved'} busy={busy} disabled={!dirty} onPress={save} />
       </View>
 
       {locating ? (
@@ -190,90 +180,32 @@ export function SettingsScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  back: {
-    minWidth: 36,
-  },
-  backLabel: {
-    color: colors.white,
-    fontSize: 20,
-    fontWeight: '700',
-  },
   body: {
-    padding: 13,
+    padding: spacing.gutter,
     paddingBottom: 120,
-  },
-  kicker: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: colors.muted,
-  },
-  title: {
-    marginTop: 4,
-    marginBottom: 6,
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.title,
-    letterSpacing: -1,
-  },
-  section: {
-    marginTop: 16,
-    marginBottom: 8,
-    color: colors.title,
-    fontSize: 16,
-    fontWeight: '800',
   },
   sectionHint: {
     marginBottom: 8,
   },
-  card: {
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    padding: 12,
-    gap: 8,
+  inline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
-  input: {
-    backgroundColor: '#F4F8FB',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 11,
-    fontSize: 15,
-    color: colors.title,
+  start: {
+    alignSelf: 'flex-start',
   },
   multiline: {
-    minHeight: 64,
+    minHeight: 72,
     textAlignVertical: 'top',
   },
-  hint: {
-    color: colors.muted,
-    fontSize: 12,
-    lineHeight: 17,
-  },
   warning: {
-    color: colors.error,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  address: {
-    color: colors.title,
-    fontSize: 14,
-    fontWeight: '700',
-    lineHeight: 19,
-  },
-  secondary: {
-    alignSelf: 'flex-start',
-    borderWidth: 1,
-    borderColor: colors.header,
-    borderRadius: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  secondaryLabel: {
-    color: colors.header,
-    fontSize: 12,
+    color: colors.danger,
+    fontSize: 13,
     fontWeight: '700',
   },
   preview: {
-    borderRadius: 14,
+    borderRadius: radius.md,
     padding: 12,
     gap: 10,
   },
@@ -288,7 +220,7 @@ const styles = StyleSheet.create({
   },
   previewCard: {
     width: 90,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderRadius: 10,
     padding: 6,
     gap: 6,
@@ -304,12 +236,12 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   previewAddLabel: {
-    color: colors.white,
-    fontSize: 10,
+    color: colors.onPrimary,
+    fontSize: 11,
     fontWeight: '800',
   },
   previewCart: {
-    borderRadius: 999,
+    borderRadius: radius.pill,
     paddingHorizontal: 14,
     paddingVertical: 8,
   },
@@ -321,32 +253,18 @@ const styles = StyleSheet.create({
     padding: 12,
     paddingBottom: 16,
     gap: 6,
-    backgroundColor: colors.page,
+    backgroundColor: colors.surface,
     borderTopWidth: 1,
-    borderTopColor: '#c9dcee',
-  },
-  save: {
-    backgroundColor: colors.header,
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  disabled: {
-    opacity: 0.45,
-  },
-  saveLabel: {
-    color: colors.white,
-    fontSize: 14,
-    fontWeight: '800',
+    borderTopColor: colors.line,
   },
   saveOk: {
-    color: colors.onText,
-    fontSize: 12,
+    color: colors.success,
+    fontSize: 13,
     fontWeight: '700',
   },
   saveError: {
-    color: colors.error,
-    fontSize: 12,
+    color: colors.danger,
+    fontSize: 13,
     fontWeight: '700',
   },
 });

@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors } from '../../theme';
+import { colors, radius } from '../../theme';
 import type { StoreTheme } from '../../types';
 
 /** The fixed colour pairs; each tile shows the light header with the dark text and button, as on the storefront. */
@@ -40,7 +40,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     borderWidth: 2,
     borderColor: 'transparent',
-    borderRadius: 12,
+    borderRadius: radius.md,
     padding: 4,
     alignItems: 'center',
     gap: 4,
@@ -64,10 +64,10 @@ const styles = StyleSheet.create({
   },
   name: {
     color: colors.muted,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
   },
   nameOn: {
-    color: colors.title,
+    color: colors.text,
   },
 });

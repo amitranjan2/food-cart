@@ -1,14 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import {
-  Image,
-  Pressable,
-  ScrollView,
-  SectionList,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Image, Pressable, ScrollView, SectionList, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { deleteMenuItem, getVendorMenu, patchItemAvailability, patchItemSpecial, putCategoryOrder, putItemOrder } from '../../api/menu';
 import { isAuthFailure, mediaUrl } from '../../api/client';
@@ -17,7 +8,8 @@ import { ErrorState } from '../../components/ErrorState';
 import { LoadingState } from '../../components/LoadingState';
 import { useFrameOverlay } from '../../components/Screen';
 import { useAuth } from '../../state/AuthContext';
-import { colors } from '../../theme';
+import { colors, radius, spacing, typography } from '../../theme';
+import { Button, Card, Chip, ConfirmDialog, Field, FieldButton, Icon, PageHeading, SectionHeading } from '../../ui';
 import type { FoodType, MenuCategory, MenuItem } from '../../types';
 import { ArrangeSheet, type ArrangeRow } from './ArrangeSheet';
 import { DishFormSheet, type DishFormMode } from './DishFormSheet';
@@ -32,12 +24,12 @@ import { rupees } from '../../utils/format';
 type FoodFilter = FoodType | 'ALL' | 'SPECIAL';
 
 const FOOD_FILTERS: { value: FoodFilter; label: string }[] = [
-  { value: 'ALL', label: 'ALL' },
-  { value: 'SPECIAL', label: '★ SPECIAL' },
-  { value: 'VEGAN', label: 'VEGAN' },
-  { value: 'VEG', label: 'VEG' },
-  { value: 'NON_VEG', label: 'NON VEG' },
-  { value: 'EGG', label: 'EGG' },
+  { value: 'ALL', label: 'All' },
+  { value: 'SPECIAL', label: '★ Special' },
+  { value: 'VEGAN', label: 'Vegan' },
+  { value: 'VEG', label: 'Veg' },
+  { value: 'NON_VEG', label: 'Non-veg' },
+  { value: 'EGG', label: 'Egg' },
 ];
 
 function typeCount(item: MenuItem) {
@@ -218,70 +210,52 @@ export function MenuPanel() {
 
   return (
     <View style={styles.body}>
-      <View style={styles.titleRow}>
-        <View>
-          <Text style={styles.kicker}>MENU · LIVE CATALOGUE</Text>
-          <Text style={styles.title}>Your dishes</Text>
-        </View>
-        <View style={styles.titleActions}>
-          {unfiltered ? (
-            <Pressable accessibilityRole="button" onPress={() => setArranging('categories')} style={styles.arrange}>
-              <Text style={styles.arrangeLabel}>⇅ Categories</Text>
-            </Pressable>
-          ) : null}
-          <Pressable onPress={() => setSheet({ mode: 'add' })} style={styles.add}>
-            <Text style={styles.addLabel}>+ Dish</Text>
-          </Pressable>
-        </View>
-      </View>
+      <PageHeading
+        overline="MENU · LIVE CATALOGUE"
+        title="Your dishes"
+        right={
+          <>
+            {unfiltered ? <Button label="Categories" icon="sort" variant="secondary" size="sm" onPress={() => setArranging('categories')} accessibilityLabel="Arrange categories" /> : null}
+            <Button label="Dish" icon="plus" size="sm" onPress={() => setSheet({ mode: 'add' })} accessibilityLabel="Add dish" />
+          </>
+        }
+      />
       <View style={styles.tools}>
-        <TextInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Search dishes"
-          placeholderTextColor="#8aa0b2"
-          style={styles.search}
+        <Field value={query} onChangeText={setQuery} placeholder="Search dishes" tone="surface" compact style={styles.search} accessibilityLabel="Search dishes" />
+        <FieldButton
+          value={STATUS_FILTERS.find(option => option.value === availability)?.label}
+          placeholder="All status"
+          tone="surface"
+          compact
+          active={statusOpen}
+          onPress={() => setStatusOpen(open => !open)}
+          style={styles.status}
+          accessibilityLabel="Filter by status"
         />
-        <Pressable onPress={() => setStatusOpen(open => !open)} style={styles.status}>
-          <Text style={styles.statusLabel} numberOfLines={1}>
-            {STATUS_FILTERS.find(option => option.value === availability)?.label}
-          </Text>
-        </Pressable>
       </View>
       {statusOpen ? (
         <View style={styles.statusList}>
           {STATUS_FILTERS.map(option => (
             <Pressable
               key={option.value}
+              accessibilityRole="button"
+              accessibilityState={{ selected: availability === option.value }}
               onPress={() => {
                 setAvailability(option.value);
                 setStatusOpen(false);
               }}
               style={styles.statusOption}
             >
-              <Text style={styles.statusLabel}>{option.label}</Text>
+              <Text style={typography.body}>{option.label}</Text>
+              {availability === option.value ? <Icon name="check" size={16} /> : null}
             </Pressable>
           ))}
         </View>
       ) : null}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.filterScroll}
-        contentContainerStyle={styles.filters}
-      >
-        {FOOD_FILTERS.map(option => {
-          const active = food === option.value;
-          return (
-            <Pressable
-              key={option.value}
-              onPress={() => setFood(option.value)}
-              style={[styles.filter, active && styles.filterActive]}
-            >
-              <Text style={[styles.filterLabel, active && styles.filterLabelActive]}>{option.label}</Text>
-            </Pressable>
-          );
-        })}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll} contentContainerStyle={styles.filters}>
+        {FOOD_FILTERS.map(option => (
+          <Chip key={option.value} label={option.label} tone="surface" selected={food === option.value} onPress={() => setFood(option.value)} />
+        ))}
       </ScrollView>
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {loading && items.length === 0 ? (
@@ -304,32 +278,29 @@ export function MenuPanel() {
             />
           }
           renderSectionHeader={({ section }) => (
-            <View style={styles.sectionHead}>
-              <Text style={styles.sectionTitle}>
-                {section.name} <Text style={styles.sectionCount}>· {unfiltered ? section.total : section.data.length}</Text>
-              </Text>
-              {unfiltered && section.total > 1 ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`Arrange ${section.name}`}
-                  onPress={() => setArranging({ categoryId: section.id, name: section.name })}
-                  style={styles.sectionArrange}
-                >
-                  <Text style={styles.sectionArrangeLabel}>⇅ Arrange</Text>
-                </Pressable>
-              ) : null}
-            </View>
+            <SectionHeading
+              title={section.name}
+              count={unfiltered ? section.total : section.data.length}
+              right={
+                unfiltered && section.total > 1 ? (
+                  <Button
+                    label="Arrange"
+                    icon="sort"
+                    variant="secondary"
+                    size="sm"
+                    accessibilityLabel={`Arrange ${section.name}`}
+                    onPress={() => setArranging({ categoryId: section.id, name: section.name })}
+                  />
+                ) : null
+              }
+            />
           )}
           renderItem={({ item }) => {
             const types = typeCount(item);
             return (
-              <View style={[styles.card, !item.available && styles.cardOff]}>
+              <Card style={[styles.card, !item.available && styles.cardOff]}>
                 <View style={styles.photoWrap}>
-                  {mediaUrl(item.imageUrl) ? (
-                    <Image source={{ uri: mediaUrl(item.imageUrl) }} style={styles.photo} />
-                  ) : (
-                    <View style={styles.photo} />
-                  )}
+                  {mediaUrl(item.imageUrl) ? <Image source={{ uri: mediaUrl(item.imageUrl) }} style={styles.photo} /> : <View style={styles.photo} />}
                   <View style={styles.priceBadge}>
                     <Text style={styles.price}>{rupees(item.price)}</Text>
                   </View>
@@ -341,13 +312,13 @@ export function MenuPanel() {
                     hitSlop={8}
                     style={[styles.star, item.special && styles.starOn]}
                   >
-                    <Text style={[styles.starLabel, item.special && styles.starLabelOn]}>{item.special ? '★' : '☆'}</Text>
+                    <Icon name="star" size={15} color={item.special ? colors.onPrimary : colors.muted} filled={!!item.special} />
                   </Pressable>
                 </View>
                 <View style={styles.copy}>
                   <View style={styles.nameRow}>
                     <FoodMark foodType={item.foodType} />
-                    <Text style={styles.name} numberOfLines={1}>
+                    <Text style={[typography.heading, styles.name]} numberOfLines={1}>
                       {item.name}
                     </Text>
                   </View>
@@ -355,38 +326,33 @@ export function MenuPanel() {
                     {item.description || 'Freshly prepared at the counter'}
                   </Text>
                   <View style={styles.footer}>
-                    <Text style={styles.types}>
-                      {types} {types === 1 ? 'TYPE' : 'TYPES'}
+                    <Text style={typography.caption}>
+                      {types} {types === 1 ? 'type' : 'types'}
+                      {item.available ? '' : ' · Paused'}
                     </Text>
                     <View style={styles.iconRow}>
-                      <Pressable
-                        accessibilityLabel="Edit dish"
-                        onPress={() => setSheet({ mode: 'edit', item })}
-                        style={styles.iconButton}
-                      >
+                      <Pressable accessibilityRole="button" accessibilityLabel="Edit dish" onPress={() => setSheet({ mode: 'edit', item })} hitSlop={6} style={styles.iconButton}>
                         <EditDishIcon />
                       </Pressable>
-                      <Pressable
-                        accessibilityLabel="Duplicate dish"
-                        onPress={() => setSheet({ mode: 'add', item })}
-                        style={styles.iconButton}
-                      >
+                      <Pressable accessibilityRole="button" accessibilityLabel="Duplicate dish" onPress={() => setSheet({ mode: 'add', item })} hitSlop={6} style={styles.iconButton}>
                         <CopyDishIcon />
                       </Pressable>
                       <Pressable
+                        accessibilityRole="button"
                         accessibilityLabel={item.available ? `Pause ${item.name}` : `Resume ${item.name}`}
                         onPress={() => pause(item)}
+                        hitSlop={6}
                         style={styles.iconButton}
                       >
-                        <PauseDishIcon color={item.available ? '#667085' : '#E53935'} />
+                        <PauseDishIcon color={item.available ? undefined : colors.danger} />
                       </Pressable>
-                      <Pressable accessibilityLabel={`Remove ${item.name}`} onPress={() => remove(item)} style={styles.iconButton}>
+                      <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${item.name}`} onPress={() => remove(item)} hitSlop={6} style={styles.iconButton}>
                         <DeleteDishIcon />
                       </Pressable>
                     </View>
                   </View>
                 </View>
-              </View>
+              </Card>
             );
           }}
         />
@@ -405,27 +371,20 @@ export function MenuPanel() {
         />
       ) : null}
       {pendingDelete ? (
-        <View style={styles.confirmBackdrop}>
-          <View style={styles.confirmCard}>
-            <Text style={styles.confirmTitle}>Remove dish</Text>
-            <Text style={styles.confirmCopy}>Remove {pendingDelete.name} from your menu?</Text>
-            <View style={styles.confirmActions}>
-              <Pressable onPress={() => setPendingDelete(null)} style={styles.confirmCancel}>
-                <Text style={styles.confirmCancelLabel}>Cancel</Text>
-              </Pressable>
-              <Pressable onPress={confirmDelete} style={styles.confirmRemove}>
-                <Text style={styles.confirmRemoveLabel}>Remove</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
+        <ConfirmDialog
+          title="Remove dish?"
+          message={`Remove ${pendingDelete.name} from your menu? Customers stop seeing it straight away.`}
+          confirmLabel="Remove"
+          onCancel={() => setPendingDelete(null)}
+          onConfirm={confirmDelete}
+        />
       ) : null}
     </View>
   );
 }
 
 function FoodMark({ foodType }: { foodType?: string }) {
-  const color = foodType === 'NON_VEG' ? colors.nonVeg : foodType === 'EGG' ? '#e0a100' : foodType === 'OTHER' ? colors.muted : colors.veg;
+  const color = foodType === 'NON_VEG' ? colors.nonVeg : foodType === 'EGG' ? colors.egg : foodType === 'OTHER' ? colors.muted : colors.veg;
   return (
     <View style={[styles.mark, { borderColor: color }]}>
       <View style={[styles.markDot, { backgroundColor: color }]} />
@@ -436,183 +395,54 @@ function FoodMark({ foodType }: { foodType?: string }) {
 const styles = StyleSheet.create({
   body: {
     flex: 1,
-    padding: 13,
+    padding: spacing.gutter,
     paddingBottom: 84,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    marginBottom: 13,
-  },
-  kicker: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: colors.muted,
-  },
-  title: {
-    marginTop: 4,
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.title,
-    letterSpacing: -1,
-  },
-  titleActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  arrange: {
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.header,
-    borderRadius: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-  },
-  arrangeLabel: {
-    color: colors.header,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  sectionHead: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 6,
-  },
-  sectionTitle: {
-    color: colors.title,
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  sectionCount: {
-    color: colors.muted,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  sectionArrange: {
-    borderWidth: 1,
-    borderColor: '#b9cbdb',
-    borderRadius: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  sectionArrangeLabel: {
-    color: colors.header,
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  star: {
-    position: 'absolute',
-    top: 5,
-    right: 5,
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: 'rgba(255,255,255,0.85)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  starOn: {
-    backgroundColor: '#F79009',
-  },
-  starLabel: {
-    color: '#667085',
-    fontSize: 15,
-    lineHeight: 17,
-  },
-  starLabelOn: {
-    color: colors.white,
-  },
-  add: {
-    backgroundColor: colors.header,
-    borderRadius: 5,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  addLabel: {
-    color: colors.white,
-    fontSize: 12,
-    fontWeight: '700',
   },
   tools: {
     flexDirection: 'row',
-    gap: 7,
+    gap: 8,
     marginBottom: 8,
   },
   search: {
     flex: 1,
-    backgroundColor: colors.white,
-    borderRadius: 4,
-    paddingHorizontal: 9,
-    paddingVertical: 9,
-    fontSize: 11,
-    color: '#51697c',
   },
   status: {
-    width: 105,
-    backgroundColor: colors.white,
-    borderRadius: 4,
-    justifyContent: 'center',
-    paddingHorizontal: 9,
-  },
-  statusLabel: {
-    fontSize: 11,
-    color: '#51697c',
+    width: 128,
   },
   statusList: {
-    backgroundColor: colors.white,
-    borderRadius: 4,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
     marginBottom: 8,
+    overflow: 'hidden',
   },
   statusOption: {
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 13,
+    paddingVertical: 11,
   },
   filterScroll: {
-    height: 34,
+    height: 38,
     flexGrow: 0,
     // Otherwise a long dish list squeezes the row and clips the chips.
     flexShrink: 0,
-    marginBottom: 12,
   },
   filters: {
-    gap: 6,
+    gap: 8,
     alignItems: 'center',
   },
-  filter: {
-    // No browser focus box in the web build; the dark fill already shows the chosen chip.
-    outlineWidth: 0,
-    backgroundColor: colors.filterBg,
-    borderRadius: 4,
-    paddingHorizontal: 10,
-    height: 32,
-    justifyContent: 'center',
-  },
-  filterActive: {
-    backgroundColor: colors.header,
-  },
-  filterLabel: {
-    color: '#50687b',
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  filterLabelActive: {
-    color: colors.white,
-  },
   error: {
-    color: colors.error,
-    fontSize: 12,
+    color: colors.danger,
+    fontSize: 13,
     fontWeight: '600',
-    marginBottom: 8,
+    marginVertical: 8,
   },
   list: {
-    gap: 12,
+    gap: 10,
     paddingBottom: 24,
   },
   card: {
-    backgroundColor: '#E7F3FC',
-    borderRadius: 16,
     padding: 10,
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -628,22 +458,36 @@ const styles = StyleSheet.create({
   photo: {
     width: 84,
     height: 84,
-    borderRadius: 12,
-    backgroundColor: '#c7def2',
+    borderRadius: radius.md,
+    backgroundColor: colors.tint,
   },
   priceBadge: {
     position: 'absolute',
     left: 6,
     bottom: 6,
-    backgroundColor: '#243447',
-    borderRadius: 8,
+    backgroundColor: colors.primary,
+    borderRadius: radius.sm,
     paddingHorizontal: 7,
     paddingVertical: 3,
   },
   price: {
-    color: colors.white,
+    color: colors.onPrimary,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '800',
+  },
+  star: {
+    position: 'absolute',
+    top: 5,
+    right: 5,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  starOn: {
+    backgroundColor: colors.special,
   },
   copy: {
     flex: 1,
@@ -669,91 +513,29 @@ const styles = StyleSheet.create({
   },
   name: {
     flex: 1,
-    color: '#1d2939',
-    fontSize: 16,
-    fontWeight: '700',
   },
   description: {
-    marginTop: 4,
-    color: '#667085',
+    ...typography.small,
     fontSize: 12,
     lineHeight: 16,
+    marginTop: 4,
   },
   footer: {
-    marginTop: 10,
+    marginTop: 'auto',
+    paddingTop: 8,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  types: {
-    color: '#2F6BFF',
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 0.3,
-  },
   iconRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 14,
   },
   iconButton: {
     width: 22,
     height: 22,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  confirmBackdrop: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(29, 41, 57, 0.35)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-    zIndex: 20,
-  },
-  confirmCard: {
-    width: '100%',
-    maxWidth: 320,
-    backgroundColor: colors.white,
-    borderRadius: 14,
-    padding: 16,
-  },
-  confirmTitle: {
-    color: '#1d2939',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  confirmCopy: {
-    marginTop: 8,
-    color: '#667085',
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  confirmActions: {
-    marginTop: 16,
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 8,
-  },
-  confirmCancel: {
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    backgroundColor: '#F2F4F7',
-  },
-  confirmCancelLabel: {
-    color: '#344054',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  confirmRemove: {
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    backgroundColor: '#E53935',
-  },
-  confirmRemoveLabel: {
-    color: colors.white,
-    fontSize: 13,
-    fontWeight: '700',
   },
 });
