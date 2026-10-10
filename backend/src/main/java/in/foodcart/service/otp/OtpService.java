@@ -17,8 +17,8 @@ public class OtpService {
     this.sender = senders.getIfAvailable();
     if (this.sender == null) {
       throw new IllegalStateException(
-          "No SMS provider is configured, so OTP login cannot work. "
-              + "Run with the 'local' profile for development, or configure an SMS sender for production.");
+          "No OTP sender is configured, so login cannot work. Run with the 'local' profile for development, "
+              + "or set the WHATSAPP_* variables (see README) for production.");
     }
   }
 
@@ -33,7 +33,16 @@ public class OtpService {
     String code = sender.fixedCode() != null ? sender.fixedCode() : OtpRules.newCode();
     OtpRules.recordSend(challenge, code, Instant.now());
     challenges.save(challenge);
-    sender.send(mobile, code);
+    try {
+      sender.send(mobile, code);
+    } catch (RuntimeException failed) {
+      // The code never arrived: drop it and allow an immediate retry. The send still counts towards the hourly limit.
+      challenge.codeHash = null;
+      challenge.codeExpiresAt = null;
+      challenge.lastSentAt = null;
+      challenges.save(challenge);
+      throw failed;
+    }
   }
 
   public void verify(String role, String mobile, String code) {

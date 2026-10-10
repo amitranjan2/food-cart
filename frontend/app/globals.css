@@ -337,3 +337,4 @@ html.scroll-locked,html.scroll-locked body,.storefront.scroll-locked{overflow:hi
 .policy-footer nav{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 14px}
 .policy-footer a{color:#3b4957;font-weight:700;text-decoration:none}
 .policy-footer p{margin:0}
+.cart-otp-hint{margin:6px 4px 0;font-size:var(--fs-xs);color:#717c86;line-height:1.4}

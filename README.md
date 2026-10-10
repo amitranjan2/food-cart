@@ -26,8 +26,9 @@ Public menu endpoints live under `/api/public`. Customer authenticated endpoints
 
 `OtpService` generates a random 6-digit code, stores only its hash, expires it after 5 minutes, locks after 5 wrong attempts, and allows one send per 30 seconds and 5 per hour per number. Delivery goes through the `OtpSender` interface:
 
-- `local` profile: `DevOtpSender` logs the code and always uses `123456`. It cannot load in any other profile.
-- Any other profile: the API **refuses to start** until a real `OtpSender` (SMS provider) is configured.
+- **WhatsApp** (`WhatsAppOtpSender`): active whenever `WHATSAPP_TOKEN` is set. It sends Meta's WhatsApp Cloud API *Authentication* template with the code in the body and the "Copy code" button. All `WHATSAPP_*` variables below are then required, or the API refuses to start. A failed or timed-out send (5 s) tells the user "Couldn't send the code on WhatsApp. Try again." and allows an immediate retry (it still counts towards the hourly limit). Meta's error code is logged; the token and the code never are. WhatsApp is the only channel for the pilot, so people without WhatsApp can't sign in.
+- `local` profile without `WHATSAPP_TOKEN`: `DevOtpSender` logs the code and always uses `123456`. It cannot load in any other profile. With `WHATSAPP_TOKEN` set, `local` sends real WhatsApp codes instead, which is how to test delivery before a payment gateway exists.
+- Any other profile without `WHATSAPP_TOKEN`: the API **refuses to start** ("No OTP sender is configured").
 
 Demo vendors, menus and orders (`SeedData`, `DemoData`, `CatalogEnricher`, `/api/dev/*`) only run with the `local` profile.
 
@@ -39,5 +40,11 @@ Demo vendors, menus and orders (`SeedData`, `DemoData`, `CatalogEnricher`, `/api
 | `CORS_ORIGIN` | Storefront origin, e.g. `https://foodcart.in` |
 | `PUBLIC_BASE_URL` | Public address of this API; used to build image URLs |
 | `UPLOAD_DIR` | Where uploaded images are stored; must be a persistent volume |
+| `WHATSAPP_TOKEN` | System-user token for the WhatsApp Business Account (`whatsapp_business_messaging`); a secret, never in the repo |
+| `WHATSAPP_PHONE_NUMBER_ID` | The sender's *Phone number ID* from WhatsApp → API Setup (not the phone number itself) |
+| `WHATSAPP_OTP_TEMPLATE` | Approved Authentication template name, e.g. `foodcart_otp` |
+| `WHATSAPP_OTP_LANGUAGE` | The template's language code exactly as WhatsApp Manager shows it, e.g. `en` or `en_US` |
+| `WHATSAPP_API_VERSION` | Graph API version, e.g. `v21.0` |
+| `WHATSAPP_API_BASE` | Optional, default `https://graph.facebook.com`; only changed for testing against a stand-in |
 
 Add per-IP rate limiting on `/api/auth/*` at the reverse proxy.

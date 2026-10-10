@@ -123,7 +123,7 @@ export function LoginScreen() {
       ) : (
         <View style={styles.block}>
           <Text style={styles.title}>Enter OTP!</Text>
-          <Text style={styles.subtitle}>Enter the {OTP_LENGTH} digit code received on SMS.</Text>
+          <Text style={styles.subtitle}>Enter the {OTP_LENGTH} digit code sent on WhatsApp.</Text>
           <View style={styles.otpWrap}>
             <TextInput
               ref={otpRef}
@@ -158,6 +158,7 @@ export function LoginScreen() {
             onPress={continueWithOtp}
           />
           {error ? <Text style={[styles.error, styles.otpError]}>{error}</Text> : null}
+          <Text style={styles.hint}>Didn&apos;t get it? Make sure {mobile} is on WhatsApp.</Text>
           <Pressable onPress={() => { setStep('mobile'); setError(''); setOtp(''); }}>
             <Text style={styles.changeNumber}>Change number</Text>
           </Pressable>
@@ -168,6 +169,12 @@ export function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
+  hint: {
+    marginTop: 14,
+    textAlign: 'center',
+    color: '#5f6f7c',
+    fontSize: 12,
+  },
   page: {
     backgroundColor: colors.login,
     paddingHorizontal: 36,

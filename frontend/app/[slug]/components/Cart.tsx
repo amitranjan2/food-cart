@@ -570,7 +570,7 @@ export function Cart({
               inputMode="numeric"
               autoComplete="one-time-code"
               maxLength={6}
-              placeholder="6-digit OTP"
+              placeholder="6-digit code from WhatsApp"
               value={otp}
               onChange={event => {
                 onOtpChange(event.target.value.replace(/\D/g, '').slice(0, 6));
@@ -578,6 +578,9 @@ export function Cart({
               }}
             />
           </label>
+        )}
+        {otpSent && !verified && (
+          <p className="cart-otp-hint">Code sent on WhatsApp to {mobile}. Didn&apos;t get it? Make sure this number is on WhatsApp.</p>
         )}
         {verified && (
           <div className="cart-otp-row">
