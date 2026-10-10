@@ -15,7 +15,7 @@ export default function Privacy() {
 
       <h2>What we collect</h2>
       <ul>
-        <li><b>Mobile number</b>: to sign you in with a one-time code and to let the vendor call you about your order.</li>
+        <li><b>Mobile number</b>: to sign you in with a one-time code sent on WhatsApp, and to let the vendor call you about your order.</li>
         <li><b>Name</b>: shown to the vendor so they can hand your order to you.</li>
         <li><b>Orders</b>: the vendor, dishes and options, Pick Up or Dine In, time slot, amount, status and handover details.</li>
         <li><b>Payment details from our payment partner</b>: payment status, reference and amount. We do not receive card numbers, UPI PINs or bank passwords.</li>
@@ -38,7 +38,7 @@ export default function Privacy() {
       <ul>
         <li><b>The vendor you order from</b>: your name, mobile number and order, to prepare and hand it over.</li>
         <li><b>Our payment partner</b>: the amount, an order reference and the contact details needed to take the payment.</li>
-        <li><b>Our SMS provider</b>: your mobile number, to send the sign-in code.</li>
+        <li><b>WhatsApp (Meta Platforms)</b>: your mobile number and the sign-in code, to deliver the code to you on WhatsApp.</li>
         <li><b>Our hosting and infrastructure providers</b>, who store data for us under contract.</li>
         <li><b>Authorities</b>, when the law requires it.</li>
       </ul>

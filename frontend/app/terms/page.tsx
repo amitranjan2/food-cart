@@ -22,7 +22,7 @@ export default function Terms() {
 
       <h2>2. Your account</h2>
       <p>
-        You sign in with your mobile number and a one-time code (OTP) sent to it. Use your own number and your real name: the
+        You sign in with your mobile number and a one-time code (OTP) sent to it on WhatsApp, so the number must be on WhatsApp. Use your own number and your real name: the
         vendor sees both so they can hand your order to you. You must be 18 or older, or use {LEGAL.brand} with a parent&apos;s or
         guardian&apos;s permission. Keep your phone secure; orders placed from your signed-in phone are treated as yours.
       </p>
