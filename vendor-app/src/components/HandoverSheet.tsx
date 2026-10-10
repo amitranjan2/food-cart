@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { colors } from '../theme';
 import type { Order } from '../types';
+import { FrameModal } from './FrameModal';
 
 /**
  * Asks for the code the customer shows. The order completes only if it matches; the vendor never sees the code.
@@ -35,8 +36,7 @@ export function HandoverSheet({
   }
 
   return (
-    <Modal transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose} accessibilityRole="button" />
+    <FrameModal onRequestClose={onClose}>
       <View style={styles.sheet}>
         <Text style={styles.title}>Hand over order #{order.orderNumber}</Text>
         {customer ? <Text style={styles.hint}>{customer}</Text> : null}
@@ -63,19 +63,11 @@ export function HandoverSheet({
           <Text style={styles.cancelLabel}>Cancel</Text>
         </Pressable>
       </View>
-    </Modal>
+    </FrameModal>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    backgroundColor: 'rgba(30,42,54,0.45)',
-  },
   sheet: {
     position: 'absolute',
     left: 0,

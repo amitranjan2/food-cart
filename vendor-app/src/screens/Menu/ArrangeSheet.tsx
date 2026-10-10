@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../../theme';
+import { FrameModal } from '../../components/FrameModal';
 
 export type ArrangeRow = { id: string; name: string; detail: string; dimmed?: boolean };
 
@@ -45,8 +46,7 @@ export function ArrangeSheet({
   }
 
   return (
-    <Modal transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
+    <FrameModal onRequestClose={onClose}>
       <View style={styles.sheet}>
         <Text style={styles.title}>{title}</Text>
         <Text style={styles.hint}>{hint}</Text>
@@ -89,19 +89,11 @@ export function ArrangeSheet({
           <Text style={styles.cancelLabel}>Cancel</Text>
         </Pressable>
       </View>
-    </Modal>
+    </FrameModal>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    backgroundColor: 'rgba(30,42,54,0.45)',
-  },
   sheet: {
     position: 'absolute',
     left: 0,

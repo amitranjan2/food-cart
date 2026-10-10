@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import * as Location from 'expo-location';
 import { reverseGeocode, searchPlaces, type Place } from '../../api/vendor';
 import { colors } from '../../theme';
 import type { VendorLocation } from '../../types';
+import { FrameModal } from '../../components/FrameModal';
 
 type Point = { lat: number; lng: number; accuracy?: number; fromSearch?: boolean };
 
@@ -85,8 +86,7 @@ export function LocationSheet({
   const mapUrl = point ? `https://www.google.com/maps/search/?api=1&query=${point.lat},${point.lng}` : '';
 
   return (
-    <Modal transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
+    <FrameModal onRequestClose={onClose}>
       <View style={styles.sheet}>
         <View style={styles.head}>
           {step === 'details' ? (
@@ -152,19 +152,11 @@ export function LocationSheet({
           </ScrollView>
         )}
       </View>
-    </Modal>
+    </FrameModal>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    backgroundColor: 'rgba(30,42,54,0.45)',
-  },
   sheet: {
     position: 'absolute',
     left: 0,
