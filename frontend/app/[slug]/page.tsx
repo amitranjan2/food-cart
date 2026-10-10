@@ -26,6 +26,7 @@ import {
 import { linkItemsToCategories } from './lib/menuLinks';
 import { addLine, lastLineOf, linesOf, quantitiesByItem, setLineQuantity, type CartEntry } from './lib/cartLines';
 import { RepeatPrompt } from './components/RepeatPrompt';
+import { PolicyFooter } from '../components/LegalPage';
 
 /** Most dishes shown in the cart's "You may also like" row. */
 const SUGGESTION_LIMIT = 12;
@@ -448,6 +449,7 @@ export default function Store({ params }: { params: { slug: string } }) {
           fallbackImage={store.coverImageUrl}
           nav={<CategoryNav categories={shownCategories} selectedId={categoryId} onSelect={selectCategory} />}
         />
+        <PolicyFooter />
       </div>
       {!customizing && chosen.length > 0 && (
         <CartBar
