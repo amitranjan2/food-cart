@@ -47,7 +47,7 @@ public class Geocoder {
     factory.setConnectTimeout(Duration.ofSeconds(5));
     factory.setReadTimeout(Duration.ofSeconds(8));
     this.http = RestClient.builder().baseUrl(base).requestFactory(factory)
-        .defaultHeader("User-Agent", "FoodCart/0.1 (" + contact + ")")
+        .defaultHeader("User-Agent", "SuprMama/0.1 (https://suprmama.in; " + contact + ")")
         .defaultHeader("Accept-Language", "en")
         .build();
   }

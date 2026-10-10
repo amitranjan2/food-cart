@@ -56,7 +56,7 @@ class GeocoderTest {
   void reverseGivesAShortAreaAndIdentifiesItself() {
     Geocoder.Place place = geocoder().reverse(28.4691, 77.0716);
     assertEquals("Galleria Market, DLF Phase IV, Sector 28, Gurugram", place.area());
-    assertEquals("FoodCart/0.1 (ops@example.com)", agent.get());
+    assertEquals("SuprMama/0.1 (https://suprmama.in; ops@example.com)", agent.get());
     assertTrue(query.get().contains("format=jsonv2"));
   }
 

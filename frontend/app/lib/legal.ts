@@ -4,8 +4,10 @@
  * and the gap is highlighted.
  */
 export const LEGAL = {
-  /** The name customers see. FoodCart vs Supr-Mama is still open (tracker S4.6). */
-  brand: 'FoodCart',
+  /** The name customers see (decided Oct 10, tracker S4.6). */
+  brand: 'Supr-Mama',
+  /** The storefront's address. */
+  domain: 'suprmama.in',
   /** Registered name, e.g. "Example Foods Private Limited" or the proprietor's name for a sole proprietorship. */
   company: null as string | null,
   /** Registered office address, one line. */
@@ -25,7 +27,7 @@ export const LEGAL = {
   lastUpdated: '10 October 2026',
 };
 
-export type LegalField = Exclude<keyof typeof LEGAL, 'brand' | 'lastUpdated'>;
+export type LegalField = Exclude<keyof typeof LEGAL, 'brand' | 'domain' | 'lastUpdated'>;
 
 export function missingLegalFields() {
   return (Object.keys(LEGAL) as (keyof typeof LEGAL)[]).filter(key => LEGAL[key] === null) as LegalField[];

@@ -58,7 +58,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   try {
     response = await fetch(`${getApiUrl()}${path}`, { ...rest, headers, body: payload });
   } catch {
-    throw new ApiError('Cannot reach the FoodCart API. Confirm the backend is running on port 8080.', 0);
+    throw new ApiError('Cannot reach the Supr-Mama API. Confirm the backend is running on port 8080.', 0);
   }
 
   const text = await response.text();
