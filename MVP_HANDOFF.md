@@ -11,7 +11,7 @@ The single source of truth for V1 work. Every session (human or Claude) reads th
 
 Legend: `[ ]` to do · `[~]` in progress · `[x]` done · **⛔ blocks** = must be finished before the item it names.
 
-Last updated: Oct 9, 2026.
+Last updated: Oct 10, 2026.
 
 ---
 
@@ -28,20 +28,32 @@ Last updated: Oct 9, 2026.
 - **Time slots** (Oct 9): orders are for a 30-minute slot. The customer picks any slot after the current one, up to the **end of tomorrow by the calendar** (last slot tomorrow 11:30 PM; tonight's after-midnight slots count as tomorrow), inside the vendor's own opening hours. Hours are set **per weekday**; a day can be closed; closing may be **after midnight** (that tail belongs to the evening it started). A vendor with **no hours set gets no slots, so no orders**. All times are India time (Asia/Kolkata).
 - **Consumer home** (Oct 10): no public list of vendors. Later, customers use an app and scan vendor storefront QR codes; every vendor a customer opens is saved permanently on their home page. In the web launch customers only reach vendors through storefront links, so the home page just shows the vendors they opened.
 - **Handover handshake** (Oct 10): an order is completed only when the party handing it over enters the customer's 4-digit code. The code is created when the vendor marks the order **Ready**; every order must pass through Ready. Lost code: support looks it up with `ops/handover-code.sh` after confirming the customer. Generic: vendor staff today, delivery partners for last-mile delivery later. The handing party never receives the code.
+- **OTP delivery** (Oct 10): **WhatsApp only for the MVP** (no SMS, so no DLT registration). Same flow for customers and vendors. Our own `OtpService` stays the validator; only a new `WhatsAppOtpSender` is added behind the existing `OtpSender` interface (Meta WhatsApp Cloud API, Authentication-category template). An SMS fallback can be added later as a second sender without touching the validator. Codes may move from 6 to 4 digits if needed (see S1.9).
+- **Handover vs OTP** (Oct 10): the handover code is **shown in the app** (customer status page) and entered by the handing party; it is never sent over WhatsApp. Only phone-number verification (customer and vendor login) goes over WhatsApp. They keep separate validators (`HandoverRules` vs `OtpService`); only the code length (S1.9) is shared.
 - **Branching** (Oct 9): `storefront-development` is the working branch.
 
 ## Open questions
 - [ ] **Payout model: Razorpay Route vs collecting centrally.** Leaning Route: collecting customers' money and settling vendors by hand probably counts as acting as a payment aggregator under RBI rules, which needs a licence. **Confirm with Razorpay or a CA** before building either. With Route, hold each vendor transfer until the vendor accepts the order, so a rejection is a plain refund, not a reversal from the vendor's account.
 - [ ] **Can every pilot vendor get a Route linked account?** It needs a PAN and a bank account in the business's name; some street vendors only have a personal savings account or UPI. Ask 3–5 real vendors.
 - [ ] **One mobile number for two stalls?** `vendors.mobile` is indexed but not unique, yet vendor login looks vendors up by mobile. If no: make it unique (drop the old `mobile` index first, or startup index creation fails). Tracked as S4.9.
-- [ ] SMS/OTP provider (suggested MSG91).
+- [x] SMS/OTP provider: **decided Oct 10**, WhatsApp Cloud API only for the MVP (see Decisions). Direct with Meta vs a BSP (Gupshup, Interakt, MSG91): defaulting to Meta direct (no markup); switch to a BSP only if Meta's business verification blocks us.
+- [x] Reuse the OTP validator for order handover? **No, decided Oct 10** (see Decisions).
 - [ ] Image storage: server disk vs R2/S3.
 - [x] Delete the old Next.js `/vendor` console: **deleted** Oct 10 (S3.6).
 
 ## Non-code tasks (start now: these take days)
 - [ ] **N1** Razorpay account + KYC (Aks). Approval takes days.
 - [ ] **N2** Ask Razorpay whether Route fits a marketplace of small vendors, and what each linked account needs (Aks). Answers the payout question.
-- [ ] **N3** SMS provider account + **DLT registration** of the sender ID and OTP template (Aks). Takes days. ⛔ blocks go-live: the API refuses to start outside `local` without an `OtpSender`.
+- [ ] **N3** WhatsApp Cloud API setup + OTP template approval (Aks). Takes days, so start now. ⛔ blocks go-live: the API refuses to start outside `local` without an `OtpSender`. Steps:
+  1. **Meta Business account**: business.facebook.com, create a Business portfolio for the business (use the legal name and details that match your documents).
+  2. **Developer app**: developers.facebook.com → My Apps → Create App → type *Business* → add the **WhatsApp** product. This creates a WhatsApp Business Account (WABA) with a **test phone number** you can use straight away.
+  3. **Test first, no verification needed**: in *WhatsApp → API Setup*, add up to 5 recipient numbers (they confirm with a code) and send the sample `hello_world` template. Use this to build and test S1.8 before the real number is approved.
+  4. **Real sender number**: add a phone number that can receive an SMS/call for verification and is **not already on WhatsApp or the WhatsApp Business app** (a fresh SIM is simplest). Set the **display name** (e.g. "FoodCart"; must match the business, takes a short review).
+  5. **Business verification** (Business settings → Security Center): upload the business's legal documents. Without it you are capped at a small number of new customers per day (~250 unique users per 24 h), and you can't raise the limit.
+  6. **Payment method**: add a card or UPI under the WABA's billing settings. WhatsApp bills per message; Authentication messages have their own rate, so check Meta's current India rate card.
+  7. **Template**: *WhatsApp Manager → Message templates → Create template*, category **Authentication**, name `foodcart_otp`, language English (and Hindi if wanted). Meta fixes the wording ("*{{1}} is your verification code.*"); tick *Add security recommendation* ("do not share this code") and *Add expiry time* (**5 minutes**, to match `OtpRules.CODE_LIFETIME`); button type **Copy code**. Submit. Authentication templates are usually approved in minutes to a few hours. Wait for status **Approved**.
+  8. **Token**: Business settings → Users → **System users** → create one (Admin), assign it the WABA, generate a token with `whatsapp_business_messaging` and `whatsapp_business_management`, **never expiry**. Note the **Phone number ID** (API Setup page) and the **Graph API version**.
+  9. Put these in the API's environment (never in the repo): `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_OTP_TEMPLATE=foodcart_otp`, `WHATSAPP_API_VERSION`.
 - [ ] **N4** Ask 3–5 pilot vendors about PAN / business bank account (Aks).
 
 ---
@@ -64,7 +76,16 @@ Verified (Oct 9):
 
 Follow-ups:
 - [ ] **S1.7** Click through the OTP screens by hand in the storefront and the vendor app.
-- [ ] **S1.8** Implement the chosen provider's `OtpSender` (needs N3).
+- [ ] **S1.8** `WhatsAppOtpSender` (needs N3 step 2 for the test number, step 7–9 for real use). `OtpService`, `OtpRules`, the endpoints and both apps stay as they are.
+  - Add `service/otp/WhatsAppOtpSender implements OtpSender`, active when `WHATSAPP_TOKEN` is set and the profile is not `local` (`@ConditionalOnProperty`). `fixedCode()` stays `null`.
+  - `send(mobile, code)`: `POST https://graph.facebook.com/{version}/{phone-number-id}/messages` with `Authorization: Bearer {token}` and JSON: `{"messaging_product":"whatsapp","to":"91{10-digit mobile}","type":"template","template":{"name":"foodcart_otp","language":{"code":"en"},"components":[{"type":"body","parameters":[{"type":"text","text":"{code}"}]},{"type":"button","sub_type":"url","index":"0","parameters":[{"type":"text","text":"{code}"}]}]}}`. The code goes in **both** the body and the button, which Meta requires for Authentication templates. Use Spring's `RestClient` with a short timeout (≈5 s); no extra dependency.
+  - Mobile numbers are stored as 10 digits: prefix `91`, and check that the app has no other country in play.
+  - Error handling: a non-2xx response or timeout must **not** leave the user thinking a code was sent. Throw a clear "Couldn't send the code on WhatsApp. Try again." error, log Meta's error code (never the token or the code). A failed send still counts against the hourly limit, because `OtpRules.recordSend` runs before `send`; accepted for the MVP.
+  - Mind the user's WhatsApp: if the number isn't on WhatsApp, Meta accepts the request but delivery fails later via a **status webhook** (`statuses[].status = failed`, error 131026). For the MVP show "Didn't get it? Make sure this number is on WhatsApp." beside Resend; building the webhook is a follow-up.
+  - Tests: unit-test the request body (JSON shape, `91` prefix, code in both places) and failure handling with a mock HTTP server; no real calls in tests.
+  - Verify: with the Meta **test number** and your own number added as a recipient, run the API with the production profile and `WHATSAPP_*` set; log in as a customer and as a vendor; check the message arrives, the Copy code button works, a wrong code and an expired code are refused. Also confirm the API still **refuses to start** with no sender configured.
+  - Update the README "Login and OTP" section (it still says "SMS provider") and list the `WHATSAPP_*` variables there, in the same commit.
+- [ ] **S1.9** Make the code length a setting (`otp.code-length`, default 6; 4 allowed). `OtpRules.newCode` uses `%06d` and the frontends probably assume 6 boxes/characters (`Cart.tsx`, vendor `LoginScreen.tsx`); change the Submit-after-6-digits trigger to follow the setting. **Trade-off:** a 4-digit code has 10,000 values, so 5 attempts is a 1-in-2,000 guess per code. That's fine with the lockout, 5-minute expiry and send limits already in place, but it makes S4.8 (per-IP limit) more important. Keep the length the same for the handover code (already 4 digits).
 - Notes: the API needs MongoDB reachable at startup (index creation runs on boot). Unknown-vendor OTP requests reveal whether a number belongs to a vendor; accepted as low risk.
 
 ## Step 2: ordering flow and payments
@@ -129,7 +150,7 @@ Order matters: **S2.1 and S2.2 ⛔ block S2.3**.
 - [ ] **S4.5** Backend Dockerfile, MongoDB Atlas, HTTPS. Vendor app on the web uses `window.location.origin` for the API.
 - [ ] **S4.6** One brand: "FoodCart" vs "Supr-Mama".
 - [ ] **S4.7** Remove dead `OrderService` (unused duplicate of `CheckoutService`).
-- [ ] **S4.8** Per-IP rate limit on `/api/auth/*` (reverse proxy or app). ⛔ blocks go-live: the per-number limits alone still let one attacker spend SMS credits on any number.
+- [ ] **S4.8** Per-IP rate limit on `/api/auth/*` (reverse proxy or app). ⛔ blocks go-live: the per-number limits alone still let one attacker spend WhatsApp message fees on any number. Also add a global daily cap on sends as a spending backstop.
 - [ ] **S4.9** Make `vendors.mobile` unique if the open question says one number = one stall.
 - [ ] **S4.10** Repo `amitranjan2/food-cart` is **public**. Decide whether to make it private; either way, no secrets in the repo.
 - [x] **S4.11** Storefront home header cut off and search bar missing (commit tagged `S4.11`, Oct 9). Cause: merge `f32aaa8` kept `StoreHeader.tsx` from 6f6791c (search split into `StoreSearch`) but `page.tsx` from a20e15b (which never renders it), so `.store-body`'s `margin-top:-22px` slid over the header. Fix: render `StoreSearch` under the header; removed its unused window-scroll pinning (the page scrolls `.storefront`, and CSS `position: sticky` already pins it).
