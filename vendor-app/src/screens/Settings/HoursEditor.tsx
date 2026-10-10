@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { CopyDishIcon } from '../../components/icons/MenuActionIcons';
+import { CopyDishIcon, EditDishIcon } from '../../components/icons/MenuActionIcons';
 import { colors } from '../../theme';
 import type { Weekday } from '../../types';
 import { DAYS, endChoices, nextSlot, setEnd, setStart, startChoices, timeLabel, type Week } from '../../utils/hours';
@@ -9,11 +9,15 @@ type Editing = { day: Weekday; index: number; field: 'opens' | 'closes' } | null
 
 /**
  * Each day's opening slots in time order, in 24-hour time. A slot lies inside the day (00:00 → 24:00); the next slot
- * starts at or after the previous one ends. A day with no slots is closed. "Copy to…" repeats a day's slots on others.
+ * starts at or after the previous one ends. A day with no slots is closed. Days show their slots read-only; the edit
+ * icon opens one day for changing times, removing slots and adding one below the last. The copy icon repeats a day's
+ * slots on other days.
  */
 export function HoursEditor({ week, onChange }: { week: Week; onChange: (week: Week) => void }) {
   const [editing, setEditing] = useState<Editing>(null);
   const [copyFrom, setCopyFrom] = useState<Weekday | null>(null);
+  /** The day open for editing (one at a time). */
+  const [editDay, setEditDay] = useState<Weekday | null>(null);
   const [copyTo, setCopyTo] = useState<Weekday[]>([]);
 
   function change(day: Weekday, slots: Week[Weekday]) {
@@ -35,12 +39,27 @@ export function HoursEditor({ week, onChange }: { week: Week; onChange: (week: W
         const slots = week[day];
         const added = nextSlot(slots);
         const copying = copyFrom === day;
+        const open = editDay === day;
         return (
           <View key={day} style={styles.day} accessibilityLabel={label}>
             <View style={styles.dayHead}>
               <Text style={styles.dayName}>{label}</Text>
               <Text style={[styles.state, slots.length ? styles.open : styles.closed]}>{slots.length ? 'Open' : 'Closed'}</Text>
               <View style={styles.spacer} />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={open ? `Done editing ${label}` : `Edit ${label}`}
+                accessibilityState={{ expanded: open }}
+                onPress={() => {
+                  setEditDay(open ? null : day);
+                  setEditing(null);
+                  setCopyFrom(null);
+                }}
+                hitSlop={8}
+                style={[styles.copyIcon, open && styles.copyIconOn]}
+              >
+                <EditDishIcon size={18} />
+              </Pressable>
               {slots.length ? (
                 <Pressable
                   accessibilityRole="button"
@@ -49,6 +68,7 @@ export function HoursEditor({ week, onChange }: { week: Week; onChange: (week: W
                     setCopyFrom(copying ? null : day);
                     setCopyTo([]);
                     setEditing(null);
+                    setEditDay(null);
                   }}
                   hitSlop={8}
                   style={[styles.copyIcon, copying && styles.copyIconOn]}
@@ -70,6 +90,7 @@ export function HoursEditor({ week, onChange }: { week: Week; onChange: (week: W
                         <Pressable
                           accessibilityRole="button"
                           accessibilityLabel={`${label} slot ${index + 1} ${field === 'opens' ? 'opens' : 'closes'} ${timeLabel(slot[field])}`}
+                          disabled={!open}
                           onPress={() => setEditing(editingThis?.field === field ? null : { day, index, field })}
                           style={[styles.time, editingThis?.field === field && styles.timeActive]}
                         >
@@ -77,6 +98,7 @@ export function HoursEditor({ week, onChange }: { week: Week; onChange: (week: W
                         </Pressable>
                       </View>
                     ))}
+                    {open ? (
                     <Pressable
                       accessibilityRole="button"
                       accessibilityLabel={`Remove ${label} slot ${index + 1}`}
@@ -89,6 +111,7 @@ export function HoursEditor({ week, onChange }: { week: Week; onChange: (week: W
                     >
                       <Text style={styles.removeLabel}>✕</Text>
                     </Pressable>
+                    ) : null}
                   </View>
                   {editingThis ? (
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.picker}>
@@ -113,7 +136,7 @@ export function HoursEditor({ week, onChange }: { week: Week; onChange: (week: W
               );
             })}
 
-            {added ? (
+            {open && added ? (
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={`Add a slot on ${label}`}
@@ -125,8 +148,8 @@ export function HoursEditor({ week, onChange }: { week: Week; onChange: (week: W
               >
                 <Text style={styles.linkLabel}>+ {slots.length ? 'Add slot' : 'Open this day'}</Text>
               </Pressable>
-            ) : slots.length ? (
-              <Text style={styles.full}>Open until 24:00</Text>
+            ) : open && slots.length ? (
+              <Text style={styles.full}>Open until 24:00, no more slots fit</Text>
             ) : null}
 
             {copying ? (
@@ -274,6 +297,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   copyIcon: {
+    marginLeft: 4,
     width: 34,
     height: 34,
     borderRadius: 8,
