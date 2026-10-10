@@ -37,7 +37,7 @@ Demo vendors, menus and orders (`SeedData`, `DemoData`, `CatalogEnricher`, `/api
 | Variable | Purpose |
 |---|---|
 | `MONGODB_URI` | MongoDB connection string |
-| `CORS_ORIGIN` | Storefront origin, e.g. `https://suprmama.in` |
+| `CORS_ORIGIN` | Browser origins allowed to call the API, comma-separated: the storefront and the vendor web app, e.g. `https://suprmama.in,https://vendor.suprmama.in`. Default `https://suprmama.in`; `localhost` is allowed only in the `local` profile |
 | `PUBLIC_BASE_URL` | Public address of this API; used to build image URLs |
 | `UPLOAD_DIR` | Where uploaded images are stored; must be a persistent volume |
 | `WHATSAPP_TOKEN` | System-user token for the WhatsApp Business Account (`whatsapp_business_messaging`); a secret, never in the repo |

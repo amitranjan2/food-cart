@@ -367,3 +367,10 @@ html.scroll-locked,html.scroll-locked body,.storefront.scroll-locked{overflow:hi
   .poster-head h1{font-size:64px}.poster-head p{font-size:20px}.poster-call{font-size:56px}.poster-steps,.poster-link{font-size:22px}.poster-foot{font-size:15px}
   .poster-head,.poster-foot,.poster-steps li::before{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
+
+/* Store link that doesn't exist, and a stall switched off (tracker S4.3). */
+.store-missing{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:24px;text-align:center}
+.store-missing h1{margin:0;font-size:var(--fs-xl)}
+.store-missing p{margin:0;font-size:var(--fs-sm);opacity:.8}
+.store-missing a{margin-top:8px;border-radius:12px;background:var(--store-ink);color:#fff;font-weight:800;padding:12px 18px;text-decoration:none}
+.store-closed{margin:12px 12px 0;padding:12px 14px;border-radius:14px;background:#fff4d6;color:#7a4b06;font-size:var(--fs-sm);line-height:1.4}

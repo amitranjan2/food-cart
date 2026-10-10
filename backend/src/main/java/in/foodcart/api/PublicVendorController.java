@@ -1,6 +1,7 @@
 package in.foodcart.api;
 
 import in.foodcart.data.*;
+import in.foodcart.domain.VendorStatus;
 import in.foodcart.service.PublicMenuView;
 import in.foodcart.service.StoreLinks;
 import in.foodcart.service.StoreQr;
@@ -49,12 +50,15 @@ public class PublicVendorController {
         .orElse(ResponseEntity.notFound().build());
   }
 
-  /** Slots the customer can pick now, in India time ("2026-10-09T14:30"). hoursSet is false until the vendor saves opening hours. */
+  /** Slots the customer can pick now, in India time ("2026-10-09T14:30"). hoursSet is false until the vendor saves opening hours; open is false while the stall is switched off. */
   @GetMapping("/{slug}/slots")
   public ResponseEntity<Map<String, Object>> slots(@PathVariable String slug) {
     return vendors.findBySlug(slug).map(v -> {
-      List<String> slots = SlotRules.slots(v.openingHours, LocalDateTime.now(SlotRules.ZONE)).stream().map(LocalDateTime::toString).toList();
+      // A stall switched off in the vendor app offers no slots at all (checkout refuses it too).
+      boolean open = v.status == VendorStatus.OPEN;
+      List<String> slots = open ? SlotRules.slots(v.openingHours, LocalDateTime.now(SlotRules.ZONE)).stream().map(LocalDateTime::toString).toList() : List.of();
       Map<String, Object> result = new LinkedHashMap<>();
+      result.put("open", open);
       result.put("hoursSet", v.openingHours != null && !v.openingHours.isEmpty());
       result.put("slots", slots);
       return ResponseEntity.ok(result);

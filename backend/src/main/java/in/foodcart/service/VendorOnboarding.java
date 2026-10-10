@@ -40,6 +40,7 @@ public class VendorOnboarding {
     try {
       return vendors.save(v);
     } catch (DuplicateKeyException race) {
+      if (String.valueOf(race.getMessage()).contains("mobile")) throw new IllegalStateException("A store already uses " + mobile + ".");
       throw new IllegalStateException("The store link \"" + slug + "\" is taken. Pass another one.");
     }
   }

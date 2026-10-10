@@ -34,6 +34,7 @@ const SUGGESTION_LIMIT = 12;
 
 export default function Store({ params }: { params: { slug: string } }) {
   const [vendor, setVendor] = useState<Vendor>();
+  const [missing, setMissing] = useState(false);
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [items, setItems] = useState<MenuItem[]>([]);
@@ -44,7 +45,7 @@ export default function Store({ params }: { params: { slug: string } }) {
   const [closingCustomizer, setClosingCustomizer] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout>>();
   const [open, setOpen] = useState(false);
-  const [slots, setSlots] = useState<{ hoursSet: boolean; slots: string[] } | null>(null);
+  const [slots, setSlots] = useState<{ open?: boolean; hoursSet: boolean; slots: string[] } | null>(null);
   const [mobile, setMobile] = useState('');
   const [otp, setOtp] = useState('');
   /** Set once the customer submits a correct OTP; Pay uses it. */
@@ -70,9 +71,12 @@ export default function Store({ params }: { params: { slug: string } }) {
 
   useEffect(() => {
     let active = true;
-    request<Vendor>('/api/public/vendors/' + params.slug).then(next => {
-      if (active) setVendor(next);
-    });
+    setMissing(false);
+    request<Vendor>('/api/public/vendors/' + params.slug)
+      .then(next => {
+        if (active) setVendor(next);
+      })
+      .catch(() => active && setMissing(true));
     request<PublicMenu>('/api/public/vendors/' + params.slug + '/menu').then(menu => {
       if (!active) return;
       const nextCategories = menu.categories ?? [];
@@ -218,11 +222,20 @@ export default function Store({ params }: { params: { slug: string } }) {
   }, [open, params.slug]);
 
   function loadSlots() {
-    request<{ hoursSet: boolean; slots: string[] }>('/api/public/vendors/' + params.slug + '/slots')
+    request<{ open?: boolean; hoursSet: boolean; slots: string[] }>('/api/public/vendors/' + params.slug + '/slots')
       .then(setSlots)
       .catch(() => setSlots({ hoursSet: true, slots: [] }));
   }
 
+  if (missing) {
+    return (
+      <main className="storefront store-missing">
+        <h1>No store at this link</h1>
+        <p>Check the link, or scan the QR code at the stall again.</p>
+        <a href="/">Go to your stalls</a>
+      </main>
+    );
+  }
   if (!vendor) return <main className="storefront"><p className="store-loading">Loading…</p></main>;
   const store = vendor;
 
@@ -412,6 +425,7 @@ export default function Store({ params }: { params: { slug: string } }) {
             total={total}
             slots={slots?.slots ?? null}
             hoursSet={slots?.hoursSet ?? true}
+            storeOpen={slots?.open ?? store.status === 'OPEN'}
             mobile={mobile}
             otp={otp}
             fallbackImage={store.coverImageUrl}
@@ -439,6 +453,11 @@ export default function Store({ params }: { params: { slug: string } }) {
       </StoreHeader>
       <StoreSearch query={query} onQueryChange={setQuery} />
       <div className="store-body">
+        {store.status === 'CLOSED' ? (
+          <p className="store-closed" role="status">
+            <strong>Not taking orders right now.</strong> You can still look at the menu; check back when the stall opens.
+          </p>
+        ) : null}
         <Menu
           items={shown}
           orderAgain={orderAgainIds.map(id => items.find(item => item.id === id)).filter((item): item is MenuItem => item !== undefined)}

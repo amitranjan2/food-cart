@@ -14,6 +14,15 @@ export function handOverOrder(token: string, orderId: string, code: string) {
   });
 }
 
+/** Calls off an accepted order; the customer is refunded in full. reason is a CANCEL_REASONS key. */
+export function cancelOrder(token: string, orderId: string, reason: string) {
+  return request<Order>(`/api/vendor/orders/${orderId}/cancel`, {
+    method: 'POST',
+    token,
+    body: { reason },
+  });
+}
+
 export function patchOrderStatus(token: string, orderId: string, status: OrderStatus) {
   return request<Order>(`/api/vendor/orders/${orderId}/status`, {
     method: 'PATCH',

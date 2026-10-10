@@ -117,6 +117,7 @@ export function Cart({
   total,
   slots,
   hoursSet,
+  storeOpen = true,
   mobile,
   otp,
   fallbackImage,
@@ -143,6 +144,8 @@ export function Cart({
   /** null while loading. */
   slots: string[] | null;
   hoursSet: boolean;
+  /** False while the vendor has switched the stall off. */
+  storeOpen?: boolean;
   mobile: string;
   otp: string;
   fallbackImage?: string;
@@ -280,6 +283,7 @@ export function Cart({
     ? onceSlot ? slotLabel(onceSlot) : slots === null ? '…' : onceOptions.length ? 'Select a time' : 'None'
     : clockLabel(dateAtMinutes(subscribeMinutes));
   const slotProblem = slots === null || onceOptions.length ? ''
+    : !storeOpen ? 'This stall isn’t taking orders right now. Check back when it opens.'
     : hoursSet ? 'No time slots left today or tomorrow.' : 'This vendor hasn’t set opening hours yet, so orders can’t be placed.';
   const needsAddress = fulfillment === 'delivery' && !address;
 

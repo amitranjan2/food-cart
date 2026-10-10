@@ -2,3 +2,4 @@ spring:
   data.mongodb.uri: mongodb://localhost:27017/foodcart
 logging.level.in.foodcart: DEBUG
 app.store-url: http://localhost:3000
+app.cors-origin: http://localhost:3000,http://localhost:3001

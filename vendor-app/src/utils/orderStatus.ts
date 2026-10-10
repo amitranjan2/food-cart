@@ -26,6 +26,17 @@ export const ORDER_BADGE: Record<OrderStatus, { label: string; tone: Tone }> = {
   CANCELLED: { label: 'Cancelled', tone: 'danger' },
 };
 
+/** Orders the vendor can still call off (with a refund). New ones are rejected instead. */
+export const CANCELLABLE: OrderStatus[] = ['ACCEPTED', 'PREPARING', 'READY'];
+
+/** Same wording as the API's CancelReasons and the storefront's order page. */
+export const CANCEL_REASONS: { key: string; label: string }[] = [
+  { key: 'ITEM_UNAVAILABLE', label: 'A dish ran out' },
+  { key: 'STALL_CLOSING', label: 'The stall had to close' },
+  { key: 'TOO_BUSY', label: 'The kitchen is too busy' },
+  { key: 'OTHER', label: 'Something came up at the stall' },
+];
+
 export function orderStatusStartedAt(order: Order) {
   if (order.status === 'ACCEPTED') return order.acceptedAt || order.createdAt;
   if (order.status === 'PREPARING') return order.preparingAt || order.acceptedAt || order.createdAt;

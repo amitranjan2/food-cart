@@ -35,6 +35,8 @@ export type Order = {
   paymentMethod?: string | null;
   rejectionReason?: string | null;
   rejectionNote?: string | null;
+  /** Why the order was cancelled after accepting (CANCEL_REASONS key). */
+  cancelReason?: string | null;
   status: OrderStatus;
   items: OrderItem[];
   subtotal?: number;
