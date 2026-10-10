@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { request, type PublicMenu, type Vendor } from '../../../lib/api';
-import { CANCEL_REASONS, indiaTime, type CustomerOrder, type OrderView } from '../../../lib/orders';
+import { indiaTime, type CustomerOrder, type OrderView } from '../../../lib/orders';
 import { storedSession } from '../../../lib/session';
 import { formatRupee } from '../../lib/customization';
 import { themeStyle } from '../../../lib/theme';
@@ -29,14 +29,8 @@ function copyFor(order: CustomerOrder, vendorName: string) {
     case 'COMPLETED':
       return { title: dineIn ? 'Served' : 'Picked up', message: `Enjoy your meal! Thanks for ordering from ${vendorName}.` };
     case 'REJECTED':
-      return { title: 'Not accepted', message: 'The kitchen couldn’t accept this order. Your payment is refunded in full and reaches you in 3–5 business days.' };
-    case 'CANCELLED': {
-      const reason = order.cancelReason ? CANCEL_REASONS[order.cancelReason] : '';
-      return {
-        title: 'Cancelled by the kitchen',
-        message: `${reason ? reason + '. ' : ''}Sorry about that. Your payment is refunded in full and reaches you in 3–5 business days.`,
-      };
-    }
+    case 'CANCELLED':
+      return { title: 'Cancelled', message: 'The kitchen couldn’t accept this order. Any amount paid will be refunded in 3–5 business days.' };
     case 'EXPIRED':
       return { title: 'Payment not completed', message: 'This order wasn’t paid in time, so it was not sent to the kitchen. If any amount was taken, it will be refunded.' };
   }

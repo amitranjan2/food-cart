@@ -11,16 +11,6 @@ export type CustomerOrder = {
   total: number;
   items: { menuItemId: string; name: string; portion?: string; summary?: string | null; quantity: number; lineTotal: number }[];
   payment?: { status: string } | null;
-  /** Why the kitchen cancelled after accepting (a CANCEL_REASONS key). */
-  cancelReason?: string | null;
-};
-
-/** Same wording as the vendor app's cancel dialog and the API's CancelReasons. */
-export const CANCEL_REASONS: Record<string, string> = {
-  ITEM_UNAVAILABLE: 'A dish ran out',
-  STALL_CLOSING: 'The stall had to close',
-  TOO_BUSY: 'The kitchen is too busy',
-  OTHER: 'Something came up at the stall',
 };
 
 /** GET /api/orders/{id}. phone is present only once the order is paid. */

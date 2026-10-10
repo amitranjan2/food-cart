@@ -155,22 +155,4 @@ public class CheckoutService {
     }
     return orders.save(o);
   }
-
-  /**
-   * The vendor calls off an order they already accepted (a dish ran out, the stall closes): the customer is refunded in
-   * full. New orders are rejected instead; completed ones can't be undone here.
-   */
-  public OrderEntity cancel(String vendorId, String id, String reason) {
-    OrderEntity o = orders.findByIdAndVendorId(id, vendorId).orElseThrow(() -> new SecurityException("Order not found"));
-    String key = CancelReasons.check(reason);
-    if (o.status == OrderStatus.PLACED) throw new IllegalStateException("Reject new orders instead of cancelling them.");
-    if (o.status != OrderStatus.ACCEPTED && o.status != OrderStatus.PREPARING && o.status != OrderStatus.READY) {
-      throw new IllegalStateException("This order can no longer be cancelled.");
-    }
-    o.status = OrderStatus.CANCELLED;
-    o.cancelReason = key;
-    o.cancelledAt = Instant.now(clock);
-    payments.refundIfPaid(o);
-    return orders.save(o);
-  }
 }

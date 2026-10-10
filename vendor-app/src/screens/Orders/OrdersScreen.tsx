@@ -10,7 +10,6 @@ import { EmptyState } from '../../components/EmptyState';
 import { ErrorState } from '../../components/ErrorState';
 import { Header } from '../../components/Header';
 import { LoadingState } from '../../components/LoadingState';
-import { CancelOrderSheet } from '../../components/CancelOrderSheet';
 import { HandoverSheet } from '../../components/HandoverSheet';
 import { OrderCard } from '../../components/OrderCard';
 import { Screen } from '../../components/Screen';
@@ -33,7 +32,7 @@ type Props = NativeStackScreenProps<OrdersStackParamList, 'OrdersList'>;
 
 export function OrdersScreen({ navigation }: Props) {
   const { vendor, token, logout, setVendor } = useAuth();
-  const { orders, loading, refreshing, error, refresh, advanceStatus, handOver, cancel } = useOrders();
+  const { orders, loading, refreshing, error, refresh, advanceStatus, handOver } = useOrders();
   const [handoverId, setHandoverId] = useState<string | null>(null);
   const handoverOrder = orders.find(item => item.id === handoverId);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -47,7 +46,6 @@ export function OrdersScreen({ navigation }: Props) {
   const listRef = useRef<FlatList<Order>>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [rejecting, setRejecting] = useState<Order | null>(null);
-  const [cancelling, setCancelling] = useState<Order | null>(null);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
@@ -212,7 +210,6 @@ export function OrdersScreen({ navigation }: Props) {
                   highlighted={highlightId === item.id}
                   onAdvance={() => (item.status === 'READY' ? setHandoverId(item.id) : advance(item.id))}
                   onReject={() => setRejecting(item)}
-                  onCancel={() => setCancelling(item)}
                 />
               )}
             />
@@ -229,16 +226,6 @@ export function OrdersScreen({ navigation }: Props) {
           onSubmit={async code => {
             await handOver(handoverOrder, code);
             setHandoverId(null);
-          }}
-        />
-      ) : null}
-      {cancelling ? (
-        <CancelOrderSheet
-          order={cancelling}
-          onClose={() => setCancelling(null)}
-          onCancel={async reason => {
-            await cancel(cancelling, reason);
-            setCancelling(null);
           }}
         />
       ) : null}

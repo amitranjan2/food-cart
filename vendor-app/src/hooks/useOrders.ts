@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { ordersForDay, pagerDayKey } from '../utils/orderDay';
-import { cancelOrder, getVendorOrders, handOverOrder, patchOrderStatus } from '../api/orders';
+import { getVendorOrders, handOverOrder, patchOrderStatus } from '../api/orders';
 import { isAuthFailure } from '../api/client';
 import { useAuth } from '../state/AuthContext';
 import type { Order, OrderStatus } from '../types';
@@ -73,17 +73,7 @@ export function useOrders() {
     [token],
   );
 
-  /** After accepting: refunds the customer. */
-  const cancel = useCallback(
-    async (order: Order, reason: string) => {
-      if (!token) return;
-      await cancelOrder(token, order.id, reason);
-      setOrders(await getVendorOrders(token));
-    },
-    [token],
-  );
-
-  return { orders, loading, refreshing, error, refresh, advanceStatus, handOver, cancel };
+  return { orders, loading, refreshing, error, refresh, advanceStatus, handOver };
 }
 
 export function filterOrders(

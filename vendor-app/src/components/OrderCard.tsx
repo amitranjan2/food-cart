@@ -3,7 +3,7 @@ import { colors, radius, typography } from '../theme';
 import type { Order } from '../types';
 import { Badge, Button, Card } from '../ui';
 import { formatElapsed, formatSlot, rupees } from '../utils/format';
-import { CANCEL_REASONS, CANCELLABLE, formatOrderType, ORDER_BADGE, ORDER_LIST_ACTION, orderStatusStartedAt } from '../utils/orderStatus';
+import { formatOrderType, ORDER_BADGE, ORDER_LIST_ACTION, orderStatusStartedAt } from '../utils/orderStatus';
 
 export function OrderCard({
   order,
@@ -12,7 +12,6 @@ export function OrderCard({
   highlighted,
   onAdvance,
   onReject,
-  onCancel,
 }: {
   order: Order;
   busy?: boolean;
@@ -21,8 +20,6 @@ export function OrderCard({
   highlighted?: boolean;
   onAdvance?: () => void;
   onReject?: () => void;
-  /** Accepted orders only: opens the cancel sheet. */
-  onCancel?: () => void;
 }) {
   const action = ORDER_LIST_ACTION[order.status];
   const elapsed = formatElapsed(orderStatusStartedAt(order), now);
@@ -54,9 +51,6 @@ export function OrderCard({
         ))}
       </View>
       <Text style={typography.heading}>{rupees(order.total)}</Text>
-      {order.status === 'CANCELLED' && order.cancelReason ? (
-        <Text style={styles.reason}>Cancelled: {CANCEL_REASONS.find(entry => entry.key === order.cancelReason)?.label ?? order.cancelReason}</Text>
-      ) : null}
       {action ? (
         <View style={styles.actions}>
           {isNew ? (
@@ -68,12 +62,7 @@ export function OrderCard({
           ) : (
             <View />
           )}
-          <View style={styles.end}>
-            {CANCELLABLE.includes(order.status) && onCancel ? (
-              <Button label="Cancel" variant="quiet" size="sm" disabled={busy} onPress={onCancel} accessibilityLabel={`Cancel order ${order.orderNumber}`} />
-            ) : null}
-            <Button label={isNew && elapsed ? `${action} · ${elapsed}` : action} size="sm" busy={busy} onPress={onAdvance} />
-          </View>
+          <Button label={isNew && elapsed ? `${action} · ${elapsed}` : action} size="sm" busy={busy} onPress={onAdvance} />
         </View>
       ) : null}
     </Card>
@@ -119,16 +108,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: 8,
-  },
-  end: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  reason: {
-    color: colors.danger,
-    fontSize: 13,
-    fontWeight: '600',
   },
   timer: {
     backgroundColor: colors.tint,
