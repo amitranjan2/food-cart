@@ -46,5 +46,7 @@ Demo vendors, menus and orders (`SeedData`, `DemoData`, `CatalogEnricher`, `/api
 | `WHATSAPP_OTP_LANGUAGE` | The template's language code exactly as WhatsApp Manager shows it, e.g. `en` or `en_US` |
 | `WHATSAPP_API_VERSION` | Graph API version, e.g. `v21.0` |
 | `WHATSAPP_API_BASE` | Optional, default `https://graph.facebook.com`; only changed for testing against a stand-in |
+| `NOMINATIM_CONTACT` | Email in the User-Agent for OpenStreetMap lookups (their usage policy asks for a contact) |
+| `NOMINATIM_BASE` | Optional, default `https://nominatim.openstreetmap.org`; only changed for testing |
 
 Add per-IP rate limiting on `/api/auth/*` at the reverse proxy.

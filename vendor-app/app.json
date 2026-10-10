@@ -24,7 +24,16 @@
       "backgroundColor": "#d8ecff"
     },
     "plugins": [
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Your stall's location is shown to customers so they can find you.",
+          "locationAlwaysAndWhenInUsePermission": false,
+          "locationAlwaysPermission": false,
+          "isAndroidBackgroundLocationEnabled": false
+        }
+      ]
     ]
   }
 }

@@ -27,6 +27,7 @@ import { linkItemsToCategories } from './lib/menuLinks';
 import { addLine, lastLineOf, linesOf, quantitiesByItem, setLineQuantity, type CartEntry } from './lib/cartLines';
 import { RepeatPrompt } from './components/RepeatPrompt';
 import { PolicyFooter } from '../components/LegalPage';
+import { themeStyle } from '../lib/theme';
 
 /** Most dishes shown in the cart's "You may also like" row. */
 const SUGGESTION_LIMIT = 12;
@@ -395,7 +396,7 @@ export default function Store({ params }: { params: { slug: string } }) {
   const underlay = customizing ? 'customizer-underlay' : undefined;
 
   return (
-    <main className={'storefront' + (customizing ? ' customizing' : '') + (customizing && closingCustomizer ? ' closing' : '') + (open ? ' cart-open' : '')}>
+    <main className={'storefront' + (customizing ? ' customizing' : '') + (customizing && closingCustomizer ? ' closing' : '') + (open ? ' cart-open' : '')} style={themeStyle(store)}>
       {open ? (
         <div className={underlay} aria-hidden={customizing ? true : undefined}>
           <Cart

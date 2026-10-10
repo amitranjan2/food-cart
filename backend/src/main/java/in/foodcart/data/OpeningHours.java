@@ -2,7 +2,7 @@ package in.foodcart.data;
 
 import java.time.DayOfWeek;
 
-/** One weekday's hours, stored on the vendor. "HH:mm" on the half hour. A closing time at or before the opening time ends after midnight. */
+/** One opening slot on a weekday, stored on the vendor. "HH:mm" on the half hour; closes may be "24:00" (midnight). A day can have several; see SlotRules. */
 public class OpeningHours {
   public DayOfWeek day;
   public String opens;

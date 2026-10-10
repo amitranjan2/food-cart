@@ -51,24 +51,32 @@ class SlotRulesTest {
   }
 
   @Test
-  void hoursPastMidnightBelongToTheEveningTheyStarted() {
-    List<OpeningHours> hours = List.of(new OpeningHours(DayOfWeek.THURSDAY, "18:00", "01:00"));
-    // Friday 00:10: Thursday's opening is still running, so 00:30 is still offered.
-    assertEquals(List.of(fri("00:30")), SlotRules.slots(hours, fri("00:10")));
+  void severalSlotsADayAndMidnightAsClosingTime() {
+    List<OpeningHours> hours = List.of(
+        new OpeningHours(DayOfWeek.FRIDAY, "08:00", "09:00"),
+        new OpeningHours(DayOfWeek.FRIDAY, "22:00", "24:00"),
+        new OpeningHours(DayOfWeek.SATURDAY, "00:00", "01:00"));
+    assertEquals(List.of(fri("22:00"), fri("22:30"), fri("23:00"), fri("23:30"),
+        LocalDateTime.parse("2026-10-10T00:00"), LocalDateTime.parse("2026-10-10T00:30")), SlotRules.slots(hours, fri("12:00")));
   }
 
   @Test
-  void endsAtTheEndOfTomorrowEvenIfTomorrowRunsPastMidnight() {
-    List<OpeningHours> hours = List.of(new OpeningHours(DayOfWeek.SATURDAY, "20:00", "01:00"));
+  void endsAtTheEndOfTomorrow() {
+    List<OpeningHours> hours = new ArrayList<>(everyDay("20:00", "24:00"));
     List<LocalDateTime> slots = SlotRules.slots(hours, fri("12:00"));
-    assertEquals(LocalDateTime.parse("2026-10-10T23:30"), slots.get(slots.size() - 1)); // not Sunday 00:00/00:30
+    assertEquals(LocalDateTime.parse("2026-10-10T23:30"), slots.get(slots.size() - 1)); // nothing on Sunday
   }
 
   @Test
-  void tonightsAfterMidnightSlotsAreTomorrowSlots() {
-    List<OpeningHours> hours = List.of(new OpeningHours(DayOfWeek.FRIDAY, "20:00", "01:00"));
-    List<LocalDateTime> slots = SlotRules.slots(hours, fri("21:10"));
-    assertEquals(LocalDateTime.parse("2026-10-10T00:30"), slots.get(slots.size() - 1));
+  void oldAfterMidnightHoursAreSplitIntoSameDaySlots() {
+    List<OpeningHours> split = SlotRules.splitAtMidnight(List.of(
+        new OpeningHours(DayOfWeek.MONDAY, "18:00", "02:00"),
+        new OpeningHours(DayOfWeek.TUESDAY, "01:00", "03:00"), // overlaps Monday's tail: merged
+        new OpeningHours(DayOfWeek.SUNDAY, "20:00", "00:00"))); // until midnight exactly: no Monday part
+    assertEquals(List.of("MONDAY 18:00-24:00", "TUESDAY 00:00-03:00", "SUNDAY 20:00-24:00"),
+        split.stream().map(h -> h.day + " " + h.opens + "-" + h.closes).toList());
+    assertNull(SlotRules.splitAtMidnight(List.of(new OpeningHours(DayOfWeek.MONDAY, "10:00", "24:00"))), "already new: unchanged");
+    assertNull(SlotRules.splitAtMidnight(null));
   }
 
   @Test
@@ -79,12 +87,25 @@ class SlotRulesTest {
 
   @Test
   void validatesVendorInput() {
-    assertThrows(IllegalArgumentException.class, () -> SlotRules.validate(List.of(new OpeningHours(DayOfWeek.MONDAY, "09:15", "18:00"))));
-    assertThrows(IllegalArgumentException.class, () -> SlotRules.validate(List.of(new OpeningHours(DayOfWeek.MONDAY, "09:00", "09:00"))));
-    assertThrows(IllegalArgumentException.class, () -> SlotRules.validate(List.of(new OpeningHours(DayOfWeek.MONDAY, "9am", "18:00"))));
-    assertThrows(IllegalArgumentException.class, () -> SlotRules.validate(List.of(
-        new OpeningHours(DayOfWeek.MONDAY, "09:00", "18:00"), new OpeningHours(DayOfWeek.MONDAY, "19:00", "20:00"))));
-    List<OpeningHours> ok = SlotRules.validate(List.of(new OpeningHours(DayOfWeek.MONDAY, "18:00", "01:30")));
-    assertEquals("01:30", ok.get(0).closes);
+    for (String[] bad : new String[][] {{"09:15", "18:00"}, {"09:00", "09:00"}, {"9am", "18:00"}, {"18:00", "01:30"}, {"24:00", "24:00"}, {"10:00", "24:30"}}) {
+      assertThrows(IllegalArgumentException.class, () -> SlotRules.validate(List.of(new OpeningHours(DayOfWeek.MONDAY, bad[0], bad[1]))), bad[0] + "-" + bad[1]);
+    }
+    IllegalArgumentException overlap = assertThrows(IllegalArgumentException.class, () -> SlotRules.validate(List.of(
+        new OpeningHours(DayOfWeek.MONDAY, "09:00", "14:00"), new OpeningHours(DayOfWeek.MONDAY, "13:00", "17:00"))));
+    assertEquals("Monday: slots overlap (9 AM–2 PM and 1 PM–5 PM).", overlap.getMessage());
+    List<OpeningHours> tooMany = new ArrayList<>();
+    for (int i = 0; i < 7; i++) tooMany.add(new OpeningHours(DayOfWeek.MONDAY, String.format("%02d:00", i * 2), String.format("%02d:00", i * 2 + 1)));
+    assertThrows(IllegalArgumentException.class, () -> SlotRules.validate(tooMany));
+  }
+
+  @Test
+  void validHoursAreSortedByDayThenTime() {
+    List<OpeningHours> ok = SlotRules.validate(List.of(
+        new OpeningHours(DayOfWeek.TUESDAY, "00:00", "02:00"),
+        new OpeningHours(DayOfWeek.MONDAY, "18:00", "24:00"),
+        new OpeningHours(DayOfWeek.MONDAY, "08:00", "11:30"),
+        new OpeningHours(DayOfWeek.MONDAY, "11:30", "14:00"))); // starts right when the previous ends
+    assertEquals(List.of("MONDAY 08:00-11:30", "MONDAY 11:30-14:00", "MONDAY 18:00-24:00", "TUESDAY 00:00-02:00"),
+        ok.stream().map(h -> h.day + " " + h.opens + "-" + h.closes).toList());
   }
 }

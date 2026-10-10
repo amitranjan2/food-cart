@@ -16,7 +16,8 @@ export type CustomerOrder = {
 /** GET /api/orders/{id}. phone is present only once the order is paid. */
 export type OrderView = {
   order: CustomerOrder;
-  vendor: { name?: string; slug?: string; address?: string; phone?: string };
+  /** lat/lng: the stall's GPS point, when the vendor set one. */
+  vendor: { name?: string; slug?: string; address?: string; phone?: string; lat?: number; lng?: number };
 };
 
 /** Slot times are India time (UTC+5:30, no daylight saving), whatever the phone's time zone. */

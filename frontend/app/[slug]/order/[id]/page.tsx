@@ -6,6 +6,7 @@ import { request, type PublicMenu, type Vendor } from '../../../lib/api';
 import { indiaTime, type CustomerOrder, type OrderView } from '../../../lib/orders';
 import { storedSession } from '../../../lib/session';
 import { formatRupee } from '../../lib/customization';
+import { themeStyle } from '../../../lib/theme';
 
 /** Statuses that never change again; the page stops refreshing once it reaches one. */
 const FINAL = new Set<CustomerOrder['status']>(['COMPLETED', 'REJECTED', 'CANCELLED', 'EXPIRED']);
@@ -105,7 +106,7 @@ export default function OrderStatus({ params }: { params: { slug: string; id: st
 
   if (!view) {
     return (
-      <main className="storefront">
+      <main className="storefront" style={themeStyle(vendor)}>
         <header className="cart-header">
           <div className="cart-title">{back}<h1>Your order</h1></div>
           <div className="store-scallop" aria-hidden="true">{Array.from({ length: 18 }, (_, index) => <span key={index} />)}</div>
@@ -124,10 +125,15 @@ export default function OrderStatus({ params }: { params: { slug: string; id: st
   const copy = copyFor(order, vendorName);
   const cancelled = order.status === 'REJECTED' || order.status === 'CANCELLED' || order.status === 'EXPIRED';
   const address = view.vendor.address ?? vendor?.address ?? '';
-  const mapUrl = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent([vendorName, address].filter(Boolean).join(', '));
+  const lat = view.vendor.lat ?? vendor?.lat;
+  const lng = view.vendor.lng ?? vendor?.lng;
+  // The stall's own GPS point when set (exact spot); otherwise search by name and address.
+  const mapUrl = lat != null && lng != null
+    ? `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
+    : 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent([vendorName, address].filter(Boolean).join(', '));
 
   return (
-    <main className="storefront" data-status={order.status}>
+    <main className="storefront" data-status={order.status} style={themeStyle(vendor)}>
       <header className="cart-header">
         <div className="cart-title">{back}<h1>{copy.title}</h1></div>
         <div className="store-scallop" aria-hidden="true">{Array.from({ length: 18 }, (_, index) => <span key={index} />)}</div>
