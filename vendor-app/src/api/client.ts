@@ -2,9 +2,12 @@ import { Platform } from 'react-native';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8080';
 
+/** The web build's API address, set at build time (Vercel: https://api.suprmama.in). Unset: same origin as the page, as with the local proxy. */
+const WEB_API_URL = process.env.EXPO_PUBLIC_WEB_API_URL;
+
 export function getApiUrl() {
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
-    return window.location.origin;
+    return WEB_API_URL || window.location.origin;
   }
   return BACKEND_URL;
 }

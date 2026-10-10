@@ -32,6 +32,10 @@ Public menu endpoints live under `/api/public`. Customer authenticated endpoints
 
 Demo vendors, menus and orders (`SeedData`, `DemoData`, `CatalogEnricher`, `/api/dev/*`) only run with the `local` profile.
 
+## Deploying
+
+Step by step, with the DNS records for Hostinger: [DEPLOY.md](DEPLOY.md).
+
 ## Production environment
 
 | Variable | Purpose |
