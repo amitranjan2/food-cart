@@ -340,3 +340,30 @@ html.scroll-locked,html.scroll-locked body,.storefront.scroll-locked{overflow:hi
 .policy-footer a{color:var(--store-ink);font-weight:700;text-decoration:none}
 .policy-footer p{margin:0}
 .cart-otp-hint{margin:6px 4px 0;font-size:var(--fs-xs);color:#717c86;line-height:1.4}
+
+/* Printable "Scan to order" poster (/[slug]/qr): A4 on paper, a scaled preview on screen. */
+.poster-page{--store-sky:#b3d8fa;--store-ink:#30404e;min-height:100vh;background:#e9edf1;padding:16px;display:flex;flex-direction:column;align-items:center;gap:12px;font-family:"Plus Jakarta Sans","DM Sans",sans-serif;color:var(--store-ink)}
+.poster-tools{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px;font-size:13px;font-weight:600}
+.poster-tools button{border:0;border-radius:10px;background:var(--store-ink);color:#fff;font-weight:800;font-size:14px;padding:11px 18px;cursor:pointer}
+.poster-missing{margin-top:30vh;font-weight:700}
+.poster{width:min(210mm,100%);aspect-ratio:210/297;background:#fff;display:flex;flex-direction:column;box-shadow:0 10px 30px rgba(48,64,78,.18);overflow:hidden}
+.poster-head{background:var(--store-sky);padding:7% 8% 6%;text-align:center}
+.poster-head h1{margin:0;font-family:"Bricolage Grotesque","Plus Jakarta Sans",sans-serif;font-size:clamp(26px,7.5vw,64px);line-height:1.05;letter-spacing:-.03em;color:var(--store-ink);overflow-wrap:anywhere}
+.poster-head p{margin:2% 0 0;font-size:clamp(12px,2.4vw,20px);font-weight:600;opacity:.85}
+.poster-body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3.5%;padding:5% 8%}
+.poster-call{margin:0;font-family:"Bricolage Grotesque","Plus Jakarta Sans",sans-serif;font-size:clamp(24px,6.5vw,56px);font-weight:800;letter-spacing:-.02em}
+.poster-qr{width:62%;aspect-ratio:1;image-rendering:pixelated;border:clamp(3px,.8vw,6px) solid var(--store-ink);border-radius:clamp(8px,2vw,18px);padding:1.5%}
+.poster-steps{margin:0;padding:0;list-style:none;counter-reset:step;display:grid;gap:.5em;font-size:clamp(12px,2.6vw,22px);font-weight:700}
+.poster-steps li{counter-increment:step;display:flex;align-items:center;gap:.6em}
+.poster-steps li::before{content:counter(step);flex:none;width:1.6em;height:1.6em;border-radius:50%;background:var(--store-ink);color:#fff;display:grid;place-items:center;font-size:.8em}
+.poster-link{margin:0;font-size:clamp(12px,2.6vw,22px);font-weight:800;letter-spacing:.01em}
+.poster-foot{padding:3% 8%;text-align:center;font-size:clamp(10px,1.8vw,15px);font-weight:700;background:var(--store-ink);color:#fff}
+@media print{
+  @page{size:A4 portrait;margin:0}
+  body{background:#fff}
+  .poster-page{padding:0;background:#fff;min-height:0}
+  .poster-tools{display:none}
+  .poster{width:210mm;height:297mm;aspect-ratio:auto;box-shadow:none}
+  .poster-head h1{font-size:64px}.poster-head p{font-size:20px}.poster-call{font-size:56px}.poster-steps,.poster-link{font-size:22px}.poster-foot{font-size:15px}
+  .poster-head,.poster-foot,.poster-steps li::before{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}

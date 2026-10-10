@@ -2,10 +2,15 @@ package in.foodcart.api;
 
 import in.foodcart.data.*;
 import in.foodcart.service.PublicMenuView;
+import in.foodcart.service.StoreLinks;
+import in.foodcart.service.StoreQr;
 import in.foodcart.service.slots.SlotRules;
+import org.springframework.http.CacheControl;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -18,12 +23,14 @@ public class PublicVendorController {
   private final MenuItemRepository items;
   private final MenuCategoryRepository categories;
   private final CatalogCategoryRepository catalog;
+  private final StoreLinks links;
 
-  public PublicVendorController(VendorRepository v, MenuItemRepository i, MenuCategoryRepository c, CatalogCategoryRepository catalog) {
+  public PublicVendorController(VendorRepository v, MenuItemRepository i, MenuCategoryRepository c, CatalogCategoryRepository catalog, StoreLinks links) {
     vendors = v;
     items = i;
     categories = c;
     this.catalog = catalog;
+    this.links = links;
   }
 
   // No public list of all vendors: customers reach a vendor through its own link or QR code, and the home page
@@ -32,6 +39,14 @@ public class PublicVendorController {
   @GetMapping("/{slug}")
   public ResponseEntity<PublicVendor> vendor(@PathVariable String slug) {
     return vendors.findBySlug(slug).map(PublicVendor::from).map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
+  }
+
+  /** The store's QR code for the printable poster (/{slug}/qr). It encodes the public store link, not the caller's host. */
+  @GetMapping(value = "/{slug}/qr.svg", produces = "image/svg+xml")
+  public ResponseEntity<String> qr(@PathVariable String slug) {
+    return vendors.findBySlug(slug)
+        .map(v -> ResponseEntity.ok().contentType(MediaType.valueOf("image/svg+xml")).cacheControl(CacheControl.maxAge(Duration.ofDays(1)).cachePublic()).body(StoreQr.svg(links.store(v.slug))))
+        .orElse(ResponseEntity.notFound().build());
   }
 
   /** Slots the customer can pick now, in India time ("2026-10-09T14:30"). hoursSet is false until the vendor saves opening hours. */

@@ -46,3 +46,10 @@ export function putVendorHours(token: string, openingHours: OpeningHours[]) {
     body: { openingHours },
   });
 }
+
+/** The store's public link, its printable poster and its QR code (an SVG document). */
+export type StoreShare = { storeUrl: string; posterUrl: string; qrSvg: string };
+
+export function getStoreShare(token: string) {
+  return request<StoreShare>('/api/vendor/me/share', { token });
+}

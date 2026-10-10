@@ -13,6 +13,7 @@ import { LoadingState } from '../../components/LoadingState';
 import { HandoverSheet } from '../../components/HandoverSheet';
 import { OrderCard } from '../../components/OrderCard';
 import { Screen } from '../../components/Screen';
+import { ShareStoreSheet } from '../../components/ShareStoreSheet';
 import { MenuPanel } from '../Menu/MenuPanel';
 import { StoreSwitch } from '../../components/StoreSwitch';
 import { filterOrders, useOrders } from '../../hooks/useOrders';
@@ -34,6 +35,7 @@ export function OrdersScreen({ navigation }: Props) {
   const [handoverId, setHandoverId] = useState<string | null>(null);
   const handoverOrder = orders.find(item => item.id === handoverId);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const [tab, setTab] = useState<'menu' | 'orders'>('orders');
   const [offset, setOffset] = useState(0);
   const [actionError, setActionError] = useState('');
@@ -157,6 +159,10 @@ export function OrdersScreen({ navigation }: Props) {
               setMenuOpen(false);
               navigation.navigate('Settings');
             }}
+            onShare={() => {
+              setMenuOpen(false);
+              setSharing(true);
+            }}
             onLogout={() => {
               setMenuOpen(false);
               logout();
@@ -220,6 +226,7 @@ export function OrdersScreen({ navigation }: Props) {
           }}
         />
       ) : null}
+      {sharing && token ? <ShareStoreSheet token={token} name={vendor.name} onClose={() => setSharing(false)} /> : null}
     </Screen>
   );
 }

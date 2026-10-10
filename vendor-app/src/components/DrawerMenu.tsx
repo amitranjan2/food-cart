@@ -5,10 +5,12 @@ import type { Vendor } from '../types';
 export function DrawerMenu({
   vendor,
   onSettings,
+  onShare,
   onLogout,
 }: {
   vendor: Vendor;
   onSettings: () => void;
+  onShare?: () => void;
   onLogout: () => void;
 }) {
   return (
@@ -18,6 +20,11 @@ export function DrawerMenu({
       <Pressable accessibilityRole="button" onPress={onSettings} style={styles.link}>
         <Text style={styles.linkLabel}>⚙ Store settings</Text>
       </Pressable>
+      {onShare ? (
+        <Pressable accessibilityRole="button" onPress={onShare} style={styles.link}>
+          <Text style={styles.linkLabel}>▦ Share your store</Text>
+        </Pressable>
+      ) : null}
       <Pressable accessibilityRole="button" onPress={onLogout} style={styles.logout}>
         <Text style={styles.logoutLabel}>↪ Log out</Text>
       </Pressable>

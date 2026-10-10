@@ -9,8 +9,22 @@ spring:
 server.port: ${PORT:8080}
 app:
   cors-origin: ${CORS_ORIGIN:http://localhost:3000}
-  # Absolute address of this API, used to build image URLs (e.g. https://api.foodcart.in).
+  # Absolute address of this API, used to build image URLs (e.g. https://api.suprmama.in).
   public-base-url: ${PUBLIC_BASE_URL:http://localhost:8080}
   upload-dir: ${UPLOAD_DIR:uploads}
+  # Where customers open stores: {store-url}/{slug}. Used for share links and QR codes.
+  store-url: ${PUBLIC_STORE_URL:https://suprmama.in}
+  # Login-code limits (tracker S4.8). Per number per hour: see OtpRules.
+  otp:
+    # WhatsApp codes sent per India day across all numbers; past it, login is refused until midnight.
+    daily-send-cap: ${OTP_DAILY_SEND_CAP:1000}
+    # Wrong codes one number may enter per day before its logins stop until midnight.
+    daily-wrong-codes-per-number: ${OTP_DAILY_WRONG_CODES:15}
+  auth-limits:
+    # Per IP address in each 10 minutes. Mobile networks share addresses, so keep these generous.
+    request-otp-per-ip: ${AUTH_REQUEST_OTP_PER_IP:30}
+    verify-otp-per-ip: ${AUTH_VERIFY_OTP_PER_IP:60}
+  # true only behind a load balancer that sets X-Forwarded-For; otherwise clients could fake their address.
+  trust-proxy: ${TRUST_PROXY:false}
   # Which payment gateway is active: "fake" (local profile only), later "cashfree" or "razorpay".
   payments.gateway: ${PAYMENT_GATEWAY:fake}
