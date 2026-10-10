@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { CopyDishIcon, EditDishIcon } from '../../components/icons/MenuActionIcons';
+import { AddIcon, CopyDishIcon, EditDishIcon } from '../../components/icons/MenuActionIcons';
 import { colors } from '../../theme';
 import type { Weekday } from '../../types';
 import { DAYS, endChoices, nextSlot, setEnd, setStart, startChoices, timeLabel, type Week } from '../../utils/hours';
@@ -144,9 +144,10 @@ export function HoursEditor({ week, onChange }: { week: Week; onChange: (week: W
                   change(day, [...slots, added]);
                   setEditing(null);
                 }}
-                style={styles.link}
+                hitSlop={8}
+                style={[styles.copyIcon, styles.addIcon]}
               >
-                <Text style={styles.linkLabel}>+ {slots.length ? 'Add slot' : 'Open this day'}</Text>
+                <AddIcon size={18} />
               </Pressable>
             ) : open && slots.length ? (
               <Text style={styles.full}>Open until 24:00, no more slots fit</Text>
@@ -304,6 +305,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.white,
+  },
+  addIcon: {
+    marginLeft: 0,
+    alignSelf: 'flex-start',
   },
   copyIconOn: {
     borderWidth: 1.5,

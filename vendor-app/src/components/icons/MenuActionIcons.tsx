@@ -5,6 +5,7 @@ const icons = {
   copy: require('../../../assets/menu/copy.png'),
   pause: require('../../../assets/menu/pause.png'),
   delete: require('../../../assets/menu/delete.png'),
+  add: require('../../../assets/menu/add.png'),
 } as const;
 
 type IconProps = {
@@ -17,6 +18,10 @@ function MenuIcon({ source, size = 18 }: { source: number; size?: number }) {
       <Image source={source} style={styles.image} resizeMode="contain" accessibilityIgnoresInvertColors />
     </View>
   );
+}
+
+export function AddIcon({ size = 18 }: IconProps) {
+  return <MenuIcon source={icons.add} size={size} />;
 }
 
 export function EditDishIcon({ size = 18 }: IconProps) {
