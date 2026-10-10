@@ -90,7 +90,7 @@ public class CheckoutService {
     if (request.displayedTotal() == null || o.total.compareTo(request.displayedTotal().setScale(2, RoundingMode.HALF_UP)) != 0) {
       throw new IllegalStateException("Your cart total has changed. Please review your cart.");
     }
-    o.orderNumber = 1000 + orders.count() + 1;
+    // The order number is given when the payment is confirmed (PaymentService / OrderNumbers), not now.
     // Pay first: the vendor only sees the order once the payment is confirmed (PaymentService).
     o.status = OrderStatus.PAYMENT_PENDING;
     o.paymentMethod = "ONLINE";

@@ -146,6 +146,7 @@ class CheckoutServiceTest {
     OrderEntity order = checkout.create("c1", request("160"));
     assertEquals(OrderStatus.PAYMENT_PENDING, order.status);
     assertEquals("ONLINE", order.paymentMethod);
+    assertEquals(0, order.orderNumber); // numbered only once paid
   }
 
   @Test

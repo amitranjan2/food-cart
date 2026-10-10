@@ -135,8 +135,9 @@ export default function OrderStatus({ params }: { params: { slug: string; id: st
       <div className="status-body">
         <p className="status-message" aria-live="polite">{copy.message}</p>
 
-        <section className={'status-card status-items' + (cancelled ? ' muted' : '')} aria-label={'Order #' + order.orderNumber}>
-          <p className="status-kicker">Order #{order.orderNumber}</p>
+        <section className={'status-card status-items' + (cancelled ? ' muted' : '')} aria-label={order.orderNumber ? 'Order #' + order.orderNumber : 'Your order'}>
+          {/* Orders are numbered once paid; an unpaid one has no number yet. */}
+          <p className="status-kicker">{order.orderNumber ? 'Order #' + order.orderNumber : 'Your order'}</p>
           {order.items.map((item, index) => {
             const photo = photos[item.menuItemId] || vendor?.coverImageUrl;
             return (

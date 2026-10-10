@@ -13,8 +13,11 @@ public interface PaymentGateway {
   /** Short id used in config, webhook URLs and stored payments, e.g. "cashfree". */
   String name();
 
-  /** Creates a payment for the amount at the gateway. Returns what the browser needs to open checkout. */
-  Checkout create(String orderId, long orderNumber, BigDecimal amount, String customerName, String customerMobile);
+  /**
+   * Creates a payment for the amount at the gateway. Returns what the browser needs to open checkout. Use orderId as
+   * the gateway's receipt/reference: the order has no number until it is paid.
+   */
+  Checkout create(String orderId, BigDecimal amount, String customerName, String customerMobile);
 
   /** Checks the webhook is genuinely from the gateway (throws SecurityException if not) and translates it. Header names are lower case. */
   Event parseWebhook(String rawBody, Map<String, String> headers);

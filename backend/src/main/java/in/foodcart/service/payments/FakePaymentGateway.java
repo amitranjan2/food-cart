@@ -40,7 +40,7 @@ public class FakePaymentGateway implements PaymentGateway {
   }
 
   @Override
-  public Checkout create(String orderId, long orderNumber, BigDecimal amount, String customerName, String customerMobile) {
+  public Checkout create(String orderId, BigDecimal amount, String customerName, String customerMobile) {
     return new Checkout("fake_order_" + UUID.randomUUID().toString().replace("-", ""), Map.of("amount", amount));
   }
 

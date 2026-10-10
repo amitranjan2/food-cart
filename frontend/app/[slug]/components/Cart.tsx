@@ -8,6 +8,8 @@ import { AddressFlow, addressLabel, type AddressStep, type SavedAddress } from '
 import { MenuItemCard } from './MenuItemCard';
 
 export type CartLine = {
+  /** One dish with one set of choices; see lib/cartLines. */
+  key: string;
   item: MenuItem;
   quantity: number;
   unitPrice: number;
@@ -120,6 +122,7 @@ export function Cart({
   fallbackImage,
   onBack,
   onQuantity,
+  onLineQuantity,
   onAdd,
   onMobileChange,
   onOtpChange,
@@ -144,7 +147,10 @@ export function Cart({
   otp: string;
   fallbackImage?: string;
   onBack: () => void;
+  /** For the suggestion cards (whole dish). */
   onQuantity: (item: MenuItem, quantity: number) => void;
+  /** For one cart line. */
+  onLineQuantity: (key: string, quantity: number) => void;
   onAdd: (item: MenuItem) => void;
   onMobileChange: (mobile: string) => void;
   onOtpChange: (otp: string) => void;
@@ -312,7 +318,7 @@ export function Cart({
       ) : (
         <ul className="cart-rows">
           {lines.map(line => (
-            <li className="cart-row" key={line.item.id}>
+            <li className="cart-row" key={line.key}>
               <LinePhoto item={line.item} fallbackImage={fallbackImage} />
               <div className="cart-row-copy">
                 <h3>{line.item.name}</h3>
@@ -320,12 +326,12 @@ export function Cart({
                 <b>{formatRupee(line.unitPrice * line.quantity)}</b>
               </div>
               <span className="qty">
-                <button type="button" aria-label={'Remove one ' + line.item.name} onClick={() => onQuantity(line.item, line.quantity - 1)}>−</button>
+                <button type="button" aria-label={'Remove one ' + line.item.name + (line.summary ? ` (${line.summary})` : '')} onClick={() => onLineQuantity(line.key, line.quantity - 1)}>−</button>
                 <span>{line.quantity}</span>
                 <button
                   type="button"
-                  aria-label={'Add one ' + line.item.name}
-                  onClick={() => onQuantity(line.item, line.quantity + 1)}
+                  aria-label={'Add one ' + line.item.name + (line.summary ? ` (${line.summary})` : '')}
+                  onClick={() => onLineQuantity(line.key, line.quantity + 1)}
                   disabled={!line.item.available}
                 >+</button>
               </span>
@@ -601,8 +607,8 @@ export function Cart({
         <section className="bill-sheet" id="cart-bill" aria-label="Bill details" aria-hidden={!billOpen}>
           <h2>Bill Details</h2>
           {lines.map(line => (
-            <div className="bill-row sub" key={line.item.id}>
-              <span>{line.item.name} x{line.quantity}</span>
+            <div className="bill-row sub" key={line.key}>
+              <span>{line.item.name}{line.summary ? ` (${line.summary})` : ''} x{line.quantity}</span>
               <span>{formatRupee(line.unitPrice * line.quantity)}</span>
             </div>
           ))}
