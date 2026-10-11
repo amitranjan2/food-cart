@@ -17,11 +17,17 @@ public record PublicVendor(
     /** The stall's GPS point for "Directions"; null until the vendor sets it. */
     Double lat,
     Double lng,
-    VendorStatus status) {
+    VendorStatus status,
+    /** The stall's FSSAI licence or registration number, shown on its storefront (FSSAI e-commerce rules, tracker S4.21). */
+    String fssai) {
 
   public static PublicVendor from(VendorEntity v) {
+    return from(v, null);
+  }
+
+  public static PublicVendor from(VendorEntity v, String fssai) {
     Double lat = v.location == null ? null : v.location.lat;
     Double lng = v.location == null ? null : v.location.lng;
-    return new PublicVendor(v.id, v.name, v.slug, v.description, v.address, v.logoUrl, v.coverImageUrl, StoreThemes.of(v.theme), lat, lng, v.status);
+    return new PublicVendor(v.id, v.name, v.slug, v.description, v.address, v.logoUrl, v.coverImageUrl, StoreThemes.of(v.theme), lat, lng, v.status, fssai);
   }
 }

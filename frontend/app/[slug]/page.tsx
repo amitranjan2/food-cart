@@ -27,6 +27,7 @@ import { linkItemsToCategories } from './lib/menuLinks';
 import { addLine, lastLineOf, linesOf, quantitiesByItem, setLineQuantity, type CartEntry } from './lib/cartLines';
 import { RepeatPrompt } from './components/RepeatPrompt';
 import { PolicyFooter } from '../components/LegalPage';
+import { LEGAL } from '../lib/legal';
 import { themeStyle } from '../lib/theme';
 import { billOf, type PaymentMethod } from '../lib/bill';
 import { usePricing } from '../lib/useRates';
@@ -487,6 +488,12 @@ export default function Store({ params }: { params: { slug: string } }) {
           fallbackImage={store.coverImageUrl}
           nav={<CategoryNav categories={shownCategories} selectedId={categoryId} onSelect={selectCategory} />}
         />
+        {/* FSSAI's e-commerce rules: the platform shows each listed food business's licence number (tracker S4.21). */}
+        <section className="store-legal" aria-label="About this stall">
+          <p><b>{store.name}</b>{store.address ? `, ${store.address}` : ''}</p>
+          {store.fssai ? <p>FSSAI Lic. No. {store.fssai}</p> : null}
+          <p>The stall prepares and sells the food. Ordering through {LEGAL.brand}.</p>
+        </section>
         <PolicyFooter />
       </div>
       {!customizing && chosen.length > 0 && (

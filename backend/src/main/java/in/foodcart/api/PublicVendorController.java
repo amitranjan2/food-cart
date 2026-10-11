@@ -25,8 +25,10 @@ public class PublicVendorController {
   private final MenuCategoryRepository categories;
   private final CatalogCategoryRepository catalog;
   private final StoreLinks links;
+  private final VendorBusinessRepository business;
 
-  public PublicVendorController(VendorRepository v, MenuItemRepository i, MenuCategoryRepository c, CatalogCategoryRepository catalog, StoreLinks links) {
+  public PublicVendorController(VendorRepository v, MenuItemRepository i, MenuCategoryRepository c, CatalogCategoryRepository catalog, StoreLinks links, VendorBusinessRepository business) {
+    this.business = business;
     vendors = v;
     items = i;
     categories = c;
@@ -44,7 +46,7 @@ public class PublicVendorController {
 
   @GetMapping("/{slug}")
   public ResponseEntity<PublicVendor> vendor(@PathVariable String slug) {
-    return live(slug).map(PublicVendor::from).map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
+    return live(slug).map(v -> PublicVendor.from(v, business.findById(v.id).map(b -> b.fssai).orElse(null))).map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
   }
 
   /** The store's QR code for the printable poster (/{slug}/qr). It encodes the public store link, not the caller's host. */

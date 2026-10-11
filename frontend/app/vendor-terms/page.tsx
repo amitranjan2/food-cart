@@ -40,9 +40,10 @@ export default function VendorTerms() {
       <ul>
         <li>You set your menu, prices, options and opening hours, and keep them accurate.</li>
         <li>
-          The price you set is the price before GST. Customers&apos; bills add GST on food and our platform charges (section 6); don&apos;t
-          add GST of your own, and don&apos;t charge customers anything more at the counter for an order paid on {LEGAL.brand}.
+          The price you set is the price before GST. Customers&apos; bills add GST on food, and our platform charges when they pay
+          online (section 6); don&apos;t add GST of your own, and never charge more than the amount the app shows for the order.
         </li>
+        <li>Your FSSAI licence or registration number is shown on your storefront, as food-safety rules for online food sales require.</li>
         <li>Mark each dish correctly as veg, non-veg, egg or vegan, and describe it honestly.</li>
         <li>
           Use only photos and text you own or may use. You let us show them on {LEGAL.brand} and in its promotion while your stall

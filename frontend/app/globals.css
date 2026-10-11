@@ -339,6 +339,10 @@ html.scroll-locked,html.scroll-locked body,.storefront.scroll-locked{overflow:hi
 .legal-contact{display:grid;grid-template-columns:auto 1fr;gap:4px 14px}
 .legal-contact dt{font-weight:800;color:var(--store-ink)}
 .legal-contact dd{margin:0}
+.store-legal{margin:24px 12px 0;padding:14px 16px;border-radius:16px;background:#fff;color:#4f5b66;font-size:var(--fs-xs);line-height:1.5;text-align:center}
+.store-legal p{margin:0}
+.store-legal p+p{margin-top:4px}
+.store-legal b{color:var(--store-ink)}
 .policy-footer{display:grid;gap:6px;justify-items:center;padding:18px 12px 8px;color:#717c86;font-size:var(--fs-xs)}
 .policy-footer nav{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 14px}
 .policy-footer a{color:var(--store-ink);font-weight:700;text-decoration:none}

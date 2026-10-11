@@ -99,7 +99,7 @@ export default function Privacy() {
       <ul>
         <li><b>Anyone with your store link or QR code</b>: your storefront, address and map point, menu and opening hours.</li>
         <li><b>Customers who have paid for an order</b>: your mobile number as well, so they can call you about it.</li>
-        <li><b>Your FSSAI number</b> may be shown on your storefront, as food-safety rules for online food sales require.</li>
+        <li><b>Your FSSAI number</b> is shown on your storefront, as food-safety rules for online food sales require.</li>
         <li><b>Not shown to customers</b>: your PAN and payout details. In the vendor app they are shown masked (for example AB•••••34F), and only our team can see them in full.</li>
       </ul>
 

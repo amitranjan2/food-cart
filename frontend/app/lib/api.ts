@@ -8,5 +8,5 @@ export type MenuCategory={id:string;vendorId?:string;name:string;imageUrl?:strin
 export type PublicMenu={categories:MenuCategory[];items:MenuItem[]};
 /** A storefront colour pair: light for the header, dark for text and buttons. */
 export type StoreTheme={key:string;name:string;light:string;dark:string};
-export type Vendor={id:string;name:string;slug:string;description?:string;address?:string;coverImageUrl?:string;logoUrl?:string;theme?:StoreTheme;lat?:number|null;lng?:number|null;status:'OPEN'|'CLOSED'};
+export type Vendor={id:string;name:string;slug:string;description?:string;address?:string;coverImageUrl?:string;logoUrl?:string;theme?:StoreTheme;lat?:number|null;lng?:number|null;status:'OPEN'|'CLOSED';/** FSSAI licence or registration number, shown on the storefront (S4.21). */fssai?:string|null};
 export async function request<T>(path:string,options:RequestInit={},token?:string):Promise<T>{const headers:Record<string,string>={...(token?{Authorization:`Bearer ${token}`}:{}) ,...(options.headers as Record<string,string>||{})};if(!(options.body instanceof FormData)&&!headers['Content-Type'])headers['Content-Type']='application/json';const r=await fetch(API+path,{...options,headers});if(!r.ok){const b=await r.json().catch(()=>({}));throw new Error(b.error||'Something went wrong');}return r.json();}
