@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Fill, LegalPage } from '../components/LegalPage';
 import { LEGAL } from '../lib/legal';
+import { LAUNCH_RATES, percent } from '../lib/bill';
 
 export const metadata: Metadata = { title: 'Terms of Use · ' + LEGAL.brand };
 
@@ -30,7 +31,16 @@ export default function Terms() {
       <h2>3. Placing an order</h2>
       <ul>
         <li>You choose dishes and their options, Pick Up or Dine In, and a 30-minute time slot from the ones the vendor offers.</li>
-        <li>Prices are shown in Indian rupees and are set by the vendor. The amount on the Pay button is the full amount you pay.</li>
+        <li>
+          Prices are in Indian rupees, set by the vendor, and don&apos;t include GST. Your bill adds GST on food (
+          {percent(LAUNCH_RATES.foodGstBp)}), platform charges ({percent(LAUNCH_RATES.platformFeeBp)} of the item total and GST,
+          covering online payment charges) and GST on the platform charges ({percent(LAUNCH_RATES.platformFeeGstBp)}). The amount on the
+          Pay button is the full amount you pay.
+        </li>
+        <li>
+          {LEGAL.brand} collects and pays the GST on food as the e-commerce operator (section 9(5) of the CGST Act, 2017). After
+          you collect your order, its tax invoices are on your order page.
+        </li>
         <li>
           You pay online before the order is sent to the vendor. Your order is confirmed only when our payment partner confirms
           the payment. An order not paid within 15 minutes is cancelled and nothing is charged.

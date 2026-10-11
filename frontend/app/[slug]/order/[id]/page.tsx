@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { request, type PublicMenu, type Vendor } from '../../../lib/api';
-import { indiaTime, type CustomerOrder, type OrderView } from '../../../lib/orders';
+import { indiaTime, orderBill, type CustomerOrder, type OrderView } from '../../../lib/orders';
+import { BillRows } from '../../../components/BillRows';
 import { storedSession } from '../../../lib/session';
 import { formatRupee } from '../../lib/customization';
 import { themeStyle } from '../../../lib/theme';
@@ -190,9 +191,16 @@ export default function OrderStatus({ params }: { params: { slug: string; id: st
               <span>{formatRupee(Number(item.lineTotal))}</span>
             </div>
           ))}
-          <div className="bill-row grand"><span>Total</span><span>{formatRupee(Number(order.total))}</span></div>
+          {orderBill(order) ? (
+            <BillRows bill={orderBill(order)!} totalLabel="Paid" />
+          ) : (
+            <div className="bill-row grand"><span>Total</span><span>{formatRupee(Number(order.total))}</span></div>
+          )}
           {order.payment?.status === 'PAID' ? <p className="status-paid">Paid online</p> : null}
           {order.payment?.status === 'REFUNDED' || order.payment?.status === 'REFUND_PENDING' ? <p className="status-paid">Refund started</p> : null}
+          {order.invoice ? (
+            <Link className="status-invoice" href={`/${params.slug}/order/${order.id}/invoice`}>View tax invoice</Link>
+          ) : null}
         </section>
 
         {view.vendor.phone ? (

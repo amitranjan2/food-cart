@@ -13,6 +13,9 @@ import in.foodcart.domain.OrderType;
 import in.foodcart.domain.VendorStatus;
 import in.foodcart.service.handover.HandoverRules;
 import in.foodcart.service.payments.PaymentService;
+import in.foodcart.service.pricing.BillRules;
+import in.foodcart.service.pricing.InvoiceNumbers;
+import in.foodcart.service.pricing.Pricing;
 import in.foodcart.service.slots.SlotRules;
 import org.springframework.stereotype.Service;
 
@@ -31,22 +34,27 @@ public class CheckoutService {
   private final OrderRepository orders;
   private final CustomerRepository customers;
   private final PaymentService payments;
+  private final Pricing pricing;
+  private final InvoiceNumbers invoices;
   /** Replaced in tests. */
   Clock clock = Clock.system(SlotRules.ZONE);
 
-  public CheckoutService(VendorRepository v, MenuItemRepository i, OrderRepository o, CustomerRepository c, PaymentService p) {
+  public CheckoutService(VendorRepository v, MenuItemRepository i, OrderRepository o, CustomerRepository c, PaymentService p, Pricing pricing, InvoiceNumbers invoices) {
     vendors = v;
     items = i;
     orders = o;
     customers = c;
     payments = p;
+    this.pricing = pricing;
+    this.invoices = invoices;
   }
 
   public record Line(String menuItemId, int quantity, BigDecimal displayedPrice, String portion, String sizeId, List<MenuLinePrice.Pick> options) {}
 
   /**
    * type is "PICKUP" or "DINE_IN". slot is the chosen start time in India time, e.g. "2026-10-09T14:30".
-   * displayedTotal is the amount the customer saw; the order is refused if the server's bill differs.
+   * displayedTotal is the "To pay" amount the customer saw (BillRules: items + GST + platform charges + their GST); the
+   * order is refused if the server's bill differs.
    */
   public record Request(String vendorId, String type, String slot, BigDecimal displayedTotal, List<Line> items) {}
 
@@ -86,7 +94,9 @@ public class CheckoutService {
     }
     if (o.items.isEmpty()) throw new IllegalArgumentException("Cart is empty");
     o.subtotal = o.items.stream().map(x -> x.lineTotal).reduce(BigDecimal.ZERO, BigDecimal::add);
-    o.total = o.subtotal;
+    BillRules.Bill bill = pricing.bill(o.subtotal);
+    o.bill = snapshot(bill);
+    o.total = bill.total();
     // Rounded to paise: the browser adds prices as floating point (0.1 + 0.2 = 0.30000000000000004).
     if (request.displayedTotal() == null || o.total.compareTo(request.displayedTotal().setScale(2, RoundingMode.HALF_UP)) != 0) {
       throw new IllegalStateException("Your cart total has changed. Please review your cart.");
@@ -130,6 +140,8 @@ public class CheckoutService {
     }
     o.status = OrderStatus.COMPLETED;
     o.completedAt = Instant.now(clock);
+    // The food has been supplied: now the tax invoices exist. Orders that never get here (rejected, refunded) have none.
+    invoices.issue(o, o.completedAt);
     return orders.save(o);
   }
 
@@ -155,5 +167,18 @@ public class CheckoutService {
       payments.refundIfPaid(o);
     }
     return orders.save(o);
+  }
+
+  private static OrderEntity.Bill snapshot(BillRules.Bill b) {
+    OrderEntity.Bill s = new OrderEntity.Bill();
+    s.itemTotal = b.itemTotal();
+    s.foodGst = b.foodGst();
+    s.platformFee = b.platformFee();
+    s.platformFeeGst = b.platformFeeGst();
+    s.total = b.total();
+    s.foodGstPercent = BigDecimal.valueOf(b.rates().foodGstBp(), 2).stripTrailingZeros();
+    s.platformFeePercent = BigDecimal.valueOf(b.rates().platformFeeBp(), 2).stripTrailingZeros();
+    s.platformFeeGstPercent = BigDecimal.valueOf(b.rates().platformFeeGstBp(), 2).stripTrailingZeros();
+    return s;
   }
 }

@@ -53,6 +53,7 @@ Step by step, with the DNS records for Hostinger: [DEPLOY.md](DEPLOY.md).
 | `NOMINATIM_CONTACT` | Email in the User-Agent for OpenStreetMap lookups (their usage policy asks for a contact) |
 | `NOMINATIM_BASE` | Optional, default `https://nominatim.openstreetmap.org`; only changed for testing |
 | `PUBLIC_STORE_URL` | Where customers open stores, default `https://suprmama.in`; share links and QR codes point to `{this}/{store-link}` |
+| `FOOD_GST_PERCENT` / `PLATFORM_FEE_PERCENT` / `PLATFORM_FEE_GST_PERCENT` | The customer's bill: GST on food (default 5, paid by us as e-commerce operator), platform charges as a % of items + GST (default 2.5), GST on platform charges (default 18). The storefront reads them from `/api/public/pricing`; the policy pages quote the launch rates in `frontend/app/lib/bill.ts` |
 | `ADMIN_TOKEN` | Turns on `POST /api/admin/vendors` (used by `ops/create-vendor.sh`); 24+ random characters, a secret. Unset = the admin API answers 404 |
 | `OTP_DAILY_SEND_CAP` | WhatsApp login codes sent per India day across all numbers (default 1000); past it, logins pause until midnight and an error is logged |
 | `OTP_DAILY_WRONG_CODES` | Wrong codes one number may enter per day (default 15) before its logins stop until midnight |

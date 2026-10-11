@@ -28,6 +28,8 @@ import { addLine, lastLineOf, linesOf, quantitiesByItem, setLineQuantity, type C
 import { RepeatPrompt } from './components/RepeatPrompt';
 import { PolicyFooter } from '../components/LegalPage';
 import { themeStyle } from '../lib/theme';
+import { billOf } from '../lib/bill';
+import { useRates } from '../lib/useRates';
 
 /** Most dishes shown in the cart's "You may also like" row. */
 const SUGGESTION_LIMIT = 12;
@@ -35,6 +37,7 @@ const SUGGESTION_LIMIT = 12;
 export default function Store({ params }: { params: { slug: string } }) {
   const [vendor, setVendor] = useState<Vendor>();
   const [missing, setMissing] = useState(false);
+  const rates = useRates();
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [items, setItems] = useState<MenuItem[]>([]);
@@ -245,6 +248,8 @@ export default function Store({ params }: { params: { slug: string } }) {
     return item ? [{ line, item }] : [];
   });
   const total = chosen.reduce((sum, { line }) => sum + line.config.unitPrice * line.quantity, 0);
+  // What the customer pays: items + GST + platform charges (lib/bill.ts, same sums as the API).
+  const bill = billOf(total, rates);
   // Cheapest first across the whole menu (not grouped by category): easy add-ons at the front. Capped so it stays a nudge.
   const suggestions = linked
     .filter(item => item.available && !cart[item.id])
@@ -346,7 +351,7 @@ export default function Store({ params }: { params: { slug: string } }) {
           vendorId: store.id,
           type,
           slot,
-          displayedTotal: total,
+          displayedTotal: bill.total,
           items: chosen.map(({ line, item }) => ({
             menuItemId: item.id,
             quantity: line.quantity,
@@ -423,6 +428,7 @@ export default function Store({ params }: { params: { slug: string } }) {
             suggestions={suggestions}
             quantities={cart}
             total={total}
+            bill={bill}
             slots={slots?.slots ?? null}
             hoursSet={slots?.hoursSet ?? true}
             storeOpen={slots?.open ?? store.status === 'OPEN'}

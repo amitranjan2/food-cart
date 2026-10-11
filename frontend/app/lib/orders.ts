@@ -11,7 +11,26 @@ export type CustomerOrder = {
   total: number;
   items: { menuItemId: string; name: string; portion?: string; summary?: string | null; quantity: number; lineTotal: number }[];
   payment?: { status: string } | null;
+  /** The bill as charged; missing on orders from before pricing (their total is the item total). */
+  bill?: { itemTotal: number; foodGst: number; platformFee: number; platformFeeGst: number; total: number; foodGstPercent: number; platformFeePercent: number; platformFeeGstPercent: number } | null;
+  /** Tax invoice numbers, set when the order is handed over. */
+  invoice?: { foodNumber: string; platformNumber: string; issuedAt: string } | null;
 };
+
+/** An order's stored bill in the shape BillRows shows. */
+export function orderBill(order: CustomerOrder) {
+  const b = order.bill;
+  if (!b) return null;
+  const bp = (percent: number) => Math.round(Number(percent) * 100);
+  return {
+    itemTotal: Number(b.itemTotal),
+    foodGst: Number(b.foodGst),
+    platformFee: Number(b.platformFee),
+    platformFeeGst: Number(b.platformFeeGst),
+    total: Number(b.total),
+    rates: { foodGstBp: bp(b.foodGstPercent), platformFeeBp: bp(b.platformFeePercent), platformFeeGstBp: bp(b.platformFeeGstPercent) },
+  };
+}
 
 /** GET /api/orders/{id}. phone is present only once the order is paid. */
 export type OrderView = {

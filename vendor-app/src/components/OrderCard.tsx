@@ -50,7 +50,8 @@ export function OrderCard({
           </Text>
         ))}
       </View>
-      <Text style={typography.heading}>{rupees(order.total)}</Text>
+      {/* The stall's own prices; the customer also paid GST and platform charges, which aren't the stall's. */}
+      <Text style={typography.heading} accessibilityLabel={`Item total ${rupees(order.subtotal ?? order.total)}`}>{rupees(order.subtotal ?? order.total)}</Text>
       {action ? (
         <View style={styles.actions}>
           {isNew ? (

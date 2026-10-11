@@ -27,7 +27,9 @@ class CheckoutServiceTest {
   private final HistoryRepository history = mock(HistoryRepository.class);
   private final CustomerRepository customers = mock(CustomerRepository.class);
   private final PaymentService payments = mock(PaymentService.class);
-  private final CheckoutService checkout = new CheckoutService(vendors, items, orders, customers, payments);
+  private final in.foodcart.service.pricing.InvoiceNumbers invoices = mock(in.foodcart.service.pricing.InvoiceNumbers.class);
+  private final CheckoutService checkout = new CheckoutService(vendors, items, orders, customers, payments,
+      new in.foodcart.service.pricing.Pricing(new BigDecimal("5"), new BigDecimal("2.5"), new BigDecimal("18")), invoices);
 
   @BeforeEach
   void setUp() {
@@ -66,21 +68,25 @@ class CheckoutServiceTest {
   }
 
   @Test
-  void chargesExactlyTheItemTotalTheCustomerSaw() {
-    OrderEntity order = checkout.create("c1", request("160"));
-    assertEquals(0, order.total.compareTo(new BigDecimal("160")));
-    assertEquals(0, order.subtotal.compareTo(order.total));
+  void chargesExactlyTheBillTheCustomerSaw() {
+    // 2 × 80 = 160 + GST 8.00 + platform charges 4.20 + their GST 0.76 (BillRulesTest)
+    OrderEntity order = checkout.create("c1", request("172.96"));
+    assertEquals(0, order.total.compareTo(new BigDecimal("172.96")));
+    assertEquals(0, order.subtotal.compareTo(new BigDecimal("160")), "the vendor's item total");
+    assertEquals(0, order.bill.foodGst.compareTo(new BigDecimal("8.00")));
+    assertEquals(0, order.bill.platformFeePercent.compareTo(new BigDecimal("2.5")));
   }
 
   @Test
   void toleratesFloatingPointNoiseFromTheBrowser() {
-    OrderEntity order = checkout.create("c1", request("160.00000000000003"));
-    assertEquals(0, order.total.compareTo(new BigDecimal("160")));
+    OrderEntity order = checkout.create("c1", request("172.96000000000004"));
+    assertEquals(0, order.total.compareTo(new BigDecimal("172.96")));
   }
 
   @Test
   void refusesAnOrderWhoseDisplayedTotalDiffers() {
-    // e.g. the old cart showed 160 + 5% tax = 168
+    // e.g. a cart that charged only the items, or only items + GST
+    assertThrows(IllegalStateException.class, () -> checkout.create("c1", request("160")));
     assertThrows(IllegalStateException.class, () -> checkout.create("c1", request("168")));
     verify(orders, never()).save(any());
   }
@@ -93,14 +99,14 @@ class CheckoutServiceTest {
 
   @Test
   void storesTheOrderTypeTheCustomerChose() {
-    assertEquals(OrderType.DINE_IN, checkout.create("c1", request("DINE_IN", "160")).type);
-    assertEquals(OrderType.PICKUP, checkout.create("c1", request("PICKUP", "160")).type);
+    assertEquals(OrderType.DINE_IN, checkout.create("c1", request("DINE_IN", "172.96")).type);
+    assertEquals(OrderType.PICKUP, checkout.create("c1", request("PICKUP", "172.96")).type);
   }
 
   @Test
   void refusesUnknownOrMissingOrderTypes() {
     for (String type : new String[] {"DELIVERY", "pickup", "", null}) {
-      IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> checkout.create("c1", request(type, "160")));
+      IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> checkout.create("c1", request(type, "172.96")));
       assertEquals("Choose Pick Up or Dine In.", e.getMessage());
     }
     verify(orders, never()).save(any());
@@ -108,7 +114,7 @@ class CheckoutServiceTest {
 
   @Test
   void storesTheChosenSlotAsAnInstant() {
-    OrderEntity order = checkout.create("c1", request("PICKUP", "2026-10-09T15:00", "160"));
+    OrderEntity order = checkout.create("c1", request("PICKUP", "2026-10-09T15:00", "172.96"));
     assertEquals(Instant.parse("2026-10-09T09:30:00Z"), order.scheduledFor); // 15:00 IST
   }
 
@@ -116,7 +122,7 @@ class CheckoutServiceTest {
   void refusesSlotsThatAreNotOfferedNow() {
     // the current slot (14:00), outside hours (22:00), past, the day after tomorrow, malformed, missing
     for (String slot : new String[] {"2026-10-09T14:00", "2026-10-09T22:00", "2026-10-08T15:00", "2026-10-11T15:00", "3pm", "", null}) {
-      assertThrows(RuntimeException.class, () -> checkout.create("c1", request("PICKUP", slot, "160")), "slot " + slot);
+      assertThrows(RuntimeException.class, () -> checkout.create("c1", request("PICKUP", slot, "172.96")), "slot " + slot);
     }
     verify(orders, never()).save(any());
   }
@@ -124,26 +130,26 @@ class CheckoutServiceTest {
   @Test
   void refusesOrdersWhenTheVendorHasNoHours() {
     vendors.findById("v1").orElseThrow().openingHours.clear();
-    IllegalStateException e = assertThrows(IllegalStateException.class, () -> checkout.create("c1", request("160")));
+    IllegalStateException e = assertThrows(IllegalStateException.class, () -> checkout.create("c1", request("172.96")));
     assertEquals("This vendor isn't taking orders for any time slot right now.", e.getMessage());
   }
 
   @Test
   void refusesOrdersFromCustomersWithoutAName() {
     customers.findById("c1").orElseThrow().name = " ";
-    IllegalStateException e = assertThrows(IllegalStateException.class, () -> checkout.create("c1", request("160")));
+    IllegalStateException e = assertThrows(IllegalStateException.class, () -> checkout.create("c1", request("172.96")));
     assertEquals("Add your name before paying.", e.getMessage());
     verify(orders, never()).save(any());
   }
 
   @Test
   void copiesTheCustomersNameOntoTheOrder() {
-    assertEquals("Aakash", checkout.create("c1", request("160")).customerName);
+    assertEquals("Aakash", checkout.create("c1", request("172.96")).customerName);
   }
 
   @Test
   void newOrdersWaitForPaymentBeforeReachingTheVendor() {
-    OrderEntity order = checkout.create("c1", request("160"));
+    OrderEntity order = checkout.create("c1", request("172.96"));
     assertEquals(OrderStatus.PAYMENT_PENDING, order.status);
     assertEquals("ONLINE", order.paymentMethod);
     assertEquals(0, order.orderNumber); // numbered only once paid
@@ -172,7 +178,7 @@ class CheckoutServiceTest {
 
   @Test
   void theHandoverCodeIsCreatedWhenTheVendorMarksTheOrderReady() {
-    assertNull(checkout.create("c1", request("160")).handover);
+    assertNull(checkout.create("c1", request("172.96")).handover);
     OrderEntity o = new OrderEntity();
     o.id = "o4";
     o.vendorId = "v1";
@@ -210,10 +216,12 @@ class CheckoutServiceTest {
     IllegalArgumentException wrong = assertThrows(IllegalArgumentException.class, () -> checkout.handOver("v1", "o3", "1111"));
     assertEquals("Wrong code. 4 tries left.", wrong.getMessage());
     assertEquals(OrderStatus.READY, o.status);
+    verify(invoices, never()).issue(any(), any());
     checkout.handOver("v1", "o3", "2905");
     assertEquals(OrderStatus.COMPLETED, o.status);
     assertEquals("VENDOR", o.handover.verifiedByRole);
     assertNotNull(o.completedAt);
+    verify(invoices).issue(o, o.completedAt);
   }
 
   @Test

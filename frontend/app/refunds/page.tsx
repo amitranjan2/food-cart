@@ -14,9 +14,10 @@ export default function Refunds() {
       </p>
 
       <h2>Automatic full refunds</h2>
-      <p>You get the full amount back, without asking, when:</p>
+      <p>You get the full amount back, including GST and platform charges, without asking, when:</p>
       <ul>
         <li>the vendor rejects your order (for example, a dish has run out or the stall is closing);</li>
+        <li>the vendor accepted your order but can&apos;t make it, and our support cancels it;</li>
         <li>your payment reaches us after the order has expired (orders not paid within 15 minutes are cancelled); or</li>
         <li>the amount paid does not match the order total.</li>
       </ul>
@@ -26,7 +27,8 @@ export default function Refunds() {
       <p>
         Once paid, your order goes straight to the vendor. To cancel before the vendor accepts it, call the stall using the
         number on your order page; if they reject it, you get a full refund. After the vendor accepts, the food is prepared
-        for your time slot, so the order can no longer be cancelled.
+        for your time slot, so you can no longer cancel it. If the stall then can&apos;t make it, our support cancels it and you
+        get a full refund.
       </p>
 
       <h2>Problems with your food</h2>

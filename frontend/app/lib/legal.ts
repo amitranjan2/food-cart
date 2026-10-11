@@ -23,8 +23,16 @@ export const LEGAL = {
   grievanceEmail: null as string | null,
   /** City whose courts handle disputes, e.g. "Bengaluru". */
   jurisdiction: null as string | null,
-  /** Vendor Terms: our fee, e.g. "8% of the amount the customer paid for each completed order". */
-  vendorFee: null as string | null,
+  /** GSTIN of the company: required on tax invoices; the e-commerce operator must register whatever its turnover. */
+  gstin: null as string | null,
+  /** State of the GST registration and of the stalls (place of supply), e.g. "Haryana (06)". */
+  gstState: null as string | null,
+  /** SAC for platform charges on the customer's invoice; confirm with a CA (the food is SAC 996331). */
+  platformChargesSac: null as string | null,
+  /** Vendor Terms: the daily platform charge before GST, e.g. "₹20". */
+  vendorDailyCharge: null as string | null,
+  /** Vendor Terms: which days the daily charge applies to, e.g. "each day your stall takes at least one order". */
+  vendorChargeBasis: null as string | null,
   /** Vendor Terms: when payouts happen, e.g. "within 2 working days of the order being handed over". */
   payoutSchedule: null as string | null,
   /** Days after a vendor closes their stall within which their licence, PAN and payout details are deleted. */

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Fill, LegalPage } from '../components/LegalPage';
 import { LEGAL } from '../lib/legal';
+import { LAUNCH_RATES, percent } from '../lib/bill';
 
 export const metadata: Metadata = { title: 'Vendor Terms · ' + LEGAL.brand };
 
@@ -39,8 +40,8 @@ export default function VendorTerms() {
       <ul>
         <li>You set your menu, prices, options and opening hours, and keep them accurate.</li>
         <li>
-          The price you set is the price the customer pays, including any taxes you charge. Don&apos;t charge customers more at the
-          counter for an order paid on {LEGAL.brand}.
+          The price you set is the price before GST. Customers&apos; bills add GST on food and our platform charges (section 6); don&apos;t
+          add GST of your own, and don&apos;t charge customers anything more at the counter for an order paid on {LEGAL.brand}.
         </li>
         <li>Mark each dish correctly as veg, non-veg, egg or vegan, and describe it honestly.</li>
         <li>
@@ -84,30 +85,55 @@ export default function VendorTerms() {
         it.
       </p>
 
-      <h2>6. Fees and payouts</h2>
+      <h2>6. What customers pay, and what you get</h2>
       <ul>
-        <li>Our fee: <Fill field="vendorFee" />.</li>
         <li>
-          Customers pay through our payment partner. Your earnings for each completed order (the amount the customer paid, less
-          our fee and any taxes we must deduct) are paid to the payout account you gave us: <Fill field="payoutSchedule" />.
+          For each order the customer pays your prices, plus GST on food ({percent(LAUNCH_RATES.foodGstBp)}), plus our platform
+          charges ({percent(LAUNCH_RATES.platformFeeBp)} of your prices and the GST, covering online payment charges) and GST on those
+          charges ({percent(LAUNCH_RATES.platformFeeGstBp)}).
+        </li>
+        <li>
+          <b>We don&apos;t take a cut of your orders.</b> For every completed order you get the full total of your prices. The GST on
+          food is ours to pay to the government (section 7) and the platform charges are ours.
+        </li>
+        <li>
+          Your earnings are paid to the payout account you gave us, by our payment partner: <Fill field="payoutSchedule" />. Taxes
+          we must deduct (section 7) are taken off and shown to you.
         </li>
         <li>You are not paid for orders that are rejected, cancelled by support or refunded.</li>
         <li>
-          We may hold a payout while we look into a complaint, a chargeback or suspected fraud on an order, and take back
-          amounts paid out for orders later refunded.
+          We may hold a payout while we look into a complaint, a chargeback or suspected fraud on an order, and take back amounts
+          paid out for orders later refunded.
         </li>
-        <li>
-          Payouts need complete and correct payout details. We are not responsible for money sent to a wrong account you gave us.
-        </li>
-        <li>We will tell you at least 30 days before we change our fee.</li>
+        <li>Payouts need complete and correct payout details. We are not responsible for money sent to a wrong account you gave us.</li>
       </ul>
 
-      <h2>7. Taxes</h2>
-      <p>
-        You are responsible for the taxes on your sales, including GST if you are registered for it. Where the law requires us,
-        as an e-commerce operator, to deduct or collect tax on your sales (for example TDS under the Income-tax Act or TCS under
-        GST) or to report them, we will do so from your payouts and give you the details.
-      </p>
+      <h2>7. Our daily platform charge, and taxes</h2>
+      <ul>
+        <li>
+          Using {LEGAL.brand} costs <Fill field="vendorDailyCharge" /> per day plus GST at 18%, for <Fill field="vendorChargeBasis" />.
+          We send you a tax invoice for it. It is taken from your payouts; if they don&apos;t cover it, pay the rest by UPI within 7
+          days of our invoice.
+        </li>
+        <li>
+          We may later add a fee per order. We will tell you at least 30 days before any new fee, or any change to the daily
+          charge, starts.
+        </li>
+        <li>
+          <b>GST on food sold through {LEGAL.brand}</b> is collected and paid by us as the e-commerce operator, under section 9(5) of
+          the CGST Act, 2017, whether or not you are registered for GST. You don&apos;t charge or pay GST on these sales. If you are
+          GST-registered, tell your accountant they are taxed through us.
+        </li>
+        <li>
+          If you are GST-registered, give us your GSTIN so that it appears on our invoices for the daily charge, and you can claim
+          the GST on it as input tax credit.
+        </li>
+        <li>
+          <b>Income tax</b>: as an e-commerce operator we must deduct TDS under section 194-O of the Income-tax Act (currently
+          0.1% of your sales) unless you are an individual or HUF whose sales through us stay within ₹5 lakh in the year and you
+          have given us your PAN. Deducted tax is shown in your Form 26AS. Your own income tax on your earnings is yours.
+        </li>
+      </ul>
 
       <h2>8. Customer details</h2>
       <p>
@@ -124,7 +150,7 @@ export default function VendorTerms() {
           loses its FSSAI registration, gets serious or repeated food-safety complaints, or often fails orders it accepted.
         </li>
         <li>
-          After closing, we pay out what you are owed for completed orders, less refunds and our fee. What happens to your data
+          After closing, we pay out what you are owed for completed orders, less refunds and any unpaid daily charges. What happens to your data
           is in the <Link href="/privacy#vendors">Privacy Policy</Link>.
         </li>
       </ul>

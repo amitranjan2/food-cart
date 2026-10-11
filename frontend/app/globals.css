@@ -377,3 +377,38 @@ html.scroll-locked,html.scroll-locked body,.storefront.scroll-locked{overflow:hi
 .store-missing a{margin-top:8px;border-radius:12px;background:var(--store-ink);color:#fff;font-weight:800;padding:12px 18px;text-decoration:none}
 .store-closed{margin:12px 12px 0;padding:12px 14px;border-radius:14px;background:#fff4d6;color:#7a4b06;font-size:var(--fs-sm);line-height:1.4}
 .status-support{background:transparent;color:var(--store-ink);border:1.5px solid var(--store-ink)}
+
+/* Bill lines: platform charges info (tracker S2.16). */
+.bill-info{display:inline-grid;place-items:center;width:18px;height:18px;margin-left:6px;padding:0;border:1.5px solid currentColor;border-radius:50%;background:transparent;color:inherit;font:800 11px/1 var(--store-font-body);vertical-align:1px;cursor:pointer}
+.bill-note{margin:2px 0 6px;padding:8px 10px;border-radius:10px;background:#f2f6f9;color:#4a5864;font-size:var(--fs-xs);line-height:1.45}
+.status-invoice{display:inline-block;margin-top:10px;font-size:var(--fs-sm);font-weight:800;color:var(--store-ink)}
+
+/* Tax invoices (/[slug]/order/[id]/invoice): on screen and on A4. */
+.invoice-page{min-height:100vh;background:#e9edf1;padding:16px;display:flex;flex-direction:column;align-items:center;gap:14px;font-family:"Plus Jakarta Sans","DM Sans",sans-serif;color:#22303d}
+.invoice-tools{width:min(720px,100%);display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:14px;font-weight:700}
+.invoice-tools a{color:#22303d}
+.invoice-tools button{border:0;border-radius:10px;background:#30404e;color:#fff;font-weight:800;font-size:14px;padding:10px 16px;cursor:pointer}
+.invoice-error{margin-top:20vh;font-weight:700}
+.invoice{width:min(720px,100%);background:#fff;border-radius:12px;padding:22px;box-shadow:0 8px 24px rgba(48,64,78,.1);font-size:13px;line-height:1.45}
+.invoice header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;border-bottom:2px solid #22303d;padding-bottom:8px}
+.invoice h1{margin:0;font-size:20px;font-family:inherit;letter-spacing:0}
+.invoice header p{margin:0;font-weight:700;color:#4a5864}
+.invoice h2{margin:0 0 4px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#4a5864}
+.invoice-meta{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;margin:12px 0}
+.invoice-meta dt{font-weight:700;color:#4a5864}.invoice-meta dd{margin:0}
+.invoice-parties{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px}
+.invoice-parties p{margin:0}
+.invoice-note{margin:0 0 10px;padding:8px 10px;border-radius:8px;background:#f2f6f9;font-size:12px}
+.invoice table{width:100%;border-collapse:collapse}
+.invoice th,.invoice td{padding:6px 4px;text-align:right;border-bottom:1px solid #e1e7ec}
+.invoice th:first-child,.invoice td:first-child{text-align:left}
+.invoice th{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:#4a5864}
+.invoice tfoot td{border-bottom:0}
+.invoice tr.grand td{font-weight:800;font-size:14px;border-top:2px solid #22303d}
+.invoice-paid{width:min(720px,100%);margin:0;font-size:13px}
+@media (max-width:480px){.invoice{padding:14px}.invoice-parties{grid-template-columns:1fr}}
+@media print{
+  .invoice-page{background:#fff;padding:0}
+  .invoice-tools{display:none}
+  .invoice{box-shadow:none;border-radius:0;padding:0 0 18px;width:100%;break-inside:avoid}
+}

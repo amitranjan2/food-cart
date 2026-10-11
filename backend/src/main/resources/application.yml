@@ -15,6 +15,12 @@ app:
   upload-dir: ${UPLOAD_DIR:uploads}
   # Where customers open stores: {store-url}/{slug}. Used for share links and QR codes.
   store-url: ${PUBLIC_STORE_URL:https://suprmama.in}
+  # The customer's bill (BillRules). GST on food is paid by us as the e-commerce operator (CGST Act s.9(5)).
+  pricing:
+    food-gst-percent: ${FOOD_GST_PERCENT:5}
+    # Covers online payment charges; a percentage of (items + GST on food).
+    platform-fee-percent: ${PLATFORM_FEE_PERCENT:2.5}
+    platform-fee-gst-percent: ${PLATFORM_FEE_GST_PERCENT:18}
   # Login-code limits (tracker S4.8). Per number per hour: see OtpRules.
   otp:
     # WhatsApp codes sent per India day across all numbers; past it, login is refused until midnight.
