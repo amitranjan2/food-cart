@@ -3,6 +3,7 @@ package in.foodcart.api;
 import in.foodcart.data.VendorEntity;
 import in.foodcart.service.StoreLinks;
 import in.foodcart.service.SupportRefunds;
+import in.foodcart.service.onboarding.SelfOnboarding;
 import in.foodcart.service.VendorOnboarding;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,13 +29,15 @@ public class AdminController {
   private final StoreLinks links;
   private final VendorOnboarding onboarding;
   private final SupportRefunds refunds;
+  private final SelfOnboarding signups;
 
-  public AdminController(@Value("${ADMIN_TOKEN:}") String token, StoreLinks links, VendorOnboarding onboarding, SupportRefunds refunds) {
+  public AdminController(@Value("${ADMIN_TOKEN:}") String token, StoreLinks links, VendorOnboarding onboarding, SupportRefunds refunds, SelfOnboarding signups) {
     this.token = token.length() >= 24 ? token.getBytes(StandardCharsets.UTF_8) : null;
     if (!token.isEmpty() && this.token == null) log.warn("ADMIN_TOKEN is shorter than 24 characters, so the admin API stays off.");
     this.links = links;
     this.onboarding = onboarding;
     this.refunds = refunds;
+    this.signups = signups;
   }
 
   /** null when the caller may go on; otherwise the response to send. */
@@ -81,5 +84,30 @@ public class AdminController {
     Map<String, Object> done = refunds.refund(body.slug(), body.orderNumber(), body.reason());
     log.info("Support refunded order #{} at {}", body.orderNumber(), body.slug());
     return ResponseEntity.ok(done);
+  }
+
+  /** Stalls waiting for review, oldest first, with full business details (ops/review-vendors.sh list). */
+  @GetMapping("/vendors/review")
+  public ResponseEntity<?> waiting(@RequestHeader(value = "X-Admin-Token", required = false) String given) {
+    ResponseEntity<Map<String, Object>> refused = refuse(given);
+    if (refused != null) return refused;
+    return ResponseEntity.ok(signups.waiting());
+  }
+
+  public record Review(boolean approve, String note) {}
+
+  /** Approve (the stall goes live and open) or send back with a note the vendor sees. */
+  @PostMapping("/vendors/{slug}/review")
+  public ResponseEntity<Map<String, Object>> review(@RequestHeader(value = "X-Admin-Token", required = false) String given, @PathVariable String slug, @RequestBody Review body) {
+    ResponseEntity<Map<String, Object>> refused = refuse(given);
+    if (refused != null) return refused;
+    VendorEntity v = signups.review(slug, body.approve(), body.note());
+    log.info("Review of {}: {}", v.slug, v.review);
+    Map<String, Object> out = new LinkedHashMap<>();
+    out.put("slug", v.slug);
+    out.put("name", v.name);
+    out.put("review", v.review);
+    out.put("storeUrl", links.store(v.slug));
+    return ResponseEntity.ok(out);
   }
 }

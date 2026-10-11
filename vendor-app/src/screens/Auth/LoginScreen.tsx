@@ -111,7 +111,7 @@ export function LoginScreen() {
                 accessibilityLabel="Mobile number"
               />
               {error ? <Text style={styles.error}>{error}</Text> : null}
-              <Text style={typography.caption}>We send a login code on WhatsApp.</Text>
+              <Text style={typography.caption}>We send a login code on WhatsApp. New here? Use your number to open your stall.</Text>
               <Button label="Continue" busy={busy} onPress={continueWithMobile} style={styles.action} />
             </Card>
           </>

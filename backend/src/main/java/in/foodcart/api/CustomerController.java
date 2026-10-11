@@ -57,7 +57,7 @@ public class CustomerController {
   @PostMapping("/vendors")
   Map<String, Object> save(@RequestHeader("Authorization") String h, @RequestBody SaveVendor input) {
     String customerId = auth.actor(h, "CUSTOMER");
-    VendorEntity v = vendors.findBySlug(input.slug() == null ? "" : input.slug()).orElseThrow(() -> new IllegalArgumentException("Vendor not found"));
+    VendorEntity v = vendors.findBySlug(input.slug() == null ? "" : input.slug()).filter(VendorEntity::live).orElseThrow(() -> new IllegalArgumentException("Vendor not found"));
     CustomerVendorHistoryEntity x = history.findByCustomerIdAndVendorId(customerId, v.id).orElseGet(() -> {
       CustomerVendorHistoryEntity fresh = new CustomerVendorHistoryEntity();
       fresh.customerId = customerId;

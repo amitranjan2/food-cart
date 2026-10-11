@@ -36,6 +36,7 @@ public class VendorOnboarding {
     v.mobile = mobile;
     v.slug = slug;
     v.status = VendorStatus.OPEN;
+    v.review = in.foodcart.domain.VendorReview.APPROVED; // the team created it, so no review
     v.createdAt = v.updatedAt = Instant.now();
     try {
       return vendors.save(v);

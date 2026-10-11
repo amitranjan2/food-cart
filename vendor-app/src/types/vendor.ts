@@ -1,5 +1,8 @@
 export type VendorStatus = 'OPEN' | 'CLOSED';
 
+/** Onboarding: only APPROVED stalls are visible to customers. */
+export type VendorReview = 'DRAFT' | 'SUBMITTED' | 'CHANGES_NEEDED' | 'APPROVED';
+
 export type Weekday = 'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY';
 
 /** One opening slot: "HH:mm" on the half hour, India time; closes may be "24:00" (midnight). A day can have several. */
@@ -24,6 +27,7 @@ export type Vendor = {
   theme?: string;
   location?: VendorLocation | null;
   status: VendorStatus;
+  review?: VendorReview;
   openingHours?: OpeningHours[];
   createdAt?: string;
   updatedAt?: string;

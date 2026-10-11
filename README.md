@@ -61,6 +61,18 @@ Step by step, with the DNS records for Hostinger: [DEPLOY.md](DEPLOY.md).
 
 ## Adding a vendor
 
+Vendors sign up themselves: a new number on the vendor app's login gets a setup checklist. Their stall stays hidden
+from customers until the team approves it:
+
+```
+API_BASE=https://api.suprmama.in ADMIN_TOKEN='…' ops/review-vendors.sh list
+… ops/review-vendors.sh approve chotus-chai-bun
+… ops/review-vendors.sh changes chotus-chai-bun "Please add a photo of the stall front"
+```
+
+Before approving, call the number and check the FSSAI number at foscos.fssai.gov.in. To make a stall for someone
+directly (approved at once):
+
 ```
 API_BASE=https://api.suprmama.in ADMIN_TOKEN='…' ops/create-vendor.sh "Raju Momos" 9876543210 [raju-momos]
 ```

@@ -16,7 +16,7 @@ public final class StoreSlugs {
       "terms", "privacy", "refunds", "contact", "about", "help", "support", "faq",
       "api", "admin", "app", "apps", "vendor", "vendors", "login", "signup", "account", "me",
       "order", "orders", "cart", "checkout", "pay", "payment", "payments", "qr", "home", "search",
-      "uploads", "static", "assets", "category-art", "www", "mail", "blog", "suprmama", "supr-mama");
+      "uploads", "static", "assets", "category-art", "www", "mail", "blog", "suprmama", "supr-mama", "new");
 
   /** Lowercase letters, digits and single hyphens; 3–40 long; no hyphen at either end. */
   public static String check(String slug) {
@@ -26,6 +26,7 @@ public final class StoreSlugs {
       throw new IllegalArgumentException("Store link can use only a-z, 0-9 and single hyphens, e.g. raju-momos.");
     }
     if (RESERVED.contains(s)) throw new IllegalArgumentException("\"" + s + "\" is reserved. Pick another store link.");
+    if (isPlaceholder(s)) throw new IllegalArgumentException("Store links can't start with \"new-\". Pick another store link.");
     return s;
   }
 
@@ -34,5 +35,14 @@ public final class StoreSlugs {
     String plain = Normalizer.normalize(name == null ? "" : name, Normalizer.Form.NFD).replaceAll("\\p{M}", "");
     String s = plain.toLowerCase(Locale.ROOT).replace("'", "").replaceAll("[^a-z0-9]+", "-").replaceAll("^-+|-+$", "");
     return s.length() > 40 ? s.substring(0, 40).replaceAll("-+$", "") : s;
+  }
+
+  /** Self sign-ups start with a placeholder link ("new-…") until the vendor picks theirs. */
+  public static String placeholder() {
+    return "new-" + java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 10);
+  }
+
+  public static boolean isPlaceholder(String slug) {
+    return slug == null || slug.startsWith("new-");
   }
 }

@@ -84,7 +84,7 @@ export function SettingsScreen({ navigation }: Props) {
   return (
     <Screen>
       <StatusBar style="light" />
-      <Header title={name.trim() || vendor.name} onBack={() => navigation.goBack()} />
+      <Header title={name.trim() || vendor.name || 'Your stall'} onBack={() => navigation.goBack()} />
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         <PageHeading overline="STORE · PROFILE" title="Your storefront" />
 

@@ -11,7 +11,7 @@ import static org.mockito.Mockito.*;
 
 class AuthServiceLogoutTest {
   private final SessionRepository sessions = mock(SessionRepository.class);
-  private final AuthService auth = new AuthService(mock(CustomerRepository.class), mock(VendorRepository.class), sessions, mock(OtpService.class));
+  private final AuthService auth = new AuthService(mock(CustomerRepository.class), mock(VendorRepository.class), sessions, mock(OtpService.class), mock(in.foodcart.service.onboarding.SelfOnboarding.class));
 
   @Test
   void deletesTheSessionSoItsTokenStopsWorking() {

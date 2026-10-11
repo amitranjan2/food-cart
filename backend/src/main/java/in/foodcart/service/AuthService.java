@@ -1,6 +1,7 @@
 package in.foodcart.service;
 
 import in.foodcart.data.*;
+import in.foodcart.service.onboarding.SelfOnboarding;
 import in.foodcart.service.otp.OtpService;
 import org.springframework.stereotype.Service;
 
@@ -14,20 +15,21 @@ public class AuthService {
   private final VendorRepository vendors;
   private final SessionRepository sessions;
   private final OtpService otp;
+  private final SelfOnboarding onboarding;
 
-  public AuthService(CustomerRepository c, VendorRepository v, SessionRepository s, OtpService otp) {
+  public AuthService(CustomerRepository c, VendorRepository v, SessionRepository s, OtpService otp, SelfOnboarding onboarding) {
     customers = c;
     vendors = v;
     sessions = s;
     this.otp = otp;
+    this.onboarding = onboarding;
   }
 
   /** role is "vendor" or "customer", as it appears in the URL. */
   public void requestOtp(String role, String mobile) {
     validMobile(mobile);
     if ("vendor".equals(role)) {
-      // Vendors are onboarded by us; don't spend an SMS on numbers that can't log in.
-      if (vendors.findByMobile(mobile).isEmpty()) throw new IllegalArgumentException("No vendor account uses this mobile number.");
+      // Any number: a new one signs up a stall (SelfOnboarding). The OTP limits cap what this can cost.
       otp.send("VENDOR", mobile);
     } else if ("customer".equals(role)) {
       otp.send("CUSTOMER", mobile);
@@ -49,8 +51,9 @@ public class AuthService {
 
   public String vendor(String mobile, String code) {
     validMobile(mobile);
-    VendorEntity v = vendors.findByMobile(mobile).orElseThrow(() -> new SecurityException("No vendor is associated with this mobile"));
     otp.verify("VENDOR", mobile, code);
+    // The draft stall is made only after the code checks out, so nobody can create stalls for numbers they don't hold.
+    VendorEntity v = vendors.findByMobile(mobile).orElseGet(() -> onboarding.draftFor(mobile));
     return session(v.id, "VENDOR");
   }
 

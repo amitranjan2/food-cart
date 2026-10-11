@@ -52,6 +52,7 @@ public class CheckoutService {
 
   public OrderEntity create(String customerId, Request request) {
     VendorEntity v = vendors.findById(request.vendorId()).orElseThrow(() -> new IllegalArgumentException("Vendor not found"));
+    if (!v.live()) throw new IllegalArgumentException("Vendor not found");
     if (v.status != VendorStatus.OPEN) throw new IllegalStateException("This vendor is currently closed.");
     OrderEntity o = new OrderEntity();
     o.vendorId = v.id;

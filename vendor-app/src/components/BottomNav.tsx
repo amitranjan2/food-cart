@@ -7,10 +7,12 @@ const TABS: { key: 'menu' | 'orders'; label: string; icon: IconName }[] = [
   { key: 'orders', label: 'Orders', icon: 'orders' },
 ];
 
-export function BottomNav({ tab, onChange }: { tab: 'menu' | 'orders'; onChange: (tab: 'menu' | 'orders') => void }) {
+/** setup: the stall is still in onboarding, so the second tab is its checklist instead of orders. */
+export function BottomNav({ tab, onChange, setup = false }: { tab: 'menu' | 'orders'; onChange: (tab: 'menu' | 'orders') => void; setup?: boolean }) {
+  const tabs = setup ? TABS.map(entry => (entry.key === 'orders' ? { ...entry, label: 'Setup', icon: 'checklist' as IconName } : entry)) : TABS;
   return (
     <View style={styles.bar} accessibilityRole="tablist">
-      {TABS.map(entry => {
+      {tabs.map(entry => {
         const on = tab === entry.key;
         return (
           <Pressable

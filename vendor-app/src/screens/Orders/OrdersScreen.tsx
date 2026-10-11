@@ -15,6 +15,7 @@ import { OrderCard } from '../../components/OrderCard';
 import { Screen } from '../../components/Screen';
 import { ShareStoreSheet } from '../../components/ShareStoreSheet';
 import { MenuPanel } from '../Menu/MenuPanel';
+import { SetupPanel } from '../Onboarding/SetupPanel';
 import { StoreSwitch } from '../../components/StoreSwitch';
 import { filterOrders, useOrders } from '../../hooks/useOrders';
 import { useNewOrderAlert } from '../../hooks/useNewOrderAlert';
@@ -130,14 +131,16 @@ export function OrdersScreen({ navigation }: Props) {
   }
 
   if (!vendor) return null;
+  // Until the team approves the stall, the second tab is its setup checklist (tracker S4.19).
+  const setup = vendor.review !== undefined && vendor.review !== 'APPROVED';
 
   return (
     <Screen>
       <StatusBar style="light" />
       <Header
-        title={vendor.name}
+        title={vendor.name || 'Your new stall'}
         onMenuPress={() => setMenuOpen(open => !open)}
-        right={<StoreSwitch open={vendor.status === 'OPEN'} onToggle={toggleStore} />}
+        right={setup ? undefined : <StoreSwitch open={vendor.status === 'OPEN'} onToggle={toggleStore} />}
         notice={
           alert.latest
             ? {
@@ -161,10 +164,14 @@ export function OrdersScreen({ navigation }: Props) {
               setMenuOpen(false);
               navigation.navigate('Settings');
             }}
-            onShare={() => {
-              setMenuOpen(false);
-              setSharing(true);
-            }}
+            onShare={
+              setup
+                ? undefined
+                : () => {
+                    setMenuOpen(false);
+                    setSharing(true);
+                  }
+            }
             onLogout={() => {
               setMenuOpen(false);
               logout();
@@ -173,7 +180,9 @@ export function OrdersScreen({ navigation }: Props) {
         </>
       ) : null}
 
-      {tab === 'orders' ? (
+      {tab === 'orders' && setup ? (
+        <SetupPanel onOpenSettings={() => navigation.navigate('Settings')} onOpenMenu={() => setTab('menu')} onOpenBusiness={() => navigation.navigate('Business')} />
+      ) : tab === 'orders' ? (
         <View style={styles.body}>
           <PageHeading overline="ORDERS · LIVE" title={offset === 0 ? "Today's orders" : 'Orders'} />
           <DatePager
@@ -218,7 +227,7 @@ export function OrdersScreen({ navigation }: Props) {
       ) : (
         <MenuPanel />
       )}
-      <BottomNav tab={tab} onChange={setTab} />
+      <BottomNav tab={tab} onChange={setTab} setup={setup} />
       {handoverOrder ? (
         <HandoverSheet
           order={handoverOrder}
