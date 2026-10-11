@@ -63,7 +63,7 @@ export default function Privacy() {
 
       <h2 id="contact-form">If you write to us through our website</h2>
       <p>
-        The contact form on {LEGAL.domain} asks for your name, email address, phone number if you give one, and your message. We
+        The contact form on {LEGAL.domain} asks for your name, email address, phone number and message, and nothing else. We
         use them only to reply to you and to deal with what you asked about (for example, a stall that wants to join). The form
         sends your message to our support inbox, <Fill field="email" />; our website host (Hostinger) stores the submission and
         our email provider stores the email, for us. We keep them for up to 12 months after we have answered, then delete them,
