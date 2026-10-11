@@ -13,7 +13,7 @@ public final class StoreSlugs {
    * the storefront, so a store with one of these names could never be opened.
    */
   public static final Set<String> RESERVED = Set.of(
-      "terms", "privacy", "refunds", "contact", "about", "help", "support", "faq",
+      "terms", "vendor-terms", "privacy", "refunds", "contact", "about", "help", "support", "faq",
       "api", "admin", "app", "apps", "vendor", "vendors", "login", "signup", "account", "me",
       "order", "orders", "cart", "checkout", "pay", "payment", "payments", "qr", "home", "search",
       "uploads", "static", "assets", "category-art", "www", "mail", "blog", "suprmama", "supr-mama", "new");

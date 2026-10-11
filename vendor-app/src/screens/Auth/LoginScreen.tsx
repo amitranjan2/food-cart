@@ -116,7 +116,7 @@ export function LoginScreen() {
               <Button label="Continue" busy={busy} onPress={continueWithMobile} style={styles.action} />
               <Text style={[typography.caption, styles.center]}>
                 By continuing you agree to our{' '}
-                <Text style={styles.link} accessibilityRole="link" onPress={() => Linking.openURL(POLICY_URLS.terms)}>Terms</Text> and{' '}
+                <Text style={styles.link} accessibilityRole="link" onPress={() => Linking.openURL(POLICY_URLS.vendorTerms)}>Vendor Terms</Text> and{' '}
                 <Text style={styles.link} accessibilityRole="link" onPress={() => Linking.openURL(POLICY_URLS.vendorPrivacy)}>Privacy Policy</Text>.
               </Text>
             </Card>

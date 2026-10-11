@@ -12,6 +12,8 @@ const LABELS: Record<LegalField, string> = {
   grievanceEmail: 'Grievance officer email',
   jurisdiction: 'City for courts',
   vendorDeletionDays: 'Days to delete a closed stall’s details',
+  vendorFee: 'Our fee to vendors',
+  payoutSchedule: 'When vendors are paid',
 };
 
 /** A business detail from LEGAL, or a highlighted gap until it is filled in. */
@@ -33,6 +35,7 @@ export function PolicyFooter() {
         <Link href="/privacy">Privacy</Link>
         <Link href="/refunds">Refunds &amp; cancellation</Link>
         <Link href="/contact">Contact</Link>
+        <Link href="/vendor-terms">Vendor terms</Link>
       </nav>
       <p>© {new Date().getFullYear()} {LEGAL.company ?? LEGAL.brand}</p>
     </footer>

@@ -23,6 +23,10 @@ export const LEGAL = {
   grievanceEmail: null as string | null,
   /** City whose courts handle disputes, e.g. "Bengaluru". */
   jurisdiction: null as string | null,
+  /** Vendor Terms: our fee, e.g. "8% of the amount the customer paid for each completed order". */
+  vendorFee: null as string | null,
+  /** Vendor Terms: when payouts happen, e.g. "within 2 working days of the order being handed over". */
+  payoutSchedule: null as string | null,
   /** Days after a vendor closes their stall within which their licence, PAN and payout details are deleted. */
   vendorDeletionDays: null as string | null,
   /** Change whenever a policy's wording changes. */

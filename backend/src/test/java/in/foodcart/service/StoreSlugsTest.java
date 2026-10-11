@@ -24,7 +24,7 @@ class StoreSlugsTest {
     for (String bad : new String[] {"ab", "x".repeat(41), "raju--momos", "-raju", "raju-", "raju_momos", "raju momos", "", null}) {
       assertThrows(IllegalArgumentException.class, () -> StoreSlugs.check(bad), String.valueOf(bad));
     }
-    for (String page : new String[] {"terms", "privacy", "refunds", "contact", "admin", "api", "Supr-Mama"}) {
+    for (String page : new String[] {"terms", "vendor-terms", "privacy", "refunds", "contact", "admin", "api", "Supr-Mama"}) {
       IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> StoreSlugs.check(page));
       assertTrue(e.getMessage().contains("reserved"), e.getMessage());
     }
