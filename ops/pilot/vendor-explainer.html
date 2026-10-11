@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Supr-Mama · Stall owners</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root { --paper:#fbf9f5; --ink:#1d1d1f; --body:#4b5058; --muted:#80858d; --rule:#e7e3dc; --red:#e2412f; --red-soft:#fdece8; --green:#1f7a4d; }
+  * { box-sizing:border-box; }
+  @page { size:A4; margin:0; }
+  body { margin:0; background:#ddd; font-family:'Noto Sans Devanagari','Plus Jakarta Sans',sans-serif; color:var(--ink); }
+  .sheet { width:210mm; height:297mm; margin:12px auto; background:var(--paper); padding:11mm 11mm 9mm; display:flex; flex-direction:column; overflow:hidden; }
+  .en { font-family:'Plus Jakarta Sans',sans-serif; }
+  header { display:flex; justify-content:space-between; align-items:center; margin-bottom:4.5mm; }
+  .brand { display:flex; align-items:center; gap:8px; font:800 22px/1 'Plus Jakarta Sans',sans-serif; letter-spacing:-.03em; }
+  .brand i { display:grid; place-items:center; width:32px; height:32px; border-radius:9px; background:var(--red); color:#fff; font-style:normal; font-size:14px; }
+  .brand b { color:var(--red); }
+  .tag { font:700 10px/1 'Plus Jakarta Sans',sans-serif; letter-spacing:.14em; text-transform:uppercase; color:var(--red); background:var(--red-soft); padding:7px 10px; border-radius:6px; }
+  h1 { font-size:25px; line-height:1.2; margin:0; font-weight:800; letter-spacing:-.01em; }
+  .h1en { font:600 13px/1.35 'Plus Jakarta Sans',sans-serif; color:var(--body); margin:2px 0 4mm; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:3mm; align-content:start; }
+  .card { background:#fff; border:1px solid var(--rule); border-radius:12px; padding:3.2mm 4mm; }
+  .card.wide { grid-column:1 / -1; }
+  .num { display:inline-grid; place-items:center; width:22px; height:22px; border-radius:50%; background:var(--red); color:#fff; font:800 12px/1 'Plus Jakarta Sans',sans-serif; margin-right:6px; vertical-align:2px; }
+  h2 { font-size:15px; margin:0 0 1px; font-weight:700; }
+  .h2en { font:600 9.5px/1.3 'Plus Jakarta Sans',sans-serif; color:var(--muted); margin:0 0 4px; text-transform:uppercase; letter-spacing:.08em; }
+  p, li { font-size:11.5px; line-height:1.5; margin:0; color:var(--body); }
+  p + p { margin-top:5px; }
+  .en-line { font:400 9.5px/1.4 'Plus Jakarta Sans',sans-serif; color:var(--muted); margin-top:3px; }
+  ol, ul { margin:0; padding-left:18px; }
+  li + li { margin-top:2px; }
+  li .en-line { margin-top:1px; }
+  b { color:var(--ink); }
+  .steps { display:grid; grid-template-columns:repeat(4,1fr); gap:2.5mm; margin-top:2px; }
+  .step { background:var(--paper); border-radius:10px; padding:2.5mm 3mm; }
+  .step .st { display:block; font-size:12.5px; font-weight:700; color:var(--ink); margin-bottom:2px; }
+  .step .btn { display:inline-block; font:700 9.5px/1 'Plus Jakarta Sans',sans-serif; background:#33465a; color:#fff; padding:4px 7px; border-radius:6px; margin:2px 2px 0 0; }
+  .money { display:flex; align-items:center; gap:8px; margin:4px 0 3px; font-family:'Plus Jakarta Sans',sans-serif; }
+  .pill { background:var(--paper); border-radius:8px; padding:6px 9px; text-align:center; }
+  .pill small { display:block; font-size:9.5px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.06em; }
+  .pill strong { font-size:14px; }
+  .pill.keep strong { color:var(--green); }
+  .arrow { color:var(--muted); font-weight:700; }
+  table.plans { width:100%; border-collapse:collapse; font-family:'Plus Jakarta Sans',sans-serif; margin:4px 0 2px; }
+  .plans td { padding:3px 4px 3px 0; border-bottom:1px solid var(--rule); font-size:11px; color:var(--body); vertical-align:top; }
+  .plans td:first-child { font-weight:700; color:var(--ink); width:19%; }
+  .plans td:nth-child(2) { font-weight:800; color:var(--ink); width:30%; white-space:nowrap; }
+  .plans tr:last-child td { border-bottom:0; }
+  .nocut { display:inline-block; background:#e8f4ec; color:var(--green); font:700 10.5px/1 'Plus Jakarta Sans',sans-serif; padding:6px 9px; border-radius:6px; margin-top:4px; }
+  footer { margin-top:auto; display:flex; justify-content:space-between; align-items:center; font:500 11px/1.4 'Plus Jakarta Sans',sans-serif; color:var(--body); border-top:1px solid var(--rule); padding-top:4mm; }
+  footer strong { color:var(--ink); font-size:13px; }
+  /* Page 2: visit sheet */
+  .q h1 { font:800 24px/1.2 'Plus Jakarta Sans',sans-serif; letter-spacing:-.02em; }
+  .q .h1en { margin-bottom:4mm; }
+  .who { display:grid; grid-template-columns:repeat(3,1fr); gap:3mm 5mm; margin-bottom:4mm; }
+  .field { font:600 10.5px/1 'Plus Jakarta Sans',sans-serif; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; border-bottom:1px solid #bdb7ad; padding:0 0 7mm; }
+  .qs { counter-reset:q; font-family:'Plus Jakarta Sans',sans-serif; flex:1; display:flex; flex-direction:column; gap:2.4mm; }
+  .qrow { display:grid; grid-template-columns:1fr 42%; gap:4mm; align-items:start; border-bottom:1px solid var(--rule); padding-bottom:2.4mm; }
+  .qrow:last-child { border-bottom:0; }
+  .qrow p { font-size:12px; line-height:1.4; color:var(--ink); }
+  .qrow p::before { counter-increment:q; content:counter(q) ". "; font-weight:800; color:var(--red); }
+  .qrow p span { display:block; color:var(--muted); font-size:10.5px; margin-top:1px; font-family:'Noto Sans Devanagari',sans-serif; }
+  .opts { font-size:11px; color:var(--body); line-height:1.7; }
+  .opts i { font-style:normal; display:inline-block; margin-right:9px; white-space:nowrap; }
+  .opts i::before { content:''; display:inline-block; width:10px; height:10px; border:1.3px solid #8a8f97; border-radius:2px; margin-right:4px; vertical-align:-1px; }
+  .why { font-size:9.5px; color:var(--muted); display:block; }
+  @media print { body { background:none; } .sheet { margin:0; } }
+</style>
+</head>
+<body>
+
+<section class="sheet">
+  <header>
+    <div class="brand"><i>sm</i><span>supr-mama<b>.</b></span></div>
+    <span class="tag">स्टॉल मालिकों के लिए · For stall owners</span>
+  </header>
+  <h1>आपकी स्टॉल, अब ग्राहकों के फ़ोन पर</h1>
+  <p class="h1en">Your stall, now on your customers' phones</p>
+
+  <div class="grid">
+    <div class="card wide">
+      <h2><span class="num">1</span>यह क्या है?</h2>
+      <p class="h2en">What it is</p>
+      <p>आपकी स्टॉल का <b>अपना ऑनलाइन मेन्यू</b> और <b>QR कोड</b>। ग्राहक फ़ोन से ऑर्डर करते हैं, पिक-अप या वहीं बैठकर खाने का समय चुनते हैं, और आपकी स्टॉल पर आकर खाना लेते हैं। कोई डिलीवरी बॉय नहीं, कोई ऐप डाउनलोड नहीं: ग्राहक बस QR स्कैन करता है।</p>
+      <p class="en-line">Your stall's own online menu and QR code. Customers order from their phone, pick a time to collect or eat at the stall, and come to you. No delivery, no app to download: they just scan the QR.</p>
+    </div>
+
+    <div class="card wide">
+      <h2><span class="num">2</span>ऑर्डर कैसे आता है</h2>
+      <p class="h2en">How an order works</p>
+      <div class="steps">
+        <div class="step"><span class="st">नया ऑर्डर</span><p>ऐप में आवाज़ के साथ आता है। <span class="btn">Accept</span> या <span class="btn">Reject</span> दबाएँ।</p><p class="en-line">A new order rings in the app. Accept or reject it.</p></div>
+        <div class="step"><span class="st">खाना बनाएँ</span><p>ग्राहक के चुने समय तक तैयार करें, फिर <span class="btn">Mark ready</span>।</p><p class="en-line">Cook it for the customer's time, then mark it ready.</p></div>
+        <div class="step"><span class="st">पैसे लें, कोड डालें</span><p>पहले पैसे लें (कैश या <b>आपका UPI</b>), फिर ग्राहक का <b>4 अंकों का कोड</b> ऐप में डालें।</p><p class="en-line">Take the money first (cash or your UPI), then enter the customer's 4-digit code.</p></div>
+        <div class="step"><span class="st">ग्राहक नहीं आया?</span><p>समय के 30 मिनट बाद <span class="btn">Didn't come</span> दबाएँ। बार-बार न आने वालों को रोक दिया जाता है।</p><p class="en-line">30 minutes after the time, tap "Didn't come". Repeat no-shows get blocked.</p></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="num">3</span>पैसा किसका?</h2>
+      <p class="h2en">Whose money</p>
+      <p>ग्राहक देता है <b>आपकी कीमत + 5% GST</b>। उदाहरण, ₹70 का रोल:</p>
+      <div class="money">
+        <div class="pill"><small>ग्राहक देता है</small><strong>₹73.50</strong></div><span class="arrow">=</span>
+        <div class="pill keep"><small>आपका, पूरा</small><strong>₹70</strong></div><span class="arrow">+</span>
+        <div class="pill"><small>GST</small><strong>₹3.50</strong></div>
+      </div>
+      <p>GST सरकार को <b>Supr-Mama भरता है</b>। इसलिए कैश ऑर्डर का GST महीने में एक बार, ऐप में आए स्टेटमेंट से, 7 दिन में UPI पर हमें भेजें।</p>
+      <span class="nocut">हम आपके ऑर्डर से कोई कमीशन नहीं लेते · No commission</span>
+      <p class="en-line">The customer pays your price + 5% GST. You keep your full price. We pay the GST to the government, so once a month you pass on the GST from cash orders (statement in the app, pay by UPI within 7 days).</p>
+    </div>
+
+    <div class="card">
+      <h2><span class="num">4</span>आपका प्लान</h2>
+      <p class="h2en">Your plan (+ 18% GST)</p>
+      <table class="plans">
+        <tr><td>Daily</td><td>₹100 / दिन</td><td>सिर्फ़ उन दिनों जिस दिन कम से कम एक ऑर्डर आया। हर स्टॉल यहीं से शुरू।</td></tr>
+        <tr><td>Monthly</td><td>₹2,500 / महीना</td><td>जितने भी दिन बेचें, एक दाम।</td></tr>
+        <tr><td>Yearly</td><td>₹25,000 / साल</td><td>12 महीने, 10 के दाम में।</td></tr>
+      </table>
+      <p>स्टॉल मंज़ूर होने से पहले कोई चार्ज नहीं। प्लान ऐप में बदलें, अगले महीने की 1 तारीख से लागू।</p>
+      <p class="en-line">Daily: only on days with at least one order; every stall starts here. Monthly: one price however many days you sell. Yearly: 12 months for the price of 10. No charge before your stall is approved; a new plan starts on the 1st of next month.</p>
+    </div>
+
+    <div class="card">
+      <h2><span class="num">5</span>शुरू करने के लिए चाहिए</h2>
+      <p class="h2en">What you need</p>
+      <ul>
+        <li>स्मार्टफ़ोन, और <b>WhatsApp वाला नंबर</b> (लॉग-इन कोड WhatsApp पर आता है)</li>
+        <li><b>FSSAI</b> रजिस्ट्रेशन या लाइसेंस नंबर</li>
+        <li><b>PAN</b> कार्ड</li>
+        <li><b>UPI ID</b> या बैंक खाता</li>
+        <li>मेन्यू और कीमतें; डिश की फ़ोटो हों तो और अच्छा</li>
+      </ul>
+      <p class="en-line">A smartphone with a WhatsApp number · FSSAI registration or licence · PAN · UPI ID or bank account · your menu and prices (photos help).</p>
+    </div>
+
+    <div class="card">
+      <h2><span class="num">6</span>कैसे जुड़ें</h2>
+      <p class="h2en">How to join</p>
+      <ol>
+        <li><b>vendor.suprmama.in</b> खोलें, WhatsApp कोड से लॉग-इन करें।</li>
+        <li>4 स्टेप भरें: स्टॉल की जानकारी, जगह और समय, पहली डिश, लाइसेंस और पेमेंट।</li>
+        <li>हमारी टीम जाँच करके (एक कॉल कर सकती है) आपकी स्टॉल चालू करेगी।</li>
+        <li>QR पोस्टर प्रिंट करके स्टॉल पर लगाएँ।</li>
+      </ol>
+      <p class="en-line">Open vendor.suprmama.in and sign in with a WhatsApp code · fill 4 steps · our team reviews (may call you) and switches your stall on · print the QR poster for your stall.</p>
+    </div>
+  </div>
+
+  <footer>
+    <div><strong>मदद चाहिए? Call or WhatsApp +91 86708 47013</strong><br>tech@suprmama.in · suprmama.in</div>
+    <div style="text-align:right">Crestway Properties Private Limited<br>Full terms: suprmama.in/vendor-terms</div>
+  </footer>
+</section>
+
+<section class="sheet q">
+  <header>
+    <div class="brand"><i>sm</i><span>supr-mama<b>.</b></span></div>
+    <span class="tag">Team only · Visit sheet</span>
+  </header>
+  <h1>Pilot vendor visit</h1>
+  <p class="h1en">Show page 1 first. Ask each question as written; note their words, not your summary.</p>
+  <div class="who">
+    <div class="field">Stall name</div><div class="field">Owner name</div><div class="field">Date</div>
+    <div class="field">Location / landmark</div><div class="field">WhatsApp number</div><div class="field">Visited by</div>
+  </div>
+  <div class="qs">
+    <div class="qrow"><p>Is this number on WhatsApp, on a smartphone that stays at the stall? Who would handle orders in a rush?<span>यह नंबर WhatsApp पर है? फ़ोन स्टॉल पर ही रहता है? भीड़ में ऑर्डर कौन देखेगा?</span></p><div class="opts"><i>Yes</i><i>Different phone</i><i>No smartphone</i><span class="why">Login codes and order alerts (N3).</span></div></div>
+    <div class="qrow"><p>Do you have FSSAI registration or a licence? Number and expiry?<span>FSSAI रजिस्ट्रेशन या लाइसेंस है? नंबर, कब तक?</span></p><div class="opts"><i>Registration</i><i>Licence</i><i>None</i><span class="why">Required before approval; shown on the storefront.</span></div></div>
+    <div class="qrow"><p>PAN? Bank account in the business's name, or personal savings only? UPI ID?<span>PAN है? बैंक खाता बिज़नेस के नाम पर या सिर्फ़ सेविंग? UPI ID?</span></p><div class="opts"><i>PAN</i><i>Business a/c</i><i>Savings only</i><i>UPI</i><span class="why">Decides Razorpay Route vs Cashfree split (N2, N4).</span></div></div>
+    <div class="qrow"><p>Would you take the money first and then enter a 4-digit code for every order, even in a rush?<span>हर ऑर्डर पर पहले पैसे, फिर 4 अंकों का कोड: भीड़ में भी चलेगा?</span></p><div class="opts"><i>Yes</i><i>Only if quick</i><i>No</i><span class="why">The handover check (S2.19).</span></div></div>
+    <div class="qrow"><p>Is ₹100 a day (+GST), only on days with an order, fair? Which plan would you pick?<span>₹100 रोज़ (+GST), सिर्फ़ ऑर्डर वाले दिन: ठीक है? कौन सा प्लान?</span></p><div class="opts"><i>Daily</i><i>Monthly</i><i>Yearly</i><i>Too much</i><span class="why">Note what price they'd accept.</span></div></div>
+    <div class="qrow"><p>Once a month, would you pay us the GST from cash orders by UPI within 7 days?<span>महीने में एक बार कैश ऑर्डर का GST UPI से 7 दिन में भेजेंगे?</span></p><div class="opts"><i>Yes</i><i>Prefer weekly</i><i>No</i><span class="why">GST statement (S2.19).</span></div></div>
+    <div class="qrow"><p>Are you GST-registered? Roughly what are your yearly sales: under ₹5 lakh, or more?<span>GST रजिस्टर्ड हैं? साल की बिक्री ₹5 लाख से कम या ज़्यादा?</span></p><div class="opts"><i>GSTIN</i><i>&lt; ₹5 lakh</i><i>&gt; ₹5 lakh</i><span class="why">TDS 194-O: over ₹5 lakh needs work first.</span></div></div>
+    <div class="qrow"><p>How many orders a day now? Busiest hours? Days closed?<span>अभी रोज़ कितने ऑर्डर? सबसे ज़्यादा भीड़ कब? किस दिन बंद?</span></p><div class="opts">Orders/day ____ &nbsp; Peak ______<br>Closed on ______</div></div>
+    <div class="qrow"><p>How many dishes? Half/full or sizes? Do you have photos?<span>कितनी डिश? हाफ़/फ़ुल? फ़ोटो हैं?</span></p><div class="opts">Dishes ____ <i>Half/full</i><i>Photos</i></div></div>
+    <div class="qrow"><p>Would you put a QR poster up? Where would customers see it?<span>QR पोस्टर लगाएँगे? कहाँ?</span></p><div class="opts"><i>Yes</i><i>No</i> &nbsp; Where ________</div></div>
+    <div class="qrow"><p>What would stop you from using this? What's your biggest worry?<span>इसे इस्तेमाल करने में सबसे बड़ी दिक्कत क्या लगती है?</span></p><div class="opts">&nbsp;</div></div>
+    <div class="qrow"><p>Can we sign you up today as a pilot stall?<span>क्या आज पायलट स्टॉल के तौर पर जोड़ दें?</span></p><div class="opts"><i>Yes</i><i>Later</i><i>No</i> &nbsp; Follow-up ______</div></div>
+  </div>
+  <footer><div>Record answers in the tracker under N4. Never ask for or note down a PAN or account number on this sheet.</div><div>Supr-Mama · internal</div></footer>
+</section>
+
+</body>
+</html>
