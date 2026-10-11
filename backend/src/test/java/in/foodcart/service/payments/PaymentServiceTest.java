@@ -35,7 +35,7 @@ class PaymentServiceTest {
   void setUp() {
     ObjectProvider<PaymentGateway> provider = mock(ObjectProvider.class);
     when(provider.getIfAvailable()).thenReturn(fake);
-    payments = new PaymentService(provider, orders, history, numbers);
+    payments = new PaymentService(provider, orders, history, numbers, true);
     when(numbers.next("v1")).thenReturn(1001L, 1002L);
     payments.clock = Clock.fixed(t0, ZoneOffset.UTC);
     order = new OrderEntity();

@@ -28,8 +28,8 @@ import { addLine, lastLineOf, linesOf, quantitiesByItem, setLineQuantity, type C
 import { RepeatPrompt } from './components/RepeatPrompt';
 import { PolicyFooter } from '../components/LegalPage';
 import { themeStyle } from '../lib/theme';
-import { billOf } from '../lib/bill';
-import { useRates } from '../lib/useRates';
+import { billOf, type PaymentMethod } from '../lib/bill';
+import { usePricing } from '../lib/useRates';
 
 /** Most dishes shown in the cart's "You may also like" row. */
 const SUGGESTION_LIMIT = 12;
@@ -37,7 +37,10 @@ const SUGGESTION_LIMIT = 12;
 export default function Store({ params }: { params: { slug: string } }) {
   const [vendor, setVendor] = useState<Vendor>();
   const [missing, setMissing] = useState(false);
-  const rates = useRates();
+  const pricing = usePricing();
+  const [chosenMethod, setChosenMethod] = useState<PaymentMethod>('ONLINE');
+  // Online when it's offered and chosen; otherwise pay at the stall (the launch setting).
+  const method: PaymentMethod = pricing.methods.includes(chosenMethod) ? chosenMethod : pricing.methods[0];
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [items, setItems] = useState<MenuItem[]>([]);
@@ -248,8 +251,8 @@ export default function Store({ params }: { params: { slug: string } }) {
     return item ? [{ line, item }] : [];
   });
   const total = chosen.reduce((sum, { line }) => sum + line.config.unitPrice * line.quantity, 0);
-  // What the customer pays: items + GST + platform charges (lib/bill.ts, same sums as the API).
-  const bill = billOf(total, rates);
+  // What the customer pays: items + GST (+ platform charges when paying online) (lib/bill.ts, same sums as the API).
+  const bill = billOf(total, pricing.byMethod[method]);
   // Cheapest first across the whole menu (not grouped by category): easy add-ons at the front. Capped so it stays a nudge.
   const suggestions = linked
     .filter(item => item.available && !cart[item.id])
@@ -345,13 +348,14 @@ export default function Store({ params }: { params: { slug: string } }) {
     setPaying(true);
     setPayError('');
     try {
-      const created = await request<{ order: CustomerOrder; payment: StartedPayment }>('/api/orders', {
+      const created = await request<{ order: CustomerOrder; payment: StartedPayment | null }>('/api/orders', {
         method: 'POST',
         body: JSON.stringify({
           vendorId: store.id,
           type,
           slot,
           displayedTotal: bill.total,
+          paymentMethod: method,
           items: chosen.map(({ line, item }) => ({
             menuItemId: item.id,
             quantity: line.quantity,
@@ -362,6 +366,11 @@ export default function Store({ params }: { params: { slug: string } }) {
           })),
         }),
       }, customerToken);
+      // Pay at the stall: placed already, nothing to pay now.
+      if (!created.payment) {
+        router.push(`/${params.slug}/order/${created.order.id}`);
+        return;
+      }
       const outcome = await openCheckout(created.payment, () => new Promise(resolve => setTestCheckout({ amount: created.order.total, resolve })));
       setTestCheckout(null);
       if (outcome === 'closed') throw new Error('Payment was not completed. Nothing was charged.');
@@ -429,6 +438,9 @@ export default function Store({ params }: { params: { slug: string } }) {
             quantities={cart}
             total={total}
             bill={bill}
+            methods={pricing.methods}
+            method={method}
+            onMethod={setChosenMethod}
             slots={slots?.slots ?? null}
             hoursSet={slots?.hoursSet ?? true}
             storeOpen={slots?.open ?? store.status === 'OPEN'}

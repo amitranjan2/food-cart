@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { request, type PublicMenu, type Vendor } from '../../../lib/api';
-import { indiaTime, orderBill, type CustomerOrder, type OrderView } from '../../../lib/orders';
+import { indiaTime, orderBill, paysAtStall, type CustomerOrder, type OrderView } from '../../../lib/orders';
 import { BillRows } from '../../../components/BillRows';
 import { storedSession } from '../../../lib/session';
 import { formatRupee } from '../../lib/customization';
@@ -11,28 +11,37 @@ import { themeStyle } from '../../../lib/theme';
 import { LEGAL } from '../../../lib/legal';
 
 /** Statuses that never change again; the page stops refreshing once it reaches one. */
-const FINAL = new Set<CustomerOrder['status']>(['COMPLETED', 'REJECTED', 'CANCELLED', 'EXPIRED']);
+const FINAL = new Set<CustomerOrder['status']>(['COMPLETED', 'REJECTED', 'CANCELLED', 'EXPIRED', 'NO_SHOW']);
 const REFRESH_MS = 10_000;
 
 function copyFor(order: CustomerOrder, vendorName: string) {
   const dineIn = order.type === 'DINE_IN';
+  const atStall = paysAtStall(order);
+  const pay = `Pay ${formatRupee(Number(order.total))} at the stall`;
   switch (order.status) {
     case 'PAYMENT_PENDING':
       return { title: 'Confirming payment', message: 'We’re confirming your payment with the bank. This usually takes a few seconds.' };
     case 'PLACED':
-      return { title: 'Confirmed', message: 'Order is shared with the kitchen. Sit back and relax, we will keep you updated!' };
+      return atStall
+        ? { title: 'Order sent', message: `The kitchen will confirm it shortly. ${pay} when you collect.` }
+        : { title: 'Confirmed', message: 'Order is shared with the kitchen. Sit back and relax, we will keep you updated!' };
     case 'ACCEPTED':
     case 'PREPARING':
-      return { title: 'Preparing', message: 'Order is accepted by the kitchen. It will be ready soon.' };
+      return { title: 'Preparing', message: 'Order is accepted by the kitchen. It will be ready soon.' + (atStall ? ` ${pay} when you collect.` : '') };
     case 'READY':
+      if (atStall) return { title: dineIn ? 'Ready to serve' : 'Ready for pickup', message: `Your order is ready. ${pay}, then share the code below.` };
       return dineIn
         ? { title: 'Ready to serve', message: 'Your order is ready. Share the code below when it is served.' }
         : { title: 'Ready for pickup', message: 'Your order is ready for pickup. Share the code below while receiving your order.' };
     case 'COMPLETED':
       return { title: dineIn ? 'Served' : 'Picked up', message: `Enjoy your meal! Thanks for ordering from ${vendorName}.` };
+    case 'NO_SHOW':
+      return { title: 'Not collected', message: `${vendorName} marked this order as not collected. Pay at the stall turns off for a number after 2 orders that weren’t collected.` };
     case 'REJECTED':
+      if (atStall) return { title: 'Cancelled', message: 'The kitchen couldn’t accept this order. Nothing was paid, so there is nothing to refund.' };
       return { title: 'Cancelled', message: 'The kitchen couldn’t accept this order. Any amount paid will be refunded within 5–7 working days.' };
     case 'CANCELLED':
+      if (atStall) return { title: 'Cancelled', message: 'This order was cancelled with Supr-Mama support. Nothing was paid, so there is nothing to refund.' };
       return { title: 'Cancelled', message: 'This order was cancelled with Supr-Mama support. Your payment is refunded in full and reaches you within 5–7 working days.' };
     case 'EXPIRED':
       return { title: 'Payment not completed', message: 'This order wasn’t paid in time, so it was not sent to the kitchen. If any amount was taken, it will be refunded.' };
@@ -126,7 +135,9 @@ export default function OrderStatus({ params }: { params: { slug: string; id: st
   const { order } = view;
   const vendorName = view.vendor.name ?? vendor?.name ?? 'the kitchen';
   const copy = copyFor(order, vendorName);
-  const cancelled = order.status === 'REJECTED' || order.status === 'CANCELLED' || order.status === 'EXPIRED';
+  const cancelled = order.status === 'REJECTED' || order.status === 'CANCELLED' || order.status === 'EXPIRED' || order.status === 'NO_SHOW';
+  const atStall = paysAtStall(order);
+  const totalLabel = !atStall ? 'Paid' : order.status === 'COMPLETED' ? 'Paid at the stall' : cancelled ? 'Total' : 'To pay at the stall';
   const address = view.vendor.address ?? vendor?.address ?? '';
   const lat = view.vendor.lat ?? vendor?.lat;
   const lng = view.vendor.lng ?? vendor?.lng;
@@ -192,7 +203,7 @@ export default function OrderStatus({ params }: { params: { slug: string; id: st
             </div>
           ))}
           {orderBill(order) ? (
-            <BillRows bill={orderBill(order)!} totalLabel="Paid" />
+            <BillRows bill={orderBill(order)!} totalLabel={totalLabel} />
           ) : (
             <div className="bill-row grand"><span>Total</span><span>{formatRupee(Number(order.total))}</span></div>
           )}

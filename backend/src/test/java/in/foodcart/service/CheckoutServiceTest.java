@@ -18,6 +18,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 class CheckoutServiceTest {
@@ -27,9 +28,11 @@ class CheckoutServiceTest {
   private final HistoryRepository history = mock(HistoryRepository.class);
   private final CustomerRepository customers = mock(CustomerRepository.class);
   private final PaymentService payments = mock(PaymentService.class);
+  private final OrderNumbers numbers = mock(OrderNumbers.class);
+  private final CustomerHistory customerHistory = mock(CustomerHistory.class);
   private final in.foodcart.service.pricing.InvoiceNumbers invoices = mock(in.foodcart.service.pricing.InvoiceNumbers.class);
   private final CheckoutService checkout = new CheckoutService(vendors, items, orders, customers, payments,
-      new in.foodcart.service.pricing.Pricing(new BigDecimal("5"), new BigDecimal("2.5"), new BigDecimal("18")), invoices);
+      new in.foodcart.service.pricing.Pricing(new BigDecimal("5"), new BigDecimal("2.5"), new BigDecimal("18")), invoices, numbers, customerHistory);
 
   @BeforeEach
   void setUp() {
@@ -52,6 +55,8 @@ class CheckoutServiceTest {
     when(items.findByIdAndVendorId("m1", "v1")).thenReturn(Optional.of(momos));
     when(history.findByCustomerIdAndVendorId("c1", "v1")).thenReturn(Optional.empty());
     when(orders.save(any())).thenAnswer(call -> call.getArgument(0));
+    when(payments.onlineAvailable()).thenReturn(true);
+    when(payments.cashAvailable()).thenReturn(true);
   }
 
   private CheckoutService.Request request(String displayedTotal) {
@@ -64,7 +69,7 @@ class CheckoutServiceTest {
 
   private CheckoutService.Request request(String type, String slot, String displayedTotal) {
     CheckoutService.Line line = new CheckoutService.Line("m1", 2, new BigDecimal("80"), "FULL", null, List.of());
-    return new CheckoutService.Request("v1", type, slot, displayedTotal == null ? null : new BigDecimal(displayedTotal), List.of(line));
+    return new CheckoutService.Request("v1", type, slot, displayedTotal == null ? null : new BigDecimal(displayedTotal), List.of(line), null);
   }
 
   @Test
@@ -235,5 +240,94 @@ class CheckoutServiceTest {
   void ordersThatAreNotReadyCannotBeHandedOver() {
     readyOrder().status = OrderStatus.PREPARING;
     assertThrows(IllegalStateException.class, () -> checkout.handOver("v1", "o3", "2905"));
+  }
+
+  // Pay at the stall (tracker S2.19)
+
+  private CheckoutService.Request cash(String displayedTotal) {
+    CheckoutService.Line line = new CheckoutService.Line("m1", 2, new BigDecimal("80"), "FULL", null, List.of());
+    return new CheckoutService.Request("v1", "PICKUP", "2026-10-09T15:00", new BigDecimal(displayedTotal), List.of(line), "CASH");
+  }
+
+  @Test
+  void payAtStallBillsItemsAndGstWithoutPlatformCharges() {
+    when(numbers.next("v1")).thenReturn(7L);
+    OrderEntity o = checkout.create("c1", cash("168.00"));
+    assertEquals(0, o.total.compareTo(new BigDecimal("168.00")), "160 + 5% GST, no platform charges");
+    assertEquals(0, o.bill.platformFee.signum());
+    assertEquals("CASH", o.paymentMethod);
+    assertTrue(o.cash());
+    assertEquals(OrderStatus.PLACED, o.status, "no payment to wait for: the stall sees it now");
+    assertEquals(7L, o.orderNumber);
+    verify(customerHistory).recordOrder(eq("c1"), eq("v1"), any());
+    assertThrows(IllegalStateException.class, () -> checkout.create("c1", cash("172.96")), "the online bill is refused for cash");
+  }
+
+  @Test
+  void onlineIsRefusedWhileNoGatewayIsSetUp() {
+    when(payments.onlineAvailable()).thenReturn(false);
+    IllegalStateException e = assertThrows(IllegalStateException.class, () -> checkout.create("c1", request("172.96")));
+    assertEquals("Online payment isn't available yet. Choose pay at the stall.", e.getMessage());
+  }
+
+  @Test
+  void aCustomerMayHaveOnlyTwoPayAtStallOrdersWaiting() {
+    when(orders.countByCustomerIdAndPaymentMethodAndStatusInAndScheduledForAfter(eq("c1"), eq("CASH"), any(), any())).thenReturn(2L);
+    IllegalStateException e = assertThrows(IllegalStateException.class, () -> checkout.create("c1", cash("168.00")));
+    assertTrue(e.getMessage().startsWith("You already have 2 pay-at-stall orders waiting"));
+  }
+
+  @Test
+  void twoNoShowsTurnPayAtStallOffForTheNumber() {
+    customers.findById("c1").orElseThrow().noShows = 2;
+    IllegalStateException e = assertThrows(IllegalStateException.class, () -> checkout.create("c1", cash("168.00")));
+    assertTrue(e.getMessage().startsWith("Pay at the stall is off for this number"));
+  }
+
+  private OrderEntity acceptedCashOrder() {
+    OrderEntity o = new OrderEntity();
+    o.id = "o9";
+    o.vendorId = "v1";
+    o.customerId = "c1";
+    o.paymentMethod = "CASH";
+    o.status = OrderStatus.ACCEPTED;
+    o.scheduledFor = Instant.parse("2026-10-09T08:00:00Z"); // 13:30 India; the clock says 14:10
+    when(orders.findByIdAndVendorId("o9", "v1")).thenReturn(Optional.of(o));
+    return o;
+  }
+
+  @Test
+  void theStallMarksANoShowHalfAnHourAfterThePickupTime() {
+    OrderEntity o = acceptedCashOrder();
+    checkout.status("v1", "o9", OrderStatus.NO_SHOW);
+    assertEquals(OrderStatus.NO_SHOW, o.status);
+    assertNotNull(o.noShowAt);
+    assertEquals(1, customers.findById("c1").orElseThrow().noShows);
+    verify(invoices, never()).issue(any(), any());
+  }
+
+  @Test
+  void aNoShowCantBeMarkedBeforeHalfAnHourPassed() {
+    OrderEntity o = acceptedCashOrder();
+    o.scheduledFor = Instant.parse("2026-10-09T08:30:00Z"); // 14:00 India: only 10 minutes ago
+    IllegalStateException e = assertThrows(IllegalStateException.class, () -> checkout.status("v1", "o9", OrderStatus.NO_SHOW));
+    assertTrue(e.getMessage().startsWith("Wait 21 more minutes"), e.getMessage());
+    assertEquals(OrderStatus.ACCEPTED, o.status);
+  }
+
+  @Test
+  void paidOnlineOrdersCantBeMarkedAsNoShows() {
+    OrderEntity o = acceptedCashOrder();
+    o.paymentMethod = "ONLINE";
+    o.payment = new PaymentInfo();
+    assertThrows(IllegalStateException.class, () -> checkout.status("v1", "o9", OrderStatus.NO_SHOW));
+  }
+
+  @Test
+  void handingOverAPayAtStallOrderRecordsTheCash() {
+    OrderEntity o = readyOrder();
+    o.paymentMethod = "CASH";
+    checkout.handOver("v1", "o3", "2905");
+    assertEquals(o.completedAt, o.cashCollectedAt);
   }
 }

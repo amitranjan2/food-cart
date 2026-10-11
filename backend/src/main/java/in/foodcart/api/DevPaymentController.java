@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import in.foodcart.data.OrderRepository;
 import in.foodcart.service.payments.FakePaymentGateway;
 import in.foodcart.service.payments.PaymentService;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Profile;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,6 +14,8 @@ import java.util.UUID;
 /** Local development only: stands in for the gateway's checkout page by sending the fake gateway's signed webhook. */
 @RestController
 @Profile("local")
+// Same condition as FakePaymentGateway: off when testing the pay-at-stall launch locally (PAYMENT_GATEWAY=none).
+@ConditionalOnProperty(name = "app.payments.gateway", havingValue = "fake", matchIfMissing = true)
 @RequestMapping("/api/dev/payments")
 public class DevPaymentController {
   private final PaymentService payments;

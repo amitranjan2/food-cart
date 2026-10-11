@@ -40,7 +40,9 @@ public class InvoiceController {
     out.put("type", o.type);
     out.put("issuedAt", o.invoice.issuedAt);
     out.put("foodNumber", o.invoice.foodNumber);
+    // null for pay-at-stall orders: no platform charges, so no platform invoice.
     out.put("platformNumber", o.invoice.platformNumber);
+    out.put("paidAtStall", o.cash());
     out.put("customer", Map.of("name", o.customerName == null ? "" : o.customerName, "mobile", o.customerMobile == null ? "" : o.customerMobile));
     vendors.findById(o.vendorId).ifPresent(v -> {
       Map<String, Object> seller = new LinkedHashMap<>();

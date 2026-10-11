@@ -33,7 +33,10 @@ public class InvoiceNumbers {
     String fy = financialYear(LocalDate.ofInstant(now, INDIA));
     OrderEntity.Invoice inv = new OrderEntity.Invoice();
     inv.foodNumber = "SMF/" + fy + "/" + String.format("%06d", next("SMF/" + fy));
-    inv.platformNumber = "SMP/" + fy + "/" + String.format("%06d", next("SMP/" + fy));
+    // No platform charges (pay at the stall, or an order from before pricing): no platform invoice.
+    if (o.bill != null && o.bill.platformFee != null && o.bill.platformFee.signum() > 0) {
+      inv.platformNumber = "SMP/" + fy + "/" + String.format("%06d", next("SMP/" + fy));
+    }
     inv.issuedAt = now;
     o.invoice = inv;
   }

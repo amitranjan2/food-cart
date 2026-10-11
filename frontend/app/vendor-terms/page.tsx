@@ -57,10 +57,13 @@ export default function VendorTerms() {
 
       <h2>4. Orders</h2>
       <ul>
-        <li>Every order is paid online before it reaches you. You see the customer&apos;s name, mobile number, dishes and time slot.</li>
         <li>
-          <b>Accept or reject</b> each new order promptly. Rejecting refunds the customer in full and you are not paid for that
-          order.
+          An order is either <b>paid at the stall</b> (the customer pays you when collecting) or <b>paid online</b> before it reaches
+          you, where online payment is offered. The app shows which. You see the customer&apos;s name, mobile number, dishes and time slot.
+        </li>
+        <li>
+          <b>Accept or reject</b> each new order promptly. Rejecting an order paid online refunds the customer in full and you are
+          not paid for that order.
         </li>
         <li>
           <b>Once you accept an order, you must prepare it</b> for the customer&apos;s time slot. Orders can&apos;t be cancelled in
@@ -73,6 +76,11 @@ export default function VendorTerms() {
         <li>
           Hand an order over only when the customer gives you their 4-digit handover code, and enter it in the app. Never hand
           over without the code: an order handed over without it is treated as not delivered.
+        </li>
+        <li>
+          <b>Pay at the stall</b>: take the full amount the app shows (your prices plus GST on food), in cash or by UPI to you,
+          <b> before</b> you enter the code. Entering the code records the order as paid. If the customer doesn&apos;t come, you may mark
+          the order as not collected from 30 minutes after their slot; only do so when they really didn&apos;t come.
         </li>
         <li>Repeatedly accepting orders you then can&apos;t make may lead to suspension (section 9).</li>
       </ul>
@@ -88,17 +96,23 @@ export default function VendorTerms() {
       <h2>6. What customers pay, and what you get</h2>
       <ul>
         <li>
-          For each order the customer pays your prices, plus GST on food ({percent(LAUNCH_RATES.foodGstBp)}), plus our platform
-          charges ({percent(LAUNCH_RATES.platformFeeBp)} of your prices and the GST, covering online payment charges) and GST on those
-          charges ({percent(LAUNCH_RATES.platformFeeGstBp)}).
+          For each order the customer pays your prices, plus GST on food ({percent(LAUNCH_RATES.foodGstBp)}). Orders paid online also
+          carry our platform charges ({percent(LAUNCH_RATES.platformFeeBp)} of your prices and the GST, covering online payment
+          charges) and GST on those charges ({percent(LAUNCH_RATES.platformFeeGstBp)}).
+        </li>
+        <li>
+          <b>Pay at the stall</b>: you keep your prices. The GST on food you take from the customer is ours to pay to the government
+          (section 7), so you hold it for us and pass it on: after each month we send a statement listing your collected pay-at-stall
+          orders and their GST, which you pay within 7 days, by UPI as shown in the app (or we take it from payouts once they
+          start). We may pause a stall with a statement more than 15 days overdue.
         </li>
         <li>
           <b>We don&apos;t take a cut of your orders.</b> For every completed order you get the full total of your prices. The GST on
           food is ours to pay to the government (section 7) and the platform charges are ours.
         </li>
         <li>
-          Your earnings are paid to the payout account you gave us, by our payment partner: <Fill field="payoutSchedule" />. Taxes
-          we must deduct (section 7) are taken off and shown to you.
+          For orders paid online, your earnings are paid to the payout account you gave us, by our payment partner:{' '}
+          <Fill field="payoutSchedule" />. Taxes we must deduct (section 7) are taken off and shown to you.
         </li>
         <li>You are not paid for orders that are rejected, cancelled by support or refunded.</li>
         <li>
@@ -113,7 +127,8 @@ export default function VendorTerms() {
       <ul>
         <li>
           <b>Daily</b>: {LEGAL.vendorPlans.daily} for each day you sell. A day counts when at least one customer paid for an order
-          from your stall that day (India time) and it wasn&apos;t rejected, cancelled or refunded. Billed after each calendar month,
+          from your stall that day (India time) and it wasn&apos;t rejected, cancelled or refunded. A pay-at-stall order counts on
+          the day it was placed, once you handed it over; one not collected doesn&apos;t count. Billed after each calendar month,
           for the days counted; a month without such days costs nothing. Every stall starts on Daily.
         </li>
         <li><b>Monthly</b>: {LEGAL.vendorPlans.monthly} per calendar month, whatever days you sell. Billed at the start of the month.</li>
@@ -135,7 +150,8 @@ export default function VendorTerms() {
         </li>
         <li>
           <b>GST on food sold through {LEGAL.brand}</b> is collected and paid by us as the e-commerce operator, under section 9(5) of
-          the CGST Act, 2017, whether or not you are registered for GST. You don&apos;t charge or pay GST on these sales. If you are
+          the CGST Act, 2017, whether or not you are registered for GST, and however the customer pays. You don&apos;t charge or pay
+          GST on these sales; on pay-at-stall orders you collect it for us (section 6). If you are
           GST-registered, tell your accountant they are taxed through us.
         </li>
         <li>
@@ -145,7 +161,8 @@ export default function VendorTerms() {
         <li>
           <b>Income tax</b>: as an e-commerce operator we must deduct TDS under section 194-O of the Income-tax Act (currently
           0.1% of your sales) unless you are an individual or HUF whose sales through us stay within ₹5 lakh in the year and you
-          have given us your PAN. Deducted tax is shown in your Form 26AS. Your own income tax on your earnings is yours.
+          have given us your PAN. This applies to pay-at-stall sales too: where it applies, we add it to your monthly statement.
+          Deducted tax is shown in your Form 26AS. Your own income tax on your earnings is yours.
         </li>
       </ul>
 

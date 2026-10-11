@@ -4,6 +4,19 @@ export type Rates = { foodGstBp: number; platformFeeBp: number; platformFeeGstBp
 /** The launch rates, used until the API answers (the server checks the total either way). */
 export const LAUNCH_RATES: Rates = { foodGstBp: 500, platformFeeBp: 250, platformFeeGstBp: 1800 };
 
+/** ONLINE: paid through the gateway first. CASH: paid at the stall on collection (cash or the stall's UPI). */
+export type PaymentMethod = 'ONLINE' | 'CASH';
+
+/** GET /api/public/pricing: online rates at the top level, the ways to pay now, and each method's rates. */
+export type Pricing = Rates & { methods: PaymentMethod[]; byMethod: Record<PaymentMethod, Rates> };
+
+/** Pay at the stall has no platform charges: they cover online payment costs (Pricing.java). Launch: pay at the stall only. */
+export const LAUNCH_PRICING: Pricing = {
+  ...LAUNCH_RATES,
+  methods: ['CASH'],
+  byMethod: { ONLINE: LAUNCH_RATES, CASH: { foodGstBp: LAUNCH_RATES.foodGstBp, platformFeeBp: 0, platformFeeGstBp: 0 } },
+};
+
 export type Bill = { itemTotal: number; foodGst: number; platformFee: number; platformFeeGst: number; total: number; rates: Rates };
 
 /** amount × bp / 10000 in paise, rounded half up: the same integer sums as the API's BillRules. */

@@ -3,7 +3,7 @@ import { colors, radius, typography } from '../theme';
 import type { Order } from '../types';
 import { Badge, Button, Card } from '../ui';
 import { formatElapsed, formatSlot, rupees } from '../utils/format';
-import { formatOrderType, ORDER_BADGE, ORDER_LIST_ACTION, orderStatusStartedAt } from '../utils/orderStatus';
+import { canMarkNoShow, formatOrderType, ORDER_BADGE, ORDER_LIST_ACTION, orderStatusStartedAt, paysAtStall } from '../utils/orderStatus';
 
 export function OrderCard({
   order,
@@ -12,6 +12,7 @@ export function OrderCard({
   highlighted,
   onAdvance,
   onReject,
+  onNoShow,
 }: {
   order: Order;
   busy?: boolean;
@@ -20,7 +21,11 @@ export function OrderCard({
   highlighted?: boolean;
   onAdvance?: () => void;
   onReject?: () => void;
+  /** Pay-at-stall orders, 30 minutes after the pickup time. */
+  onNoShow?: () => void;
 }) {
+  const atStall = paysAtStall(order);
+  const noShow = onNoShow && canMarkNoShow(order, now);
   const action = ORDER_LIST_ACTION[order.status];
   const elapsed = formatElapsed(orderStatusStartedAt(order), now);
   const typeLabel = formatOrderType(order.type);
@@ -51,7 +56,15 @@ export function OrderCard({
         ))}
       </View>
       {/* The stall's own prices; the customer also paid GST and platform charges, which aren't the stall's. */}
-      <Text style={typography.heading} accessibilityLabel={`Item total ${rupees(order.subtotal ?? order.total)}`}>{rupees(order.subtotal ?? order.total)}</Text>
+      <View style={styles.row}>
+        <Text style={typography.heading} accessibilityLabel={`Item total ${rupees(order.subtotal ?? order.total)}`}>{rupees(order.subtotal ?? order.total)}</Text>
+        {/* Pay at the stall: the customer pays the full bill (items + GST) here; the GST part is ours (monthly statement). */}
+        {atStall && order.status !== 'REJECTED' && order.status !== 'CANCELLED' && order.status !== 'NO_SHOW' ? (
+          <Badge label={order.status === 'COMPLETED' ? `Collected ${rupees(order.total)}` : `Collect ${rupees(order.total)}`} tone={order.status === 'COMPLETED' ? 'success' : 'warning'} />
+        ) : !atStall ? (
+          <Badge label="Paid online" tone="success" />
+        ) : null}
+      </View>
       {action ? (
         <View style={styles.actions}>
           {isNew ? (
@@ -63,7 +76,10 @@ export function OrderCard({
           ) : (
             <View />
           )}
-          <Button label={isNew && elapsed ? `${action} · ${elapsed}` : action} size="sm" busy={busy} onPress={onAdvance} />
+          <View style={styles.buttons}>
+            {noShow ? <Button label="Didn't come" variant="quiet" size="sm" disabled={busy} onPress={onNoShow} /> : null}
+            <Button label={isNew && elapsed ? `${action} · ${elapsed}` : action} size="sm" busy={busy} onPress={onAdvance} />
+          </View>
         </View>
       ) : null}
     </Card>
@@ -107,6 +123,11 @@ const styles = StyleSheet.create({
     marginTop: 4,
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 8,
+  },
+  buttons: {
+    flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },

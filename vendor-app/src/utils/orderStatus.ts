@@ -24,7 +24,22 @@ export const ORDER_BADGE: Record<OrderStatus, { label: string; tone: Tone }> = {
   COMPLETED: { label: 'Completed', tone: 'success' },
   REJECTED: { label: 'Rejected', tone: 'danger' },
   CANCELLED: { label: 'Cancelled', tone: 'danger' },
+  NO_SHOW: { label: 'Not collected', tone: 'danger' },
 };
+
+/** The customer pays the stall when collecting (no online payment). */
+export function paysAtStall(order: Order) {
+  return order.paymentMethod === 'CASH' && !order.payment;
+}
+
+/** Same as the API (CheckoutService.NO_SHOW_AFTER): the stall may mark a pay-at-stall order as not collected 30 minutes after the slot starts. */
+export const NO_SHOW_AFTER_MS = 30 * 60_000;
+
+export function canMarkNoShow(order: Order, now: number) {
+  if (!paysAtStall(order) || !order.scheduledFor) return false;
+  if (order.status !== 'ACCEPTED' && order.status !== 'PREPARING' && order.status !== 'READY') return false;
+  return now >= new Date(order.scheduledFor).getTime() + NO_SHOW_AFTER_MS;
+}
 
 export function orderStatusStartedAt(order: Order) {
   if (order.status === 'ACCEPTED') return order.acceptedAt || order.createdAt;

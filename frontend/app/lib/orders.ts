@@ -2,7 +2,9 @@
 export type CustomerOrder = {
   id: string;
   orderNumber: number;
-  status: 'PAYMENT_PENDING' | 'PLACED' | 'ACCEPTED' | 'PREPARING' | 'READY' | 'COMPLETED' | 'REJECTED' | 'CANCELLED' | 'EXPIRED';
+  status: 'PAYMENT_PENDING' | 'PLACED' | 'ACCEPTED' | 'PREPARING' | 'READY' | 'COMPLETED' | 'REJECTED' | 'CANCELLED' | 'EXPIRED' | 'NO_SHOW';
+  /** CASH: paid at the stall on collection. */
+  paymentMethod?: 'ONLINE' | 'CASH';
   type: 'PICKUP' | 'DINE_IN';
   /** Start of the chosen slot, e.g. "2026-10-09T09:30:00Z". */
   scheduledFor: string;
@@ -14,8 +16,13 @@ export type CustomerOrder = {
   /** The bill as charged; missing on orders from before pricing (their total is the item total). */
   bill?: { itemTotal: number; foodGst: number; platformFee: number; platformFeeGst: number; total: number; foodGstPercent: number; platformFeePercent: number; platformFeeGstPercent: number } | null;
   /** Tax invoice numbers, set when the order is handed over. */
-  invoice?: { foodNumber: string; platformNumber: string; issuedAt: string } | null;
+  invoice?: { foodNumber: string; platformNumber?: string | null; issuedAt: string } | null;
 };
+
+/** Paid at the stall, not online (no online payment record). */
+export function paysAtStall(order: CustomerOrder) {
+  return order.paymentMethod === 'CASH' && !order.payment;
+}
 
 /** An order's stored bill in the shape BillRows shows. */
 export function orderBill(order: CustomerOrder) {

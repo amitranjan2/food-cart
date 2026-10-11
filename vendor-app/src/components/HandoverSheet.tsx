@@ -3,6 +3,8 @@ import { StyleSheet, Text } from 'react-native';
 import { colors, typography } from '../theme';
 import type { Order } from '../types';
 import { Button, Field, Sheet } from '../ui';
+import { rupees } from '../utils/format';
+import { paysAtStall } from '../utils/orderStatus';
 
 /**
  * Asks for the code the customer shows. The order completes only if it matches; the vendor never sees the code.
@@ -38,11 +40,14 @@ export function HandoverSheet({
   return (
     <Sheet
       title={`Hand over order #${order.orderNumber}`}
-      hint="Ask the customer for the 4-digit code on their order page."
+      hint={paysAtStall(order)
+        ? `Take ${rupees(order.total)} first (cash or UPI to you), then ask for the 4-digit code on their order page. The code confirms you were paid.`
+        : 'Ask the customer for the 4-digit code on their order page.'}
       onClose={onClose}
-      footer={<Button label="Confirm handover" grow busy={busy} disabled={code.length !== 4} onPress={submit} />}
+      footer={<Button label={paysAtStall(order) ? 'Paid, confirm handover' : 'Confirm handover'} grow busy={busy} disabled={code.length !== 4} onPress={submit} />}
     >
       {customer ? <Text style={typography.bodyStrong}>{customer}</Text> : null}
+      {paysAtStall(order) ? <Text style={typography.heading}>Collect {rupees(order.total)}</Text> : null}
       <Field
         value={code}
         onChangeText={value => {

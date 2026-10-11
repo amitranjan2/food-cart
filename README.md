@@ -57,7 +57,9 @@ Step by step, with the DNS records for Hostinger: [DEPLOY.md](DEPLOY.md).
 | `BILLING_START` | Day vendor billing starts (`yyyy-mm-dd`); unset = no vendor invoices. Nothing before it is charged |
 | `BILLING_DAILY` / `BILLING_MONTHLY` / `BILLING_YEARLY` / `BILLING_GST_PERCENT` | Plan prices before GST (100 / 2500 / 25000) and GST (18). Keep `vendorPlans` in `frontend/app/lib/legal.ts` in step |
 | `BILLING_TEST_MOBILES` | Comma-separated team numbers whose orders never make a charged day |
-| `BILLING_PAY_TO_UPI` | UPI ID shown to vendors for paying invoices until payouts exist |
+| `BILLING_PAY_TO_UPI` | UPI ID shown to vendors for paying invoices and GST statements until payouts exist |
+| `PAYMENT_GATEWAY` | `fake` (local), `none` (pay at the stall only, the launch setting), later `razorpay` / `cashfree` |
+| `PAYMENT_CASH` | Pay at the stall on (`true`, default) or off |
 | `BILLING_SAC` | SAC code printed on vendor plan invoices (from the CA) |
 | `SELLER_NAME`, `SELLER_ADDRESS`, `SELLER_GSTIN` | The company printed on vendor plan invoices; defaults are Crestway's. Keep in step with `frontend/app/lib/legal.ts` |
 | `ADMIN_TOKEN` | Turns on `POST /api/admin/vendors` (used by `ops/create-vendor.sh`); 24+ random characters, a secret. Unset = the admin API answers 404 |

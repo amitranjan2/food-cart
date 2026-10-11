@@ -52,5 +52,8 @@ app:
     verify-otp-per-ip: ${AUTH_VERIFY_OTP_PER_IP:60}
   # true only behind a load balancer that sets X-Forwarded-For; otherwise clients could fake their address.
   trust-proxy: ${TRUST_PROXY:false}
-  # Which payment gateway is active: "fake" (local profile only), later "cashfree" or "razorpay".
+  # Which payment gateway is active: "fake" (local profile only), "none" (pay at the stall only, the launch setting),
+  # later "cashfree" or "razorpay".
   payments.gateway: ${PAYMENT_GATEWAY:fake}
+  # Pay at the stall when collecting (tracker S2.19).
+  payments.cash: ${PAYMENT_CASH:true}

@@ -11,10 +11,11 @@
 Secrets (tokens, passwords, connection strings) go only into the hosts' environment-variable screens. Never into
 the repo, never in chat.
 
-**Two phases.** The API refuses to start in production without a payment gateway and the WhatsApp settings (so a test
-login code or fake payment can never run publicly). So:
+**Two phases.** The API refuses to start in production without the WhatsApp settings (so a test login code can never run
+publicly). Online payment is not needed for launch: with `PAYMENT_GATEWAY=none` customers pay at the stall (S2.19). So:
 - **Phase 1, now**: storefront and policy pages live on `suprmama.in`. Razorpay and Meta review these.
-- **Phase 2**, once the gateway (S2.3) and WhatsApp (N3) are ready: API, database, vendor web app.
+- **Phase 2**, once WhatsApp (N3) is ready: API, database, vendor web app. Add the gateway (S2.3) later without redeploying
+  anything else.
 
 Until phase 2, store links show "No store at this link"; that's expected.
 
@@ -84,7 +85,8 @@ Plan: Vercel's free Hobby plan is for non-commercial use; a business pilot belon
    | `ADMIN_TOKEN` | 32+ random characters (`openssl rand -base64 32`) |
    | `NOMINATIM_CONTACT` | `tech@suprmama.in` |
    | `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_OTP_TEMPLATE` (`suprmama_otp`), `WHATSAPP_OTP_LANGUAGE`, `WHATSAPP_API_VERSION` | from N3 |
-   | `PAYMENT_GATEWAY` + the gateway's keys | once S2.3 picks Cashfree or Razorpay |
+   | `PAYMENT_GATEWAY` | `none` at launch (pay at the stall only); later `razorpay` or `cashfree` + its keys (S2.3) |
+   | `PAYMENT_CASH` | leave unset (`true`); `false` only to stop pay at the stall once online payment exists |
    | `BILLING_START`, `BILLING_TEST_MOBILES`, `BILLING_PAY_TO_UPI`, `BILLING_SAC` | launch day, the team's numbers, the company UPI ID, the SAC from the CA (vendor billing) |
 
    `PORT` and `UPLOAD_DIR` are set by Railway and the image; leave them.
@@ -100,9 +102,10 @@ Plan: Vercel's free Hobby plan is for non-commercial use; a business pilot belon
 1. `https://api.suprmama.in/api/health` → `{"status":"ok"}`.
 2. `API_BASE=https://api.suprmama.in ADMIN_TOKEN=… ops/create-vendor.sh "Test Stall" <your number>`.
 3. Sign in at `vendor.suprmama.in` with the WhatsApp code; set location, colours and hours; add one dish.
-4. Open `suprmama.in/test-stall` on a phone, order the dish for the smallest real amount, pay, accept it in the vendor
-   app, mark ready, hand over with the code.
-5. Place a second order and refund it with `ops/refund-order.sh`; check the refund arrives.
+4. Open `suprmama.in/test-stall` on a phone and order the dish (pay at the stall); accept it in the vendor app, mark
+   ready, pay the stall, hand over with the code. The order page then links to its tax invoice.
+5. Place a second order, accept it, and after 30 minutes past its slot mark it "Didn't come"; reset your number with
+   `ops/cash-reset.sh`. Once online payment exists (S2.3), also refund one with `ops/refund-order.sh`.
 6. Print the QR poster from the vendor app and scan it with a phone.
 
 ### Costs (rough, check current prices)

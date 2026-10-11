@@ -9,7 +9,7 @@ import java.math.RoundingMode;
  *
  *   item total (vendor's prices)
  * + GST on food, 5%: collected and paid by us as the e-commerce operator (CGST Act s.9(5))
- * + platform charges, 2.5% of (item total + GST on food): covers online payment charges
+ * + platform charges, 2.5% of (item total + GST on food): covers online payment charges, so 0 when paying at the stall
  * + GST on platform charges, 18%: our own service
  * = to pay
  *

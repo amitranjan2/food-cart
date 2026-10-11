@@ -152,4 +152,23 @@ class VendorBillingTest {
     assertEquals(VendorInvoiceEntity.Status.PAID, inv.status);
     assertThrows(IllegalStateException.class, () -> b.markPaid("SMV/26-27/000001", "UPI 412345678901"));
   }
+
+  @Test
+  void aPayAtStallOrderCountsOnTheDayItWasPlacedOnceCollected() {
+    OrderEntity collected = new OrderEntity();
+    collected.vendorId = "v1";
+    collected.paymentMethod = "CASH";
+    collected.status = OrderStatus.COMPLETED;
+    collected.customerMobile = "9876543210";
+    collected.createdAt = Instant.parse("2026-10-03T06:00:00Z");
+    collected.cashCollectedAt = Instant.parse("2026-10-03T07:00:00Z");
+    OrderEntity noShow = new OrderEntity();
+    noShow.vendorId = "v1";
+    noShow.paymentMethod = "CASH";
+    noShow.status = OrderStatus.NO_SHOW;
+    noShow.customerMobile = "9876543210";
+    noShow.createdAt = Instant.parse("2026-10-04T06:00:00Z");
+    TreeSet<LocalDate> days = ChargeDays.in(List.of(collected, noShow), YearMonth.of(2026, 10), Set.of(), LocalDate.of(2026, 10, 1));
+    assertEquals(new TreeSet<>(List.of(LocalDate.of(2026, 10, 3))), days);
+  }
 }

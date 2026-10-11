@@ -1,10 +1,12 @@
 package in.foodcart.api;
 
+import in.foodcart.data.CustomerRepository;
 import in.foodcart.data.VendorEntity;
 import in.foodcart.service.StoreLinks;
 import in.foodcart.service.SupportRefunds;
 import in.foodcart.service.onboarding.SelfOnboarding;
 import in.foodcart.service.billing.VendorBilling;
+import in.foodcart.service.billing.VendorCollections;
 import in.foodcart.service.VendorOnboarding;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,8 +34,13 @@ public class AdminController {
   private final SupportRefunds refunds;
   private final SelfOnboarding signups;
   private final VendorBilling billing;
+  private final VendorCollections collections;
+  private final CustomerRepository customers;
 
-  public AdminController(@Value("${ADMIN_TOKEN:}") String token, StoreLinks links, VendorOnboarding onboarding, SupportRefunds refunds, SelfOnboarding signups, VendorBilling billing) {
+  public AdminController(@Value("${ADMIN_TOKEN:}") String token, StoreLinks links, VendorOnboarding onboarding, SupportRefunds refunds, SelfOnboarding signups, VendorBilling billing,
+      VendorCollections collections, CustomerRepository customers) {
+    this.collections = collections;
+    this.customers = customers;
     this.token = token.length() >= 24 ? token.getBytes(StandardCharsets.UTF_8) : null;
     if (!token.isEmpty() && this.token == null) log.warn("ADMIN_TOKEN is shorter than 24 characters, so the admin API stays off.");
     this.links = links;
@@ -120,14 +127,17 @@ public class AdminController {
     ResponseEntity<Map<String, Object>> refused = refuse(given);
     if (refused != null) return refused;
     java.time.LocalDate day = date == null || date.isBlank() ? java.time.LocalDate.now(java.time.ZoneId.of("Asia/Kolkata")) : java.time.LocalDate.parse(date);
-    return ResponseEntity.ok(Map.of("date", day.toString(), "issued", billing.run(day)));
+    return ResponseEntity.ok(Map.of("date", day.toString(), "issued", billing.run(day), "statements", collections.run(day)));
   }
 
   @GetMapping("/billing/due")
   public ResponseEntity<?> dueInvoices(@RequestHeader(value = "X-Admin-Token", required = false) String given) {
     ResponseEntity<Map<String, Object>> refused = refuse(given);
     if (refused != null) return refused;
-    return ResponseEntity.ok(billing.due());
+    java.util.List<Map<String, Object>> due = new java.util.ArrayList<>(billing.due());
+    due.addAll(collections.due());
+    due.sort(java.util.Comparator.comparing(r -> String.valueOf(r.get("dueOn"))));
+    return ResponseEntity.ok(due);
   }
 
   public record Paid(String number, String ref) {}
@@ -137,8 +147,31 @@ public class AdminController {
   public ResponseEntity<Map<String, Object>> paid(@RequestHeader(value = "X-Admin-Token", required = false) String given, @RequestBody Paid body) {
     ResponseEntity<Map<String, Object>> refused = refuse(given);
     if (refused != null) return refused;
+    if (body.number() != null && body.number().trim().startsWith("SMC/")) {
+      var s = collections.markPaid(body.number(), body.ref());
+      log.info("Collection statement {} marked paid", s.number);
+      return ResponseEntity.ok(Map.of("number", s.number, "status", s.status, "total", s.total));
+    }
     var inv = billing.markPaid(body.number(), body.ref());
     log.info("Vendor invoice {} marked paid", inv.number);
     return ResponseEntity.ok(Map.of("number", inv.number, "status", inv.status, "total", inv.total));
+  }
+
+  public record Mobile(String mobile) {}
+
+  /** Turns pay at the stall back on for a number blocked after no-shows (ops/cash-reset.sh). */
+  @PostMapping("/customers/cash-reset")
+  public ResponseEntity<Map<String, Object>> cashReset(@RequestHeader(value = "X-Admin-Token", required = false) String given, @RequestBody Mobile body) {
+    ResponseEntity<Map<String, Object>> refused = refuse(given);
+    if (refused != null) return refused;
+    String digits = body.mobile() == null ? "" : body.mobile().replaceAll("\\D", "");
+    if (digits.length() == 12 && digits.startsWith("91")) digits = digits.substring(2);
+    var c = customers.findByMobile(digits).orElseThrow(() -> new IllegalArgumentException("No customer with the number " + body.mobile() + "."));
+    int before = c.noShows;
+    c.noShows = 0;
+    c.updatedAt = java.time.Instant.now();
+    customers.save(c);
+    log.info("Pay at the stall turned back on for a customer ({} no-shows cleared)", before);
+    return ResponseEntity.ok(Map.of("mobile", c.mobile, "noShowsCleared", before));
   }
 }

@@ -13,7 +13,9 @@ type InvoiceView = {
   orderNumber: number;
   issuedAt: string;
   foodNumber: string;
-  platformNumber: string;
+  /** null when there were no platform charges (paid at the stall). */
+  platformNumber: string | null;
+  paidAtStall?: boolean;
   customer: { name: string; mobile: string };
   vendor?: { name: string; address?: string | null; fssai?: string | null };
   items: { name: string; quantity: number; price: Money; lineTotal: Money }[];
@@ -97,6 +99,7 @@ export default function Invoice({ params }: { params: { slug: string; id: string
             </table>
           </article>
 
+          {invoice.platformNumber ? (
           <article className="invoice" aria-label="Tax invoice for platform charges">
             <header>
               <h1>Tax invoice</h1>
@@ -125,8 +128,9 @@ export default function Invoice({ params }: { params: { slug: string; id: string
               </tfoot>
             </table>
           </article>
+          ) : null}
 
-          <p className="invoice-paid">Paid online: <b>{rupee(invoice.bill.total)}</b> for order #{invoice.orderNumber}. This is a computer-generated invoice.</p>
+          <p className="invoice-paid">{invoice.paidAtStall ? 'Paid at the stall' : 'Paid online'}: <b>{rupee(invoice.bill.total)}</b> for order #{invoice.orderNumber}. This is a computer-generated invoice.</p>
         </>
       )}
     </main>

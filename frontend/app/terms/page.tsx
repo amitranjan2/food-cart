@@ -33,28 +33,38 @@ export default function Terms() {
         <li>You choose dishes and their options, Pick Up or Dine In, and a 30-minute time slot from the ones the vendor offers.</li>
         <li>
           Prices are in Indian rupees, set by the vendor, and don&apos;t include GST. Your bill adds GST on food (
-          {percent(LAUNCH_RATES.foodGstBp)}), platform charges ({percent(LAUNCH_RATES.platformFeeBp)} of the item total and GST,
-          covering online payment charges) and GST on the platform charges ({percent(LAUNCH_RATES.platformFeeGstBp)}). The amount on the
-          Pay button is the full amount you pay.
+          {percent(LAUNCH_RATES.foodGstBp)}). When you pay online, it also adds platform charges ({percent(LAUNCH_RATES.platformFeeBp)} of
+          the item total and GST, covering online payment charges) and GST on them ({percent(LAUNCH_RATES.platformFeeGstBp)}); paying at
+          the stall has no platform charges. The total in the cart is the full amount you pay.
         </li>
         <li>
           {LEGAL.brand} collects and pays the GST on food as the e-commerce operator (section 9(5) of the CGST Act, 2017). After
           you collect your order, its tax invoices are on your order page.
         </li>
         <li>
-          You pay online before the order is sent to the vendor. Your order is confirmed only when our payment partner confirms
-          the payment. An order not paid within 15 minutes is cancelled and nothing is charged.
+          <b>Pay at the stall.</b> Your order goes to the vendor straight away and you pay the vendor the full bill when you
+          collect it, in cash or by UPI to the vendor. Pay before you give your handover code: the code confirms you have paid and
+          received your order.
         </li>
         <li>
-          The vendor may accept or reject a paid order (for example, if a dish has run out). If they reject it, you get a full
-          refund, as set out in our <Link href="/refunds">Refund &amp; Cancellation Policy</Link>.
+          <b>Pay online</b> (where offered). You pay before the order is sent to the vendor; it is confirmed only when our payment
+          partner confirms the payment. An order not paid within 15 minutes is cancelled and nothing is charged.
+        </li>
+        <li>
+          The vendor may accept or reject your order (for example, if a dish has run out). If they reject an order paid online, you get
+          a full refund, as set out in our <Link href="/refunds">Refund &amp; Cancellation Policy</Link>.
+        </li>
+        <li>
+          Pay at the stall is for orders you will collect. You can have up to 2 such orders waiting at a time. If 2 of your orders
+          are marked as not collected, pay at the stall is turned off for your number; write to <Fill field="email" /> to ask for it back.
         </li>
       </ul>
 
       <h2>4. Payments</h2>
       <p>
-        Payments are processed by our payment partner. We never see or store your card number, UPI PIN or banking passwords;
-        we only receive the payment&apos;s status, reference and amount.
+        Online payments are processed by our payment partner. We never see or store your card number, UPI PIN or banking passwords;
+        we only receive the payment&apos;s status, reference and amount. When you pay at the stall, you pay the vendor directly
+        and we record that the order was paid when the vendor enters your handover code.
       </p>
 
       <h2>5. Collecting your order</h2>

@@ -150,6 +150,8 @@ html:has(.storefront.customizing),html:has(.storefront.customizing) body{overflo
 .cart-also .dish-foot{align-items:center}
 .cart-also .add-btn{flex:none;width:auto;min-width:0;height:28px;border-radius:10px;padding:0 10px;font-size:var(--fs-xs);letter-spacing:.02em}
 .plan-box{margin:16px 12px 0;background:#fff;border-radius:16px;padding:14px 16px;box-shadow:0 1px 0 rgba(48,64,78,.06),0 8px 18px rgba(48,64,78,.04)}
+.pay-note{margin:0;font-size:var(--fs-sm);color:#4f5b66;line-height:1.45}
+.pay-box .plan-row+.pay-note{margin-top:10px}
 .plan-rule{height:1px;margin:10px 6px 0;background:rgba(48,64,78,.12)}
 .plan-row{display:flex;gap:8px}
 .plan-row button{flex:1;height:52px;border:2px solid transparent;border-radius:16px;background:transparent;color:var(--store-ink);font-size:var(--fs-md);font-weight:800}

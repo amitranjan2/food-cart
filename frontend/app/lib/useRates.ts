@@ -2,23 +2,23 @@
 
 import { useEffect, useState } from 'react';
 import { request } from './api';
-import { LAUNCH_RATES, type Rates } from './bill';
+import { LAUNCH_PRICING, type Pricing } from './bill';
 
-/** The bill's rates from the API (cached for the page's life); the launch rates until it answers. */
-let cached: Promise<Rates> | null = null;
+/** The bill's rates and the ways to pay, from the API (cached for the page's life); the launch values until it answers. */
+let cached: Promise<Pricing> | null = null;
 
-export function useRates() {
-  const [rates, setRates] = useState<Rates>(LAUNCH_RATES);
+export function usePricing() {
+  const [pricing, setPricing] = useState<Pricing>(LAUNCH_PRICING);
   useEffect(() => {
-    cached ??= request<Rates>('/api/public/pricing').catch(() => {
+    cached ??= request<Pricing>('/api/public/pricing').catch(() => {
       cached = null;
-      return LAUNCH_RATES;
+      return LAUNCH_PRICING;
     });
     let active = true;
-    cached.then(next => active && setRates(next));
+    cached.then(next => active && setPricing(next.byMethod && next.methods?.length ? next : LAUNCH_PRICING));
     return () => {
       active = false;
     };
   }, []);
-  return rates;
+  return pricing;
 }

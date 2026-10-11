@@ -53,7 +53,7 @@ public class SupportRefunds {
     view.put("customer", o.customerName);
     view.put("mobile", o.customerMobile);
     view.put("total", o.total);
-    view.put("payment", o.payment == null ? null : o.payment.status);
+    view.put("payment", o.cash() ? "AT_STALL" : o.payment == null ? null : o.payment.status);
     view.put("items", o.items.stream().map(i -> i.quantity + "x " + i.name).toList());
     view.put("refundable", refusal(o) == null);
     view.put("why", refusal(o));
@@ -87,6 +87,7 @@ public class SupportRefunds {
 
   private static String refusal(OrderEntity o) {
     if (!REFUNDABLE.contains(o.status)) return "Order is " + o.status + ": only orders not yet handed over can be refunded here.";
+    if (o.cash()) return null; // pay at the stall: nothing was paid, so cancelling is all there is to do
     if (o.payment == null || o.payment.status != PaymentInfo.Status.PAID) return "Order isn't paid (payment " + (o.payment == null ? "none" : o.payment.status) + "), so there is nothing to refund.";
     return null;
   }

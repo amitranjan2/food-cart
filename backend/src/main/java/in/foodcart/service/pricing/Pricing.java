@@ -3,6 +3,8 @@ package in.foodcart.service.pricing;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import in.foodcart.domain.PaymentMethod;
+
 import java.math.BigDecimal;
 
 /** The configured rates (app.pricing.*), in percent in the config and basis points in the sums. */
@@ -22,6 +24,15 @@ public class Pricing {
 
   public BillRules.Bill bill(BigDecimal itemTotal) {
     return BillRules.of(itemTotal, rates);
+  }
+
+  /** Platform charges cover online payment costs, so a pay-at-stall order has none: items + GST on food (decided Oct 11). */
+  public BillRules.Rates rates(PaymentMethod method) {
+    return method == PaymentMethod.CASH ? new BillRules.Rates(rates.foodGstBp(), 0, 0) : rates;
+  }
+
+  public BillRules.Bill bill(BigDecimal itemTotal, PaymentMethod method) {
+    return BillRules.of(itemTotal, rates(method));
   }
 
   private static int bp(BigDecimal percent) {

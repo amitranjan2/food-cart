@@ -23,6 +23,21 @@ export type VendorInvoice = {
   paymentRef?: string | null;
 };
 
+/** The GST on food the stall took in cash for one month, which it passes to us (tracker S2.19). Not a tax invoice. */
+export type VendorCollection = {
+  number: string;
+  periodStart: string;
+  periodEnd: string;
+  orders: { orderNumber: number; collectedOn: string; invoiceNumber?: string | null; itemTotal: number; foodGst: number }[];
+  itemTotal: number;
+  total: number;
+  status: 'DUE' | 'PAID';
+  issuedAt: string;
+  dueOn: string;
+  paidAt?: string | null;
+  paymentRef?: string | null;
+};
+
 export type Billing = {
   billingOn: boolean;
   plan: VendorPlan;
@@ -34,6 +49,11 @@ export type Billing = {
   daysThisMonth?: number;
   thisMonthSoFar?: number;
   invoices: VendorInvoice[];
+  /** GST on pay-at-stall orders, one statement per month. */
+  collections?: VendorCollection[];
+  /** GST on this month's collected pay-at-stall orders so far (on next month's statement). */
+  collectionThisMonth?: number;
+  /** Invoices and statements still to pay. */
   due: number;
   payToUpi: string | null;
   /** Who issues the invoices (our company). */

@@ -21,7 +21,8 @@ export default function Privacy() {
       <ul>
         <li><b>Mobile number</b>: to sign you in with a one-time code sent on WhatsApp, and to let the vendor call you about your order.</li>
         <li><b>Name</b>: shown to the vendor so they can hand your order to you.</li>
-        <li><b>Orders</b>: the vendor, dishes and options, Pick Up or Dine In, time slot, amount, status and handover details.</li>
+        <li><b>Orders</b>: the vendor, dishes and options, Pick Up or Dine In, time slot, amount, how you paid (online or at the stall), status and handover details.</li>
+        <li><b>Orders not collected</b>: how many of your pay-at-the-stall orders a vendor marked as not collected, so we can turn pay at the stall off after 2.</li>
         <li><b>Payment details from our payment partner</b>: payment status, reference and amount. We do not receive card numbers, UPI PINs or bank passwords.</li>
         <li><b>Vendors you open</b>: stalls whose page you opened or ordered from, so they appear under &quot;Your vendors&quot;.</li>
         <li><b>Technical data</b>: IP address, device and browser information and server logs, used to keep the service secure.</li>
@@ -33,7 +34,7 @@ export default function Privacy() {
         <li>To send your order to the vendor and show you its progress.</li>
         <li>To take payments and make refunds.</li>
         <li>To show your vendors and the dishes you ordered before (&quot;Order again&quot;).</li>
-        <li>To prevent fraud and abuse, for example by limiting how often codes can be requested.</li>
+        <li>To prevent fraud and abuse, for example by limiting how often codes can be requested, and how many pay-at-the-stall orders can wait at once.</li>
         <li>To answer your questions and complaints, and to keep records the law requires (such as tax and accounting records).</li>
       </ul>
       <p>We use your data only for these purposes. We do not sell it, and we do not use it for advertising by others.</p>

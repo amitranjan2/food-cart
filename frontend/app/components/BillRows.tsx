@@ -11,6 +11,9 @@ export function BillRows({ bill, totalLabel = 'To pay' }: { bill: Bill; totalLab
     <>
       <div className="bill-row"><span>Item total</span><span>{rupee(bill.itemTotal)}</span></div>
       <div className="bill-row sub"><span>GST on food ({percent(bill.rates.foodGstBp)})</span><span>{rupee(bill.foodGst)}</span></div>
+      {/* Pay at the stall has no platform charges, so no lines for them. */}
+      {bill.rates.platformFeeBp > 0 || bill.platformFee > 0 ? (
+      <>
       <div className="bill-row sub">
         <span>
           Platform charges
@@ -25,6 +28,8 @@ export function BillRows({ bill, totalLabel = 'To pay' }: { bill: Bill; totalLab
         </p>
       ) : null}
       <div className="bill-row sub"><span>GST on platform charges ({percent(bill.rates.platformFeeGstBp)})</span><span>{rupee(bill.platformFeeGst)}</span></div>
+      </>
+      ) : null}
       <div className="bill-row grand"><span>{totalLabel}</span><span>{rupee(bill.total)}</span></div>
     </>
   );

@@ -3,7 +3,7 @@
 # lists what is unpaid, and records UPI or bank payments.
 #
 #   API_BASE=https://api.suprmama.in ADMIN_TOKEN='…' ops/billing.sh due
-#   … ops/billing.sh paid SMV/26-27/000012 "UPI 412345678901"
+#   … ops/billing.sh paid SMV/26-27/000012 "UPI 412345678901"   # also SMC/… GST statements (pay-at-stall orders)
 #   … ops/billing.sh run [yyyy-mm-dd]        # safe to repeat; a date issues what is due by that day
 #
 # Needs curl and jq.

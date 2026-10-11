@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { BillRows } from '../../components/BillRows';
-import type { Bill } from '../../lib/bill';
+import type { Bill, PaymentMethod } from '../../lib/bill';
 import type { MenuItem } from '../../lib/api';
 import { FEATURES } from '../../lib/features';
 import { formatRupee } from '../lib/customization';
@@ -118,6 +118,9 @@ export function Cart({
   quantities,
   total,
   bill,
+  methods,
+  method,
+  onMethod,
   slots,
   hoursSet,
   storeOpen = true,
@@ -146,6 +149,10 @@ export function Cart({
   total: number;
   /** The full bill for total (items + GST + platform charges); the Pay amount. */
   bill: Bill;
+  /** The ways to pay right now (pay at the stall only, until online payment is set up). */
+  methods: PaymentMethod[];
+  method: PaymentMethod;
+  onMethod: (method: PaymentMethod) => void;
   /** null while loading. */
   slots: string[] | null;
   hoursSet: boolean;
@@ -504,6 +511,23 @@ export function Cart({
         ))}
       </div>
 
+      <section className="plan-box pay-box" aria-label="Payment">
+        {methods.length > 1 ? (
+          <div className="plan-row" role="radiogroup" aria-label="How you pay">
+            {methods.map(id => (
+              <button type="button" role="radio" key={id} aria-checked={method === id} className={method === id ? 'on' : undefined} onClick={() => onMethod(id)}>
+                {id === 'ONLINE' ? 'Pay online' : 'Pay at the stall'}
+              </button>
+            ))}
+          </div>
+        ) : null}
+        <p className="pay-note">
+          {method === 'CASH'
+            ? `Pay ${formatRupee(bill.total)} at the stall when you collect, in cash or by UPI to the stall. Show your code after paying.`
+            : 'Pay now online. The stall sees your order once the payment goes through.'}
+        </p>
+      </section>
+
       {plan === 'subscribe' && (
         <section className="plan-box freq-box">
           <div className="plan-row" role="radiogroup" aria-label="Payment frequency">
@@ -642,7 +666,7 @@ export function Cart({
             </svg>
             <strong aria-live="polite">{formatRupee(bill.total)}</strong>
           </button>
-          <button type="button" className="customizer-add" disabled={paying || !verified || !customerName || !onceSlot} onClick={() => onceSlot && onPay(ORDER_TYPES[fulfillment], slotKey(onceSlot))}>{paying ? '…' : 'Pay'}</button>
+          <button type="button" className="customizer-add" disabled={paying || !verified || !customerName || !onceSlot} onClick={() => onceSlot && onPay(ORDER_TYPES[fulfillment], slotKey(onceSlot))}>{paying ? '…' : method === 'CASH' ? 'Place order' : 'Pay'}</button>
         </footer>
       </div>
       </>

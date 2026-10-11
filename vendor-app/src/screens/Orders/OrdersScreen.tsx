@@ -24,6 +24,7 @@ import { isAuthFailure } from '../../api/client';
 import { useAuth } from '../../state/AuthContext';
 import { colors, spacing } from '../../theme';
 import { ConfirmDialog, PageHeading } from '../../ui';
+import { paysAtStall } from '../../utils/orderStatus';
 import type { Order, OrderStatus } from '../../types';
 import { formatDayTitle, formatSlot } from '../../utils/format';
 import { futureOrderCount, indiaDay, orderDayKey, pagerDayKey } from '../../utils/orderDay';
@@ -47,6 +48,7 @@ export function OrdersScreen({ navigation }: Props) {
   const listRef = useRef<FlatList<Order>>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [rejecting, setRejecting] = useState<Order | null>(null);
+  const [noShowing, setNoShowing] = useState<Order | null>(null);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
@@ -223,6 +225,7 @@ export function OrdersScreen({ navigation }: Props) {
                   highlighted={highlightId === item.id}
                   onAdvance={() => (item.status === 'READY' ? setHandoverId(item.id) : advance(item.id))}
                   onReject={() => setRejecting(item)}
+                  onNoShow={() => setNoShowing(item)}
                 />
               )}
             />
@@ -245,13 +248,26 @@ export function OrdersScreen({ navigation }: Props) {
       {rejecting ? (
         <ConfirmDialog
           title={`Reject order #${rejecting.orderNumber}?`}
-          message="The customer is refunded in full. This can't be undone."
+          message={paysAtStall(rejecting) ? "The customer hasn't paid, so nothing is refunded. This can't be undone." : "The customer is refunded in full. This can't be undone."}
           confirmLabel="Reject order"
           onCancel={() => setRejecting(null)}
           onConfirm={() => {
             const order = rejecting;
             setRejecting(null);
             advance(order.id, 'REJECTED');
+          }}
+        />
+      ) : null}
+      {noShowing ? (
+        <ConfirmDialog
+          title={`Mark order #${noShowing.orderNumber} as not collected?`}
+          message="Only if the customer didn't come and didn't pay. It counts against their number: after 2, they can't order to pay at the stall. This can't be undone."
+          confirmLabel="Not collected"
+          onCancel={() => setNoShowing(null)}
+          onConfirm={() => {
+            const order = noShowing;
+            setNoShowing(null);
+            advance(order.id, 'NO_SHOW');
           }}
         />
       ) : null}

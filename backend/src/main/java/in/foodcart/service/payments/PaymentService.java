@@ -7,6 +7,7 @@ import in.foodcart.service.OrderNumbers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -31,16 +32,30 @@ public class PaymentService {
   /** Replaced in tests. */
   Clock clock = Clock.systemUTC();
 
-  public PaymentService(ObjectProvider<PaymentGateway> gateways, OrderRepository orders, CustomerHistory customerHistory, OrderNumbers numbers) {
+  /** Pay at the stall (tracker S2.19). */
+  private final boolean cash;
+
+  public PaymentService(ObjectProvider<PaymentGateway> gateways, OrderRepository orders, CustomerHistory customerHistory, OrderNumbers numbers,
+      @Value("${app.payments.cash:true}") boolean cash) {
+    // No gateway is fine: the launch takes pay-at-stall orders only (PAYMENT_GATEWAY=none).
     this.gateway = gateways.getIfAvailable();
-    if (this.gateway == null) {
+    this.cash = cash;
+    if (this.gateway == null && !cash) {
       throw new IllegalStateException(
-          "No payment gateway is configured, so orders cannot be paid. "
-              + "Run with the 'local' profile for development, or configure a gateway for production.");
+          "No payment gateway is configured and pay-at-stall is off (PAYMENT_CASH=false), so no order can be paid. "
+              + "Run with the 'local' profile for development, configure a gateway, or turn pay-at-stall on.");
     }
     this.orders = orders;
     this.customerHistory = customerHistory;
     this.numbers = numbers;
+  }
+
+  public boolean onlineAvailable() {
+    return gateway != null;
+  }
+
+  public boolean cashAvailable() {
+    return cash;
   }
 
   /** What the browser needs to open the active gateway's checkout. */
@@ -48,6 +63,7 @@ public class PaymentService {
 
   /** Creates the gateway payment for a new PAYMENT_PENDING order, always for the server's total. */
   public Started start(OrderEntity o) {
+    if (gateway == null) throw new IllegalStateException("Online payment isn't available yet. Choose pay at the stall.");
     PaymentGateway.Checkout checkout = gateway.create(o.id, o.total, o.customerName, o.customerMobile);
     PaymentInfo p = new PaymentInfo();
     p.gateway = gateway.name();
@@ -59,7 +75,7 @@ public class PaymentService {
   }
 
   public void handleWebhook(String gatewayName, String rawBody, Map<String, String> headers) {
-    if (!gateway.name().equals(gatewayName)) throw new IllegalArgumentException("Unknown payment gateway");
+    if (gateway == null || !gateway.name().equals(gatewayName)) throw new IllegalArgumentException("Unknown payment gateway");
     apply(gateway.parseWebhook(rawBody, headers));
   }
 
@@ -114,6 +130,7 @@ public class PaymentService {
   }
 
   private void refund(OrderEntity o) {
+    if (gateway == null) throw new IllegalStateException("No payment gateway is configured, so this online payment can't be refunded here.");
     PaymentInfo p = o.payment;
     PaymentGateway.Refund r = gateway.refund(p, o.total);
     p.refundId = r.refundId();
@@ -123,6 +140,7 @@ public class PaymentService {
 
   @Scheduled(fixedDelay = 60_000)
   public void expireUnpaid() {
+    // Only online orders wait for a payment; pay-at-stall orders are PLACED straight away.
     for (OrderEntity o : orders.findByStatusAndPayment_ExpiresAtBefore(OrderStatus.PAYMENT_PENDING, Instant.now(clock))) {
       if (o.payment.status == PaymentInfo.Status.PAID) continue;
       o.status = OrderStatus.EXPIRED;

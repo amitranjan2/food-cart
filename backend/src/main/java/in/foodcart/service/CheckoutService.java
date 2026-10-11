@@ -10,6 +10,7 @@ import in.foodcart.data.VendorEntity;
 import in.foodcart.data.VendorRepository;
 import in.foodcart.domain.OrderStatus;
 import in.foodcart.domain.OrderType;
+import in.foodcart.domain.PaymentMethod;
 import in.foodcart.domain.VendorStatus;
 import in.foodcart.service.handover.HandoverRules;
 import in.foodcart.service.payments.PaymentService;
@@ -22,6 +23,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
@@ -36,10 +38,24 @@ public class CheckoutService {
   private final PaymentService payments;
   private final Pricing pricing;
   private final InvoiceNumbers invoices;
+  private final OrderNumbers numbers;
+  private final CustomerHistory history;
+  /** A customer's pay-at-stall orders not yet collected; more must wait. */
+  public static final int OPEN_CASH_LIMIT = 2;
+  /** Pay-at-stall orders a number may fail to collect before pay-at-stall is off for it. */
+  public static final int NO_SHOW_LIMIT = 2;
+  /** How long after the slot starts the stall may mark a pay-at-stall order as not collected. */
+  public static final Duration NO_SHOW_AFTER = Duration.ofMinutes(30);
+  /** Pay-at-stall orders older than this (by slot) no longer count as open, so a stall that never answered can't block a customer. */
+  static final Duration OPEN_FOR = Duration.ofHours(3);
+  private static final List<OrderStatus> OPEN = List.of(OrderStatus.PLACED, OrderStatus.ACCEPTED, OrderStatus.PREPARING, OrderStatus.READY);
   /** Replaced in tests. */
   Clock clock = Clock.system(SlotRules.ZONE);
 
-  public CheckoutService(VendorRepository v, MenuItemRepository i, OrderRepository o, CustomerRepository c, PaymentService p, Pricing pricing, InvoiceNumbers invoices) {
+  public CheckoutService(VendorRepository v, MenuItemRepository i, OrderRepository o, CustomerRepository c, PaymentService p, Pricing pricing, InvoiceNumbers invoices,
+      OrderNumbers numbers, CustomerHistory history) {
+    this.numbers = numbers;
+    this.history = history;
     vendors = v;
     items = i;
     orders = o;
@@ -54,9 +70,9 @@ public class CheckoutService {
   /**
    * type is "PICKUP" or "DINE_IN". slot is the chosen start time in India time, e.g. "2026-10-09T14:30".
    * displayedTotal is the "To pay" amount the customer saw (BillRules: items + GST + platform charges + their GST); the
-   * order is refused if the server's bill differs.
+   * order is refused if the server's bill differs. paymentMethod is "ONLINE" (the default) or "CASH" (pay at the stall).
    */
-  public record Request(String vendorId, String type, String slot, BigDecimal displayedTotal, List<Line> items) {}
+  public record Request(String vendorId, String type, String slot, BigDecimal displayedTotal, List<Line> items, String paymentMethod) {}
 
   public OrderEntity create(String customerId, Request request) {
     VendorEntity v = vendors.findById(request.vendorId()).orElseThrow(() -> new IllegalArgumentException("Vendor not found"));
@@ -67,6 +83,9 @@ public class CheckoutService {
     o.customerId = customerId;
     CustomerEntity customer = customers.findById(customerId).orElseThrow(() -> new SecurityException("Customer not found"));
     if (customer.name == null || customer.name.isBlank()) throw new IllegalStateException("Add your name before paying.");
+    PaymentMethod method = PaymentMethod.parse(request.paymentMethod());
+    if (method == PaymentMethod.ONLINE && !payments.onlineAvailable()) throw new IllegalStateException("Online payment isn't available yet. Choose pay at the stall.");
+    if (method == PaymentMethod.CASH) checkCashAllowed(customer);
     o.customerMobile = customer.mobile;
     o.customerName = customer.name;
     o.type = OrderType.parse(request.type());
@@ -94,18 +113,39 @@ public class CheckoutService {
     }
     if (o.items.isEmpty()) throw new IllegalArgumentException("Cart is empty");
     o.subtotal = o.items.stream().map(x -> x.lineTotal).reduce(BigDecimal.ZERO, BigDecimal::add);
-    BillRules.Bill bill = pricing.bill(o.subtotal);
+    BillRules.Bill bill = pricing.bill(o.subtotal, method);
     o.bill = snapshot(bill);
     o.total = bill.total();
     // Rounded to paise: the browser adds prices as floating point (0.1 + 0.2 = 0.30000000000000004).
     if (request.displayedTotal() == null || o.total.compareTo(request.displayedTotal().setScale(2, RoundingMode.HALF_UP)) != 0) {
       throw new IllegalStateException("Your cart total has changed. Please review your cart.");
     }
+    o.paymentMethod = method.name();
+    if (method == PaymentMethod.CASH) {
+      // Paid at the stall on collection, so the stall sees it now; the guards above stand in for the payment.
+      o.status = OrderStatus.PLACED;
+      o.orderNumber = numbers.next(v.id);
+      OrderEntity saved = orders.save(o);
+      history.recordOrder(customerId, v.id, Instant.now(clock));
+      return saved;
+    }
     // The order number is given when the payment is confirmed (PaymentService / OrderNumbers), not now.
     // Pay first: the vendor only sees the order once the payment is confirmed (PaymentService).
     o.status = OrderStatus.PAYMENT_PENDING;
-    o.paymentMethod = "ONLINE";
     return orders.save(o);
+  }
+
+  /** Pay-at-stall needs no payment up front, so: not after repeated no-shows, and only a few uncollected at once. */
+  private void checkCashAllowed(CustomerEntity customer) {
+    if (!payments.cashAvailable()) throw new IllegalStateException("Pay at the stall isn't available. Please pay online.");
+    if (customer.noShows >= NO_SHOW_LIMIT) {
+      throw new IllegalStateException("Pay at the stall is off for this number because " + NO_SHOW_LIMIT
+          + " orders weren't collected. Write to tech@suprmama.in to turn it back on.");
+    }
+    Instant since = Instant.now(clock).minus(OPEN_FOR);
+    if (orders.countByCustomerIdAndPaymentMethodAndStatusInAndScheduledForAfter(customer.id, PaymentMethod.CASH.name(), OPEN, since) >= OPEN_CASH_LIMIT) {
+      throw new IllegalStateException("You already have " + OPEN_CASH_LIMIT + " pay-at-stall orders waiting. Collect them before ordering again.");
+    }
   }
 
   /** The slot must still be one the vendor offers right now; slots in the past or outside opening hours are refused. */
@@ -140,6 +180,8 @@ public class CheckoutService {
     }
     o.status = OrderStatus.COMPLETED;
     o.completedAt = Instant.now(clock);
+    // The stall is told to take the money before entering the code, so the code stands for "paid".
+    if (o.cash()) o.cashCollectedAt = o.completedAt;
     // The food has been supplied: now the tax invoices exist. Orders that never get here (rejected, refunded) have none.
     invoices.issue(o, o.completedAt);
     return orders.save(o);
@@ -147,6 +189,7 @@ public class CheckoutService {
 
   public OrderEntity status(String vendorId, String id, OrderStatus target) {
     OrderEntity o = orders.findByIdAndVendorId(id, vendorId).orElseThrow(() -> new SecurityException("Order not found"));
+    if (target == OrderStatus.NO_SHOW) return noShow(o);
     // Completing always goes through handOver: the order must be READY and the customer's code must match.
     if (target == OrderStatus.COMPLETED) throw new IllegalStateException("Enter the customer's handover code to complete this order.");
     boolean valid = (o.status == OrderStatus.PLACED && (target == OrderStatus.ACCEPTED || target == OrderStatus.REJECTED))
@@ -166,6 +209,29 @@ public class CheckoutService {
       o.rejectedAt = now;
       payments.refundIfPaid(o);
     }
+    return orders.save(o);
+  }
+
+  /** The customer didn't come for a pay-at-stall order: no invoice, no charge day, and it counts against their number. */
+  private OrderEntity noShow(OrderEntity o) {
+    if (!o.cash()) throw new IllegalStateException("Only pay-at-stall orders can be marked as not collected.");
+    if (o.status != OrderStatus.ACCEPTED && o.status != OrderStatus.PREPARING && o.status != OrderStatus.READY) {
+      throw new IllegalStateException("Only accepted orders can be marked as not collected.");
+    }
+    Instant now = Instant.now(clock);
+    Instant from = o.scheduledFor.plus(NO_SHOW_AFTER);
+    if (now.isBefore(from)) {
+      long minutes = Duration.between(now, from).toMinutes() + 1;
+      throw new IllegalStateException("Wait " + minutes + " more " + (minutes == 1 ? "minute" : "minutes") + ": you can mark it as not collected "
+          + NO_SHOW_AFTER.toMinutes() + " minutes after the pickup time.");
+    }
+    o.status = OrderStatus.NO_SHOW;
+    o.noShowAt = now;
+    customers.findById(o.customerId).ifPresent(c -> {
+      c.noShows++;
+      c.updatedAt = now;
+      customers.save(c);
+    });
     return orders.save(o);
   }
 

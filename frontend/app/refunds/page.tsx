@@ -9,12 +9,20 @@ export default function Refunds() {
   return (
     <LegalPage title="Refund & Cancellation">
       <p>
-        You pay for every {LEGAL.brand} order online before it is sent to the vendor. This policy explains when you get your money
-        back and how long it takes.
+        You pay for a {LEGAL.brand} order either at the stall when you collect it, or online before it is sent to the vendor (where
+        online payment is offered). This policy explains what happens when an order is cancelled, and when you get your money back.
       </p>
 
-      <h2>Automatic full refunds</h2>
-      <p>You get the full amount back, including GST and platform charges, without asking, when:</p>
+      <h2>Orders paid at the stall</h2>
+      <p>
+        You pay only when you collect your order, so if the vendor rejects it or our support cancels it, nothing has been paid and
+        there is nothing to refund. To cancel before the vendor accepts it, call the stall using the number on your order page.
+        If something you paid for at the stall is missing or wrong, tell the vendor straight away; they return the money for it.
+        If they don&apos;t, contact us (see below) and we will follow it up with the vendor.
+      </p>
+
+      <h2>Automatic full refunds (online payments)</h2>
+      <p>For orders paid online, you get the full amount back, including GST and platform charges, without asking, when:</p>
       <ul>
         <li>the vendor rejects your order (for example, a dish has run out or the stall is closing);</li>
         <li>the vendor accepted your order but can&apos;t make it, and our support cancels it;</li>
@@ -23,7 +31,7 @@ export default function Refunds() {
       </ul>
       <p>If a payment fails, nothing is charged. If money leaves your account for a failed payment, your bank returns it.</p>
 
-      <h2>Cancelling an order</h2>
+      <h2>Cancelling an order paid online</h2>
       <p>
         Once paid, your order goes straight to the vendor. To cancel before the vendor accepts it, call the stall using the
         number on your order page; if they reject it, you get a full refund. After the vendor accepts, the food is prepared
@@ -40,8 +48,10 @@ export default function Refunds() {
 
       <h2>Orders not collected</h2>
       <p>
-        Please collect your order during your time slot. If you can&apos;t, call the stall. An order that is ready but not collected
-        by the end of the day, without contacting the stall, is not refunded, because the food has been made for you.
+        Please collect your order during your time slot. If you can&apos;t, call the stall. An order paid online that is ready but not
+        collected by the end of the day, without contacting the stall, is not refunded, because the food has been made for you. A
+        pay-at-the-stall order not collected within 30 minutes of your slot may be marked as not collected; after 2 such orders,
+        pay at the stall is turned off for your number.
       </p>
 
       <h2>How long refunds take</h2>

@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { choosePlan, getBilling, type Billing, type VendorInvoice, type VendorPlan } from '../../api/billing';
+import { choosePlan, getBilling, type Billing, type VendorCollection, type VendorInvoice, type VendorPlan } from '../../api/billing';
 import { isAuthFailure } from '../../api/client';
 import { ErrorState } from '../../components/ErrorState';
 import { Header } from '../../components/Header';
@@ -35,6 +35,7 @@ export function BillingScreen({ navigation }: Props) {
   const [error, setError] = useState('');
   const [confirm, setConfirm] = useState<VendorPlan | null>(null);
   const [open, setOpen] = useState<VendorInvoice | null>(null);
+  const [statement, setStatement] = useState<VendorCollection | null>(null);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -92,7 +93,7 @@ export function BillingScreen({ navigation }: Props) {
             <Card style={[styles.notice, styles.dueCard]}>
               <Text style={typography.heading}>{rupees(billing.due)} to pay</Text>
               <Text style={typography.small}>
-                {billing.payToUpi ? `Pay by UPI to ${billing.payToUpi} and add the invoice number in the note.` : 'Our team will tell you how to pay.'} We usually
+                {billing.payToUpi ? `Pay by UPI to ${billing.payToUpi} and add the invoice or statement number in the note.` : 'Our team will tell you how to pay.'} We usually
                 take it from your payouts once they start.
               </Text>
             </Card>
@@ -158,8 +159,36 @@ export function BillingScreen({ navigation }: Props) {
               </View>
             </Pressable>
           ))}
+
+          <SectionHeading title="GST on cash orders" />
+          <Text style={[typography.small, styles.hint]}>
+            On pay-at-stall orders the customer pays you the GST on food with the bill. We pay that GST to the government, so you
+            pass it to us once a month. This month so far: {rupees(billing.collectionThisMonth ?? 0)}.
+          </Text>
+          {(billing.collections ?? []).map(s => (
+            <Pressable key={s.number} accessibilityRole="button" onPress={() => setStatement(s)} style={styles.invoice}>
+              <View style={styles.flex}>
+                <Text style={typography.bodyStrong}>{day(s.periodStart)} – {day(s.periodEnd)} · {s.orders.length} {s.orders.length === 1 ? 'order' : 'orders'}</Text>
+                <Text style={typography.caption}>{s.number}</Text>
+              </View>
+              <View style={styles.right}>
+                <Text style={typography.bodyStrong}>{rupees(s.total)}</Text>
+                <Badge label={s.status === 'PAID' ? 'Paid' : `Due ${day(s.dueOn)}`} tone={s.status === 'PAID' ? 'success' : 'warning'} />
+              </View>
+            </Pressable>
+          ))}
         </ScrollView>
       )}
+      {statement ? (
+        <Sheet title={`Statement ${statement.number}`} hint="GST on food you took in cash for these orders. Not a tax invoice: each order already has its own." onClose={() => setStatement(null)}>
+          {statement.orders.map(line => (
+            <Row key={line.orderNumber} label={`#${line.orderNumber} · ${day(line.collectedOn)}`} value={rupees(line.foodGst)} />
+          ))}
+          <Row label="Your item total (yours to keep)" value={rupees(statement.itemTotal)} />
+          <Row label="GST to pass on" value={rupees(statement.total)} strong />
+          <Row label={statement.status === 'PAID' ? 'Paid' : 'Due by'} value={statement.status === 'PAID' ? `${day(statement.paidAt ?? statement.issuedAt)} · ${statement.paymentRef ?? ''}` : day(statement.dueOn)} />
+        </Sheet>
+      ) : null}
 
       {confirm === 'YEARLY' && billing ? (
         <ConfirmDialog
