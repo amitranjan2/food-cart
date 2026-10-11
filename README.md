@@ -58,6 +58,8 @@ Step by step, with the DNS records for Hostinger: [DEPLOY.md](DEPLOY.md).
 | `BILLING_DAILY` / `BILLING_MONTHLY` / `BILLING_YEARLY` / `BILLING_GST_PERCENT` | Plan prices before GST (100 / 2500 / 25000) and GST (18). Keep `vendorPlans` in `frontend/app/lib/legal.ts` in step |
 | `BILLING_TEST_MOBILES` | Comma-separated team numbers whose orders never make a charged day |
 | `BILLING_PAY_TO_UPI` | UPI ID shown to vendors for paying invoices until payouts exist |
+| `BILLING_SAC` | SAC code printed on vendor plan invoices (from the CA) |
+| `SELLER_NAME`, `SELLER_ADDRESS`, `SELLER_GSTIN` | The company printed on vendor plan invoices; defaults are Crestway's. Keep in step with `frontend/app/lib/legal.ts` |
 | `ADMIN_TOKEN` | Turns on `POST /api/admin/vendors` (used by `ops/create-vendor.sh`); 24+ random characters, a secret. Unset = the admin API answers 404 |
 | `OTP_DAILY_SEND_CAP` | WhatsApp login codes sent per India day across all numbers (default 1000); past it, logins pause until midnight and an error is logged |
 | `OTP_DAILY_WRONG_CODES` | Wrong codes one number may enter per day (default 15) before its logins stop until midnight |

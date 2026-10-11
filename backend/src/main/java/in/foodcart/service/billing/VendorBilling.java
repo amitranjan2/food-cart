@@ -42,13 +42,17 @@ public class VendorBilling {
   private final LocalDate start;
   private final Set<String> testMobiles;
   private final String payToUpi;
+  /** Who issues the invoices: printed on each one, as a tax invoice requires. */
+  private final Map<String, String> seller;
   /** Replaced in tests. */
   Clock clock = Clock.system(INDIA);
 
   public VendorBilling(VendorRepository vendors, OrderRepository orders, VendorInvoiceRepository invoices, VendorBusinessRepository business, InvoiceNumbers numbers,
       @Value("${app.billing.daily:100}") BigDecimal daily, @Value("${app.billing.monthly:2500}") BigDecimal monthly, @Value("${app.billing.yearly:25000}") BigDecimal yearly,
       @Value("${app.billing.gst-percent:18}") BigDecimal gstPercent, @Value("${app.billing.start:}") String start,
-      @Value("${app.billing.test-mobiles:}") String testMobiles, @Value("${app.billing.pay-to-upi:}") String payToUpi) {
+      @Value("${app.billing.test-mobiles:}") String testMobiles, @Value("${app.billing.pay-to-upi:}") String payToUpi,
+      @Value("${app.seller.name:}") String sellerName, @Value("${app.seller.address:}") String sellerAddress, @Value("${app.seller.gstin:}") String sellerGstin,
+      @Value("${app.billing.sac:}") String sellerSac) {
     this.vendors = vendors;
     this.orders = orders;
     this.invoices = invoices;
@@ -58,6 +62,12 @@ public class VendorBilling {
     this.start = start.isBlank() ? null : LocalDate.parse(start.trim());
     this.testMobiles = new HashSet<>(Arrays.stream(testMobiles.split(",")).map(String::trim).filter(s -> !s.isEmpty()).toList());
     this.payToUpi = payToUpi.isBlank() ? null : payToUpi.trim();
+    Map<String, String> seller = new LinkedHashMap<>();
+    seller.put("name", sellerName.trim());
+    seller.put("address", sellerAddress.trim());
+    seller.put("gstin", sellerGstin.isBlank() ? null : sellerGstin.trim());
+    seller.put("sac", sellerSac.isBlank() ? null : sellerSac.trim());
+    this.seller = seller;
   }
 
   static List<PlanRules.Step> steps(VendorEntity v) {
@@ -172,6 +182,7 @@ public class VendorBilling {
     out.put("invoices", list);
     out.put("due", list.stream().filter(i -> i.status == VendorInvoiceEntity.Status.DUE).map(i -> i.total).reduce(BigDecimal.ZERO, BigDecimal::add));
     out.put("payToUpi", payToUpi);
+    out.put("seller", seller);
     return out;
   }
 

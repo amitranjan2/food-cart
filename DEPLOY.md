@@ -50,8 +50,8 @@ Plan: Vercel's free Hobby plan is for non-commercial use; a business pilot belon
 ### 3. Check
 - `https://suprmama.in/terms` and `https://www.suprmama.in` (redirects) load with the padlock.
 - Send a test email to `tech@suprmama.in` from another account; it still arrives.
-- `frontend/app/lib/legal.ts` is filled, so the policy pages carry no "Draft" banner. `gstin` and `platformChargesSac`
-  are still empty; only tax invoices show them, and they must be filled before the first real order (N6).
+- `frontend/app/lib/legal.ts` is filled, so the policy pages carry no "Draft" banner. GSTIN `06AAMCC1614M1ZL` is in;
+  `platformChargesSac` is still empty (only tax invoices show it) and must be filled before the first real order (N6).
 
 ---
 
@@ -85,7 +85,7 @@ Plan: Vercel's free Hobby plan is for non-commercial use; a business pilot belon
    | `NOMINATIM_CONTACT` | `tech@suprmama.in` |
    | `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_OTP_TEMPLATE` (`suprmama_otp`), `WHATSAPP_OTP_LANGUAGE`, `WHATSAPP_API_VERSION` | from N3 |
    | `PAYMENT_GATEWAY` + the gateway's keys | once S2.3 picks Cashfree or Razorpay |
-   | `BILLING_START`, `BILLING_TEST_MOBILES`, `BILLING_PAY_TO_UPI` | launch day, the team's numbers, the company UPI ID (vendor billing) |
+   | `BILLING_START`, `BILLING_TEST_MOBILES`, `BILLING_PAY_TO_UPI`, `BILLING_SAC` | launch day, the team's numbers, the company UPI ID, the SAC from the CA (vendor billing) |
 
    `PORT` and `UPLOAD_DIR` are set by Railway and the image; leave them.
 5. **Networking → Custom Domain** → `api.suprmama.in`. Add the record Railway shows at Hostinger:

@@ -32,6 +32,14 @@ app:
     test-mobiles: ${BILLING_TEST_MOBILES:}
     # Where vendors pay invoices until payouts exist.
     pay-to-upi: ${BILLING_PAY_TO_UPI:}
+    # SAC code for the plan charges, printed on each invoice (ask the CA, tracker N6).
+    sac: ${BILLING_SAC:}
+  # The company that issues our tax invoices. Not secret: it is printed on every invoice. Keep in step with
+  # frontend/app/lib/legal.ts.
+  seller:
+    name: ${SELLER_NAME:Crestway Properties Private Limited}
+    address: ${SELLER_ADDRESS:C/O Manju Devi, Ganesh Colony, Narnaul, Haryana 123001}
+    gstin: ${SELLER_GSTIN:06AAMCC1614M1ZL}
   # Login-code limits (tracker S4.8). Per number per hour: see OtpRules.
   otp:
     # WhatsApp codes sent per India day across all numbers; past it, login is refused until midnight.

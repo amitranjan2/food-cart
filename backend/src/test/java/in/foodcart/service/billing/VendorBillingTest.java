@@ -46,7 +46,7 @@ class VendorBillingTest {
 
   private VendorBilling billing(String start, String testMobiles) {
     return new VendorBilling(vendors, orders, invoices, business, numbers, new BigDecimal("100"), new BigDecimal("2500"), new BigDecimal("25000"),
-        new BigDecimal("18"), start, testMobiles, "");
+        new BigDecimal("18"), start, testMobiles, "", "Crestway Properties Private Limited", "Narnaul, Haryana", "06AAMCC1614M1ZL", "");
   }
 
   private static <T> T eq(T value) {
@@ -85,6 +85,15 @@ class VendorBillingTest {
     assertEquals(new BigDecimal("236.00"), inv.total);
     assertEquals(LocalDate.of(2026, 11, 8), inv.dueOn);
     assertEquals(0, b.run(LocalDate.of(2026, 11, 2)), "running again issues nothing");
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void statusNamesWhoIssuesTheInvoices() {
+    Map<String, String> seller = (Map<String, String>) billing("2026-10-01", "").status("v1").get("seller");
+    assertEquals("Crestway Properties Private Limited", seller.get("name"));
+    assertEquals("06AAMCC1614M1ZL", seller.get("gstin"));
+    assertNull(seller.get("sac"), "blank until the CA confirms it");
   }
 
   @Test

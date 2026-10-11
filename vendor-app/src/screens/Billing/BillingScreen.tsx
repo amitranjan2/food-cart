@@ -173,6 +173,12 @@ export function BillingScreen({ navigation }: Props) {
       ) : null}
       {open ? (
         <Sheet title={`Invoice ${open.number}`} hint={`Tax invoice from Supr-Mama for your ${NAMES[open.plan].toLowerCase()} plan.`} onClose={() => setOpen(null)}>
+          {billing?.seller ? (
+            <Text style={[typography.caption, styles.seller]}>
+              From {billing.seller.name}, {billing.seller.address}. GSTIN {billing.seller.gstin ?? 'to be added'}
+              {billing.seller.sac ? ` · SAC ${billing.seller.sac}` : ''}.
+            </Text>
+          ) : null}
           <Row label="Period" value={`${day(open.periodStart)} – ${day(open.periodEnd)}`} />
           {open.plan === 'DAILY' ? <Row label="Days charged" value={`${open.units} × ${rupees(open.unitPrice)}`} /> : null}
           {open.chargeDays?.length ? <Text style={typography.caption}>{open.chargeDays.map(d => day(d)).join(', ')}</Text> : null}
@@ -238,6 +244,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  seller: { marginBottom: spacing.sm },
   invoice: {
     flexDirection: 'row',
     alignItems: 'center',

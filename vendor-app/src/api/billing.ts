@@ -36,6 +36,8 @@ export type Billing = {
   invoices: VendorInvoice[];
   due: number;
   payToUpi: string | null;
+  /** Who issues the invoices (our company). */
+  seller?: { name: string; address: string; gstin: string | null; sac: string | null };
 };
 
 export function getBilling(token: string) {

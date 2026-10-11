@@ -24,7 +24,7 @@ export const LEGAL = {
   /** City whose courts handle disputes, e.g. "Bengaluru". */
   jurisdiction: 'Gurugram, Haryana' as string | null,
   /** GSTIN of the company: required on tax invoices; the e-commerce operator must register whatever its turnover. */
-  gstin: null as string | null,
+  gstin: '06AAMCC1614M1ZL' as string | null,
   /** State of the GST registration and of the stalls (place of supply), e.g. "Haryana (06)". */
   gstState: 'Haryana (06)' as string | null,
   /** SAC for platform charges on the customer's invoice; confirm with a CA (the food is SAC 996331). */
