@@ -31,9 +31,9 @@ function copyFor(order: CustomerOrder, vendorName: string) {
     case 'COMPLETED':
       return { title: dineIn ? 'Served' : 'Picked up', message: `Enjoy your meal! Thanks for ordering from ${vendorName}.` };
     case 'REJECTED':
-      return { title: 'Cancelled', message: 'The kitchen couldn’t accept this order. Any amount paid will be refunded in 3–5 business days.' };
+      return { title: 'Cancelled', message: 'The kitchen couldn’t accept this order. Any amount paid will be refunded within 5–7 working days.' };
     case 'CANCELLED':
-      return { title: 'Cancelled', message: 'This order was cancelled with Supr-Mama support. Your payment is refunded in full and reaches you in 3–5 business days.' };
+      return { title: 'Cancelled', message: 'This order was cancelled with Supr-Mama support. Your payment is refunded in full and reaches you within 5–7 working days.' };
     case 'EXPIRED':
       return { title: 'Payment not completed', message: 'This order wasn’t paid in time, so it was not sent to the kitchen. If any amount was taken, it will be refunded.' };
   }

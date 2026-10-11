@@ -11,7 +11,7 @@ The single source of truth for V1 work. Every session (human or Claude) reads th
 
 Legend: `[ ]` to do · `[~]` in progress · `[x]` done · **⛔ blocks** = must be finished before the item it names.
 
-Last updated: Oct 11, 2026 (Razorpay KYC and WhatsApp number applied for).
+Last updated: Oct 11, 2026 (company details in the policies).
 
 ---
 
@@ -68,6 +68,7 @@ Last updated: Oct 11, 2026 (Razorpay KYC and WhatsApp number applied for).
   9. Put these in the API's environment (never in the repo): `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_OTP_TEMPLATE=suprmama_otp`, `WHATSAPP_OTP_LANGUAGE` (exactly the template's language code: `en` or `en_US`, whichever WhatsApp Manager shows; a mismatch makes every send fail), `WHATSAPP_API_VERSION`.
 - [ ] **N5** Domain `suprmama.in` (registered Oct 10, Aks): turn on registrar lock, 2-factor login and auto-renew; `tech@suprmama.in` exists (Oct 11) and is the contact email in `legal.ts`; consider `grievance@` for the grievance officer. Website bought with the domain at Hostinger; decided the storefront owns the root (see Decisions). DNS records wait for S4.5 (planned: `suprmama.in` storefront, `api.` API, `vendor.` vendor web app). Meta business verification can check the domain with a DNS TXT record.
 - [ ] **N6** **GST registration for the company** as an e-commerce operator (compulsory, whatever the turnover). ⛔ blocks go-live: we can't charge GST or issue tax invoices without a GSTIN. Also ask the CA: SAC for platform charges, whether the stalls' state needs its own registration, invoices/credit notes for refunds, and TDS 194-O handling. Then fill `gstin`, `gstState`, `platformChargesSac` in `legal.ts`.
+- [ ] **N7** Company and website for KYC (Aks). The company is **Crestway Properties Private Limited** (Narnaul, Haryana; filled in `legal.ts` Oct 11). Check its MOA objects cover online marketplace / e-commerce / IT services: Razorpay (and the GST registration, N6) match the business to them, and a property company may be asked to explain. The Hostinger site's `/terms-and-conditions` (Oct 11) differs from the app's policies: it doesn't mention GST on food, platform charges or the support refund route, says customers can cancel before acceptance (in the app they call the stall, who rejects), and says the site takes no orders or payments, though the storefront will on the same domain. Replace it with the app's pages when the storefront goes live (DEPLOY.md phase 1), or paste the app's texts into it until then.
 - [ ] **N4** Ask 3–5 pilot vendors about PAN / business bank account (Aks).
 
 ---

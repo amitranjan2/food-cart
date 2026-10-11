@@ -9,24 +9,24 @@ export const LEGAL = {
   /** The storefront's address. */
   domain: 'suprmama.in',
   /** Registered name, e.g. "Example Foods Private Limited" or the proprietor's name for a sole proprietorship. */
-  company: null as string | null,
+  company: 'Crestway Properties Private Limited' as string | null,
   /** Registered office address, one line. */
-  address: null as string | null,
+  address: 'C/O Manju Devi, Ganesh Colony, Narnaul, Haryana 123001' as string | null,
   /** Support inbox customers and vendors write to. */
   email: 'tech@suprmama.in' as string | null,
   /** Support phone with country code, e.g. "+91 98765 43210". */
-  phone: null as string | null,
+  phone: '+91 86708 47013' as string | null,
   /** Support hours, e.g. "10 AM – 8 PM, Monday to Saturday". */
-  hours: null as string | null,
+  hours: '24×7' as string | null,
   /** Grievance officer (IT Rules 2021, DPDP Act 2023): a named person with an email. */
   grievanceOfficer: null as string | null,
   grievanceEmail: null as string | null,
   /** City whose courts handle disputes, e.g. "Bengaluru". */
-  jurisdiction: null as string | null,
+  jurisdiction: 'Gurugram, Haryana' as string | null,
   /** GSTIN of the company: required on tax invoices; the e-commerce operator must register whatever its turnover. */
   gstin: null as string | null,
   /** State of the GST registration and of the stalls (place of supply), e.g. "Haryana (06)". */
-  gstState: null as string | null,
+  gstState: 'Haryana (06)' as string | null,
   /** SAC for platform charges on the customer's invoice; confirm with a CA (the food is SAC 996331). */
   platformChargesSac: null as string | null,
   /** Vendor Terms: plan prices before GST. Keep in step with BILLING_DAILY/MONTHLY/YEARLY on the API. */
