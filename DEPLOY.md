@@ -50,8 +50,8 @@ Plan: Vercel's free Hobby plan is for non-commercial use; a business pilot belon
 ### 3. Check
 - `https://suprmama.in/terms` and `https://www.suprmama.in` (redirects) load with the padlock.
 - Send a test email to `tech@suprmama.in` from another account; it still arrives.
-- `frontend/app/lib/legal.ts`: fill company, address, phone, hours, grievance officer and jurisdiction before
-  Razorpay reviews the site. Until then the policy pages show a "Draft" banner.
+- `frontend/app/lib/legal.ts` is filled, so the policy pages carry no "Draft" banner. `gstin` and `platformChargesSac`
+  are still empty; only tax invoices show them, and they must be filled before the first real order (N6).
 
 ---
 
