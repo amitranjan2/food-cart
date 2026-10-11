@@ -11,7 +11,7 @@ The single source of truth for V1 work. Every session (human or Claude) reads th
 
 Legend: `[ ]` to do · `[~]` in progress · `[x]` done · **⛔ blocks** = must be finished before the item it names.
 
-Last updated: Oct 11, 2026 (vendor plans and billing).
+Last updated: Oct 11, 2026 (Razorpay KYC and WhatsApp number applied for).
 
 ---
 
@@ -21,7 +21,7 @@ Last updated: Oct 11, 2026 (vendor plans and billing).
   - Vendor app shows Pickup vs Dine-in on each order card and on the order details screen.
 - **V2:** self-delivery + simple daily subscriptions.
 - **V3:** third-party delivery (Porter / Uber / Rapido). Check which of these actually offer an API in India before promising V3.
-- **Payments** (Oct 9): online payment in V1 (UPI + cards). **Gateway is swappable** (decided Oct 10): one `PaymentGateway` adapter is active, chosen by `PAYMENT_GATEWAY`; Cashfree and Razorpay are both candidates, not chosen yet. Per-vendor payout accounts are gateway-specific, so switching gateways later means re-onboarding vendors.
+- **Payments** (Oct 9): online payment in V1 (UPI + cards). **Gateway is swappable** (decided Oct 10): one `PaymentGateway` adapter is active, chosen by `PAYMENT_GATEWAY`. **Razorpay chosen** (Oct 11: KYC submitted); Cashfree stays possible behind the same interface. Per-vendor payout accounts are gateway-specific, so switching gateways later means re-onboarding vendors.
   - Flow: server creates the order in `PAYMENT_PENDING` plus a Razorpay order → customer pays → server verifies the checkout signature **and** the `payment.captured` webhook → order becomes `PLACED` and only then shows in the vendor app.
   - Rejected or cancelled orders are refunded automatically via the Razorpay refund API.
   - Unpaid orders expire after ~15 minutes.
@@ -54,9 +54,9 @@ Last updated: Oct 11, 2026 (vendor plans and billing).
 - [x] Delete the old Next.js `/vendor` console: **deleted** Oct 10 (S3.6).
 
 ## Non-code tasks (start now: these take days)
-- [ ] **N1** Razorpay account + KYC (Aks). Approval takes days.
+- [~] **N1** Razorpay account + KYC (Aks). **Documents submitted for review (Oct 11).** Razorpay reviews the website's policy pages, so suprmama.in should be live (DEPLOY.md phase 1) with `legal.ts` filled before they look. Test-mode keys work before KYC is approved.
 - [ ] **N2** Ask Razorpay whether Route fits a marketplace of small vendors, and what each linked account needs (Aks). Answers the payout question.
-- [ ] **N3** WhatsApp Cloud API setup + OTP template approval (Aks). Takes days, so start now. ⛔ blocks go-live: the API refuses to start outside `local` without an `OtpSender`. Steps:
+- [~] **N3** WhatsApp Cloud API setup + OTP template approval (Aks). **Registered; new sender number applied for (Oct 11).** Meanwhile Meta's test number (step 3) is enough for the S1.8 live check. Display name review matches the name against the business and website. Takes days, so start now. ⛔ blocks go-live: the API refuses to start outside `local` without an `OtpSender`. Steps:
   1. **Meta Business account**: business.facebook.com, create a Business portfolio for the business (use the legal name and details that match your documents).
   2. **Developer app**: developers.facebook.com → My Apps → Create App → type *Business* → add the **WhatsApp** product. This creates a WhatsApp Business Account (WABA) with a **test phone number** you can use straight away.
   3. **Test first, no verification needed**: in *WhatsApp → API Setup*, add up to 5 recipient numbers (they confirm with a code) and send the sample `hello_world` template. Use this to build and test S1.8 before the real number is approved.
