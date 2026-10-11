@@ -7,11 +7,13 @@ export function DrawerMenu({
   vendor,
   onSettings,
   onShare,
+  onBilling,
   onLogout,
 }: {
   vendor: Vendor;
   onSettings: () => void;
   onShare?: () => void;
+  onBilling?: () => void;
   onLogout: () => void;
 }) {
   return (
@@ -23,6 +25,7 @@ export function DrawerMenu({
       <View style={styles.links}>
         <Row icon="settings" label="Store settings" onPress={onSettings} />
         {onShare ? <Row icon="qr" label="Share your store" onPress={onShare} /> : null}
+        {onBilling ? <Row icon="receipt" label="Plan and billing" onPress={onBilling} /> : null}
         <Row icon="logout" label="Log out" onPress={onLogout} danger />
       </View>
     </View>

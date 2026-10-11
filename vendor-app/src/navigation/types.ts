@@ -4,6 +4,7 @@ export type OrdersStackParamList = {
   OrdersList: undefined;
   Settings: undefined;
   Business: undefined;
+  Billing: undefined;
 };
 
 export type RootStackParamList = {

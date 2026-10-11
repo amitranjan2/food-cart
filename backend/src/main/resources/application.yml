@@ -21,6 +21,17 @@ app:
     # Covers online payment charges; a percentage of (items + GST on food).
     platform-fee-percent: ${PLATFORM_FEE_PERCENT:2.5}
     platform-fee-gst-percent: ${PLATFORM_FEE_GST_PERCENT:18}
+  # What stalls pay us (tracker S4.24), before GST. Billing is off until BILLING_START (yyyy-MM-dd) is set.
+  billing:
+    daily: ${BILLING_DAILY:100}
+    monthly: ${BILLING_MONTHLY:2500}
+    yearly: ${BILLING_YEARLY:25000}
+    gst-percent: ${BILLING_GST_PERCENT:18}
+    start: ${BILLING_START:}
+    # The team's own numbers: their test orders never make a charged day.
+    test-mobiles: ${BILLING_TEST_MOBILES:}
+    # Where vendors pay invoices until payouts exist.
+    pay-to-upi: ${BILLING_PAY_TO_UPI:}
   # Login-code limits (tracker S4.8). Per number per hour: see OtpRules.
   otp:
     # WhatsApp codes sent per India day across all numbers; past it, login is refused until midnight.

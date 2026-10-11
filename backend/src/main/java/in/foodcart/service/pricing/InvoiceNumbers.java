@@ -44,6 +44,12 @@ public class InvoiceNumbers {
     return String.format("%02d-%02d", start % 100, (start + 1) % 100);
   }
 
+  /** The next number in a series that restarts every financial year, e.g. next("SMV", now) → "SMV/26-27/000001". */
+  public String next(String prefix, Instant now) {
+    String fy = financialYear(LocalDate.ofInstant(now, INDIA));
+    return prefix + "/" + fy + "/" + String.format("%06d", next(prefix + "/" + fy));
+  }
+
   private long next(String series) {
     Document counter = mongo.findAndModify(Query.query(Criteria.where("_id").is(series)), new Update().inc("seq", 1L),
         FindAndModifyOptions.options().upsert(true).returnNew(true), Document.class, "invoiceCounters");

@@ -54,6 +54,10 @@ Step by step, with the DNS records for Hostinger: [DEPLOY.md](DEPLOY.md).
 | `NOMINATIM_BASE` | Optional, default `https://nominatim.openstreetmap.org`; only changed for testing |
 | `PUBLIC_STORE_URL` | Where customers open stores, default `https://suprmama.in`; share links and QR codes point to `{this}/{store-link}` |
 | `FOOD_GST_PERCENT` / `PLATFORM_FEE_PERCENT` / `PLATFORM_FEE_GST_PERCENT` | The customer's bill: GST on food (default 5, paid by us as e-commerce operator), platform charges as a % of items + GST (default 2.5), GST on platform charges (default 18). The storefront reads them from `/api/public/pricing`; the policy pages quote the launch rates in `frontend/app/lib/bill.ts` |
+| `BILLING_START` | Day vendor billing starts (`yyyy-mm-dd`); unset = no vendor invoices. Nothing before it is charged |
+| `BILLING_DAILY` / `BILLING_MONTHLY` / `BILLING_YEARLY` / `BILLING_GST_PERCENT` | Plan prices before GST (100 / 2500 / 25000) and GST (18). Keep `vendorPlans` in `frontend/app/lib/legal.ts` in step |
+| `BILLING_TEST_MOBILES` | Comma-separated team numbers whose orders never make a charged day |
+| `BILLING_PAY_TO_UPI` | UPI ID shown to vendors for paying invoices until payouts exist |
 | `ADMIN_TOKEN` | Turns on `POST /api/admin/vendors` (used by `ops/create-vendor.sh`); 24+ random characters, a secret. Unset = the admin API answers 404 |
 | `OTP_DAILY_SEND_CAP` | WhatsApp login codes sent per India day across all numbers (default 1000); past it, logins pause until midnight and an error is logged |
 | `OTP_DAILY_WRONG_CODES` | Wrong codes one number may enter per day (default 15) before its logins stop until midnight |
@@ -79,6 +83,15 @@ API_BASE=https://api.suprmama.in ADMIN_TOKEN='…' ops/create-vendor.sh "Raju Mo
 ```
 
 Creates the stall (one mobile number per stall; store links that clash with site pages such as `terms` are refused) and prints its link. The vendor signs in to the vendor app with that number and fills Settings: location, colours and opening hours (no orders until hours are set). **Menu → Share your store** shows the QR code, copies the link and opens the printable A4 "Scan to order" poster (`/{store-link}/qr`).
+
+## Vendor billing
+
+Invoices are issued every night at 00:30 India time. Unpaid ones and payments:
+
+```
+API_BASE=https://api.suprmama.in ADMIN_TOKEN='…' ops/billing.sh due
+… ops/billing.sh paid SMV/26-27/000012 "UPI 412345678901"
+```
 
 ## Refunding an order the stall can't make
 

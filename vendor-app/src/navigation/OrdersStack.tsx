@@ -2,6 +2,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { OrdersScreen } from '../screens/Orders/OrdersScreen';
 import { SettingsScreen } from '../screens/Settings/SettingsScreen';
 import { BusinessScreen } from '../screens/Onboarding/BusinessScreen';
+import { BillingScreen } from '../screens/Billing/BillingScreen';
 import type { OrdersStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<OrdersStackParamList>();
@@ -12,6 +13,7 @@ export function OrdersStack() {
       <Stack.Screen name="OrdersList" component={OrdersScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
       <Stack.Screen name="Business" component={BusinessScreen} />
+      <Stack.Screen name="Billing" component={BillingScreen} />
     </Stack.Navigator>
   );
 }

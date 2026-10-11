@@ -98,6 +98,12 @@ export function BusinessScreen({ navigation }: Props) {
             <Text style={typography.caption}>Yours, or the business&apos;s if it has one.</Text>
           </Card>
 
+          <SectionHeading title="GSTIN (optional)" />
+          <Card>
+            <Field value={form.gstin ?? ''} onChangeText={set('gstin')} placeholder={hint(saved.gstin, '15 characters, e.g. 06ABCDE1234F1Z5')} autoCapitalize="characters" maxLength={15} accessibilityLabel="GSTIN" />
+            <Text style={typography.caption}>Only if your stall is registered for GST: we put it on our invoices so you can claim the GST.</Text>
+          </Card>
+
           <SectionHeading title="Where we pay you" />
           <Card>
             <View style={styles.methods}>

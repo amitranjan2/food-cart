@@ -10,7 +10,12 @@ import java.util.Map;
 public final class BusinessDetails {
   private BusinessDetails() {}
 
-  public record Input(String fssai, String pan, String payoutMethod, String upiId, String accountName, String accountNumber, String ifsc) {}
+  public record Input(String fssai, String pan, String payoutMethod, String upiId, String accountName, String accountNumber, String ifsc, String gstin) {
+    /** Without a GSTIN (older callers and tests). */
+    public Input(String fssai, String pan, String payoutMethod, String upiId, String accountName, String accountNumber, String ifsc) {
+      this(fssai, pan, payoutMethod, upiId, accountName, accountNumber, ifsc, null);
+    }
+  }
 
   /**
    * A field left out (null or blank) keeps what was saved: the app only ever sees the masked PAN and account number,
@@ -19,6 +24,7 @@ public final class BusinessDetails {
   public static void apply(VendorBusinessEntity b, Input in) {
     String fssai = optional(digits(in.fssai()), "[0-9]{14}", "FSSAI number has 14 digits.");
     String pan = optional(upper(in.pan()), "[A-Z]{5}[0-9]{4}[A-Z]", "PAN looks like ABCDE1234F.");
+    String gstin = optional(upper(in.gstin()), "[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]", "GSTIN has 15 characters, like 06ABCDE1234F1Z5.");
     String method = upper(in.payoutMethod());
     if (method != null && !method.equals("UPI") && !method.equals("BANK")) throw new IllegalArgumentException("Pick UPI or bank account for payouts.");
     String upi = trim(in.upiId()) == null ? null : optional(trim(in.upiId()).toLowerCase(Locale.ROOT), "[a-z0-9._-]{2,256}@[a-z]{2,64}", "UPI ID looks like name@bank.");
@@ -29,6 +35,7 @@ public final class BusinessDetails {
 
     if (fssai != null) b.fssai = fssai;
     if (pan != null) b.pan = pan;
+    if (gstin != null) b.gstin = gstin;
     if (method != null && !method.equals(b.payoutMethod)) {
       b.payoutMethod = method;
       b.upiId = b.accountName = b.accountNumber = b.ifsc = null;
@@ -53,6 +60,7 @@ public final class BusinessDetails {
     Map<String, Object> m = new LinkedHashMap<>();
     m.put("fssai", b == null ? null : b.fssai);
     m.put("pan", b == null || b.pan == null ? null : b.pan.substring(0, 2) + "•••••" + b.pan.substring(7));
+    m.put("gstin", b == null ? null : b.gstin);
     m.put("payoutMethod", b == null ? null : b.payoutMethod);
     m.put("upiId", b == null ? null : b.upiId);
     m.put("accountName", b == null ? null : b.accountName);

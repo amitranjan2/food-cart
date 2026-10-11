@@ -29,10 +29,8 @@ export const LEGAL = {
   gstState: null as string | null,
   /** SAC for platform charges on the customer's invoice; confirm with a CA (the food is SAC 996331). */
   platformChargesSac: null as string | null,
-  /** Vendor Terms: the daily platform charge before GST, e.g. "₹20". */
-  vendorDailyCharge: null as string | null,
-  /** Vendor Terms: which days the daily charge applies to, e.g. "each day your stall takes at least one order". */
-  vendorChargeBasis: null as string | null,
+  /** Vendor Terms: plan prices before GST. Keep in step with BILLING_DAILY/MONTHLY/YEARLY on the API. */
+  vendorPlans: { daily: '₹100', monthly: '₹2,500', yearly: '₹25,000' },
   /** Vendor Terms: when payouts happen, e.g. "within 2 working days of the order being handed over". */
   payoutSchedule: null as string | null,
   /** Days after a vendor closes their stall within which their licence, PAN and payout details are deleted. */
@@ -41,7 +39,7 @@ export const LEGAL = {
   lastUpdated: '11 October 2026',
 };
 
-export type LegalField = Exclude<keyof typeof LEGAL, 'brand' | 'domain' | 'lastUpdated'>;
+export type LegalField = Exclude<keyof typeof LEGAL, 'brand' | 'domain' | 'lastUpdated' | 'vendorPlans'>;
 
 export function missingLegalFields() {
   return (Object.keys(LEGAL) as (keyof typeof LEGAL)[]).filter(key => LEGAL[key] === null) as LegalField[];

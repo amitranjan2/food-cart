@@ -164,6 +164,10 @@ export function OrdersScreen({ navigation }: Props) {
               setMenuOpen(false);
               navigation.navigate('Settings');
             }}
+            onBilling={() => {
+              setMenuOpen(false);
+              navigation.navigate('Billing');
+            }}
             onShare={
               setup
                 ? undefined

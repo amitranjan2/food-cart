@@ -22,6 +22,7 @@ export function putBasics(token: string, basics: { name: string; slug: string; t
 export type Business = {
   fssai: string | null;
   pan: string | null;
+  gstin: string | null;
   payoutMethod: 'UPI' | 'BANK' | null;
   upiId: string | null;
   accountName: string | null;
@@ -31,7 +32,7 @@ export type Business = {
 };
 
 /** Leave a field out to keep what is saved. */
-export type BusinessInput = Partial<Record<'fssai' | 'pan' | 'payoutMethod' | 'upiId' | 'accountName' | 'accountNumber' | 'ifsc', string>>;
+export type BusinessInput = Partial<Record<'fssai' | 'pan' | 'gstin' | 'payoutMethod' | 'upiId' | 'accountName' | 'accountNumber' | 'ifsc', string>>;
 
 export function getBusiness(token: string) {
   return request<Business>('/api/vendor/me/business', { token });

@@ -1,6 +1,9 @@
+/** ₹80, ₹75.67, ₹25,000 (Indian digit grouping; paise only when there are any). */
 export function rupees(amount: number | undefined) {
-  if (amount == null || Number.isNaN(amount)) return '₹0';
-  return `₹${amount}`;
+  if (amount == null || Number.isNaN(Number(amount))) return '₹0';
+  const value = Math.round(Number(amount) * 100) / 100;
+  const whole = Number.isInteger(value);
+  return '₹' + value.toLocaleString('en-IN', { minimumFractionDigits: whole ? 0 : 2, maximumFractionDigits: 2 });
 }
 
 export function isSameLocalDay(iso: string | undefined, day: Date) {

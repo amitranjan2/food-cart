@@ -108,16 +108,30 @@ export default function VendorTerms() {
         <li>Payouts need complete and correct payout details. We are not responsible for money sent to a wrong account you gave us.</li>
       </ul>
 
-      <h2>7. Our daily platform charge, and taxes</h2>
+      <h2>7. Your plan, and taxes</h2>
+      <p>You pay us for using {LEGAL.brand} on one of three plans, each plus GST at 18%:</p>
       <ul>
         <li>
-          Using {LEGAL.brand} costs <Fill field="vendorDailyCharge" /> per day plus GST at 18%, for <Fill field="vendorChargeBasis" />.
-          We send you a tax invoice for it. It is taken from your payouts; if they don&apos;t cover it, pay the rest by UPI within 7
-          days of our invoice.
+          <b>Daily</b>: {LEGAL.vendorPlans.daily} for each day you sell. A day counts when at least one customer paid for an order
+          from your stall that day (India time) and it wasn&apos;t rejected, cancelled or refunded. Billed after each calendar month,
+          for the days counted; a month without such days costs nothing. Every stall starts on Daily.
+        </li>
+        <li><b>Monthly</b>: {LEGAL.vendorPlans.monthly} per calendar month, whatever days you sell. Billed at the start of the month.</li>
+        <li>
+          <b>Yearly</b>: {LEGAL.vendorPlans.yearly} for 12 calendar months, billed at the start. You stay on Yearly until those 12
+          months end; it then continues for another year unless you have picked another plan.
         </li>
         <li>
-          We may later add a fee per order. We will tell you at least 30 days before any new fee, or any change to the daily
-          charge, starts.
+          You choose your plan in the vendor app (Plan and billing). A new plan starts on the 1st of the next month, or after a
+          running yearly term. Charges start only once your stall is approved.
+        </li>
+        <li>
+          We send a tax invoice for every charge. Pay it within 7 days of the invoice: once payouts start we take it from them;
+          until then, pay by UPI as shown in the app. We may pause a stall with invoices more than 15 days overdue.
+        </li>
+        <li>
+          We may later add a fee per order. We will tell you at least 30 days before any new fee, or any change to plan prices,
+          starts.
         </li>
         <li>
           <b>GST on food sold through {LEGAL.brand}</b> is collected and paid by us as the e-commerce operator, under section 9(5) of
@@ -125,7 +139,7 @@ export default function VendorTerms() {
           GST-registered, tell your accountant they are taxed through us.
         </li>
         <li>
-          If you are GST-registered, give us your GSTIN so that it appears on our invoices for the daily charge, and you can claim
+          If you are GST-registered, give us your GSTIN so that it appears on our invoices for your plan, and you can claim
           the GST on it as input tax credit.
         </li>
         <li>
@@ -150,7 +164,7 @@ export default function VendorTerms() {
           loses its FSSAI registration, gets serious or repeated food-safety complaints, or often fails orders it accepted.
         </li>
         <li>
-          After closing, we pay out what you are owed for completed orders, less refunds and any unpaid daily charges. What happens to your data
+          After closing, we pay out what you are owed for completed orders, less refunds and any unpaid plan invoices. What happens to your data
           is in the <Link href="/privacy#vendors">Privacy Policy</Link>.
         </li>
       </ul>

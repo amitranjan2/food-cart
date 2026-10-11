@@ -12,8 +12,6 @@ const LABELS: Record<LegalField, string> = {
   grievanceEmail: 'Grievance officer email',
   jurisdiction: 'City for courts',
   vendorDeletionDays: 'Days to delete a closed stall’s details',
-  vendorDailyCharge: 'Daily platform charge to vendors',
-  vendorChargeBasis: 'Which days the daily charge applies to',
   gstin: 'GSTIN',
   gstState: 'GST state',
   platformChargesSac: 'SAC for platform charges',

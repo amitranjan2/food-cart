@@ -16,6 +16,8 @@ public class VendorBusinessEntity {
   /** FSSAI licence or registration number, 14 digits. */
   public String fssai;
   public String pan;
+  /** Optional: GST-registered stalls get it on our invoices for input tax credit. */
+  public String gstin;
   /** "UPI" or "BANK". */
   public String payoutMethod;
   public String upiId;
