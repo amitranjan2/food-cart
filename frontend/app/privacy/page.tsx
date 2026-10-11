@@ -14,7 +14,8 @@ export default function Privacy() {
       </p>
       <p>
         It covers customers who order and vendors who sell on {LEGAL.brand}. The sections up to &quot;How long we keep it&quot; are
-        about customers; <a href="#vendors">vendors have their own section</a>. Rights, security and contact apply to both.
+        about customers; <a href="#vendors">vendors have their own section</a>. People who write to us through our website&apos;s
+        contact form are covered by <a href="#contact-form">their own section</a>. Rights, security and contact apply to all.
       </p>
 
       <h2>What we collect</h2>
@@ -58,6 +59,16 @@ export default function Privacy() {
       <p>
         Sign-in codes expire within minutes and sign-ins after 30 days. Your account details are kept while you use{' '}
         {LEGAL.brand}. Order and payment records are kept as long as tax and accounting laws require, then deleted.
+      </p>
+
+      <h2 id="contact-form">If you write to us through our website</h2>
+      <p>
+        The contact form on {LEGAL.domain} asks for your name, email address, phone number if you give one, and your message. We
+        use them only to reply to you and to deal with what you asked about (for example, a stall that wants to join). The form
+        sends your message to our support inbox, <Fill field="email" />; our website host (Hostinger) stores the submission and
+        our email provider stores the email, for us. We keep them for up to 12 months after we have answered, then delete them,
+        unless they become part of an order complaint or a vendor&apos;s records, which we keep as those sections say. We don&apos;t add
+        you to any mailing list.
       </p>
 
       <h2 id="vendors">If you sell on {LEGAL.brand} (vendors)</h2>
