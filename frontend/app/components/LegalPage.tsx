@@ -11,6 +11,7 @@ const LABELS: Record<LegalField, string> = {
   grievanceOfficer: 'Grievance officer name',
   grievanceEmail: 'Grievance officer email',
   jurisdiction: 'City for courts',
+  vendorDeletionDays: 'Days to delete a closed stall’s details',
 };
 
 /** A business detail from LEGAL, or a highlighted gap until it is filled in. */

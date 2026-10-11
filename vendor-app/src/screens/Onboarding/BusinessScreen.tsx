@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { getBusiness, putBusiness, type Business, type BusinessInput } from '../../api/onboarding';
@@ -11,6 +11,7 @@ import { useAuth } from '../../state/AuthContext';
 import { colors, spacing, typography } from '../../theme';
 import type { OrdersStackParamList } from '../../navigation/types';
 import { Button, Card, Chip, Field, Icon, PageHeading, SectionHeading } from '../../ui';
+import { POLICY_URLS } from '../../utils/policies';
 
 type Props = NativeStackScreenProps<OrdersStackParamList, 'Business'>;
 
@@ -76,7 +77,12 @@ export function BusinessScreen({ navigation }: Props) {
           <PageHeading overline="STORE · BUSINESS" title="Licence and payouts" />
           <View style={styles.privacy}>
             <Icon name="checkCircle" size={16} color={colors.success} />
-            <Text style={[typography.caption, styles.flex]}>Only you and the Supr-Mama team see these. We use them to verify your stall and pay you.</Text>
+            <Text style={[typography.caption, styles.flex]}>
+              Only you and the Supr-Mama team see these. We use them to verify your stall and pay you.{' '}
+              <Text style={styles.link} accessibilityRole="link" onPress={() => Linking.openURL(POLICY_URLS.vendorPrivacy)}>
+                How we handle vendor data
+              </Text>
+            </Text>
           </View>
 
           <SectionHeading title="Food licence" />
@@ -142,6 +148,10 @@ const styles = StyleSheet.create({
   },
   flex: {
     flex: 1,
+  },
+  link: {
+    color: colors.link,
+    fontWeight: '800',
   },
   methods: {
     flexDirection: 'row',

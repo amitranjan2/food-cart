@@ -12,6 +12,10 @@ export default function Privacy() {
         This policy explains what personal data {LEGAL.brand} collects, why, and your choices. <Fill field="company" /> (&quot;we&quot;) is
         responsible for this data under the Digital Personal Data Protection Act, 2023.
       </p>
+      <p>
+        It covers customers who order and vendors who sell on {LEGAL.brand}. The sections up to &quot;How long we keep it&quot; are
+        about customers; <a href="#vendors">vendors have their own section</a>. Rights, security and contact apply to both.
+      </p>
 
       <h2>What we collect</h2>
       <ul>
@@ -55,6 +59,60 @@ export default function Privacy() {
         {LEGAL.brand}. Order and payment records are kept as long as tax and accounting laws require, then deleted.
       </p>
 
+      <h2 id="vendors">If you sell on {LEGAL.brand} (vendors)</h2>
+      <p>This section covers the people who run stalls on {LEGAL.brand} and sign in to the vendor app.</p>
+
+      <h3>What we collect from vendors</h3>
+      <ul>
+        <li><b>Mobile number</b>: to sign you in with a one-time code on WhatsApp. One number belongs to one stall.</li>
+        <li><b>Your storefront</b>: business name, store link, description, colours, menu, prices, dish photos and opening hours.</li>
+        <li><b>Stall location</b>: the map point you set at your stall and the written address (shop number, landmark, area).</li>
+        <li><b>Food licence</b>: your FSSAI registration or licence number.</li>
+        <li><b>PAN</b>: yours, or your business&apos;s.</li>
+        <li><b>Payout details</b>: a UPI ID, or a bank account (account holder name, account number and IFSC).</li>
+        <li><b>Orders and records</b>: the orders you receive, accept, reject or hand over, and what our team noted while reviewing your stall or handling a support case.</li>
+        <li><b>Technical data</b>: as for customers, IP address, device information and server logs.</li>
+      </ul>
+
+      <h3>Why we use it</h3>
+      <ul>
+        <li>To check your stall before customers can see it: we may call your number and check your FSSAI number with the Food Safety and Standards Authority of India.</li>
+        <li>To show your storefront to customers and send you their orders.</li>
+        <li>To pay you for your orders, and to make refunds to your customers.</li>
+        <li>To meet legal duties, such as food-safety rules for online food sales and tax reporting.</li>
+        <li>To prevent fraud and abuse, and to help you when you contact support.</li>
+      </ul>
+
+      <h3>What customers and others see</h3>
+      <ul>
+        <li><b>Anyone with your store link or QR code</b>: your storefront, address and map point, menu and opening hours.</li>
+        <li><b>Customers who have paid for an order</b>: your mobile number as well, so they can call you about it.</li>
+        <li><b>Your FSSAI number</b> may be shown on your storefront, as food-safety rules for online food sales require.</li>
+        <li><b>Not shown to customers</b>: your PAN and payout details. In the vendor app they are shown masked (for example AB•••••34F), and only our team can see them in full.</li>
+      </ul>
+
+      <h3>Who we share vendor data with</h3>
+      <ul>
+        <li><b>Our payment partner</b>: your PAN and payout details, to set you up for payouts and send you your money.</li>
+        <li><b>WhatsApp (Meta Platforms)</b>: your mobile number and the sign-in code.</li>
+        <li><b>Our hosting providers</b>, who store data for us under contract.</li>
+        <li><b>Authorities</b>, when the law requires it, for example food-safety or tax authorities.</li>
+      </ul>
+      <p>We do not sell vendor data or use it for advertising by others.</p>
+
+      <h3>Customer details you receive</h3>
+      <p>
+        You see each customer&apos;s name and mobile number so that you can prepare and hand over their order. Use them only for that
+        order: don&apos;t save them for marketing, share them, or contact customers for anything else.
+      </p>
+
+      <h3>How long we keep vendor data</h3>
+      <p>
+        We keep your details while your stall is on {LEGAL.brand}. If you ask us to close your stall, we stop showing it straight
+        away and delete your licence, PAN and payout details within <Fill field="vendorDeletionDays" /> days, except the order,
+        payout and tax records that the law requires us to keep, which we delete when that period ends.
+      </p>
+
       <h2>Your rights</h2>
       <p>
         You can ask to see the personal data we hold about you, correct it, have it erased (except records the law makes us
@@ -66,7 +124,8 @@ export default function Privacy() {
       <h2>Security</h2>
       <p>
         Data is sent over encrypted connections, sign-in uses one-time codes with limits on retries, and access to stored data
-        is restricted to the people who need it.
+        is restricted to the people who need it. Vendors&apos; licence, PAN and payout details are stored apart from their storefront
+        and are never sent to customers.
       </p>
 
       <h2>Children</h2>

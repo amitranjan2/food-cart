@@ -328,6 +328,8 @@ html.scroll-locked,html.scroll-locked body,.storefront.scroll-locked{overflow:hi
 .legal-draft{margin:0;padding:12px 14px;border-radius:14px;background:#fff4e5;color:#7a4b00;font-size:var(--fs-sm);font-weight:700;line-height:1.45}
 .legal-body{gap:8px;font-size:var(--fs-sm);line-height:1.6;color:#3b4957}
 .legal-body h2{margin:14px 0 0}
+.legal-body h3{margin:12px 0 0;font-size:var(--fs-md)}
+.legal-body h2[id]{scroll-margin-top:140px}
 .legal-body p,.legal-body ul,.legal-body dl{margin:0}
 .legal-body ul{padding-left:20px;display:grid;gap:4px;list-style:disc}
 .legal-body a{color:var(--store-ink);font-weight:700;text-decoration:underline}

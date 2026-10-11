@@ -23,8 +23,10 @@ export const LEGAL = {
   grievanceEmail: null as string | null,
   /** City whose courts handle disputes, e.g. "Bengaluru". */
   jurisdiction: null as string | null,
+  /** Days after a vendor closes their stall within which their licence, PAN and payout details are deleted. */
+  vendorDeletionDays: null as string | null,
   /** Change whenever a policy's wording changes. */
-  lastUpdated: '10 October 2026',
+  lastUpdated: '11 October 2026',
 };
 
 export type LegalField = Exclude<keyof typeof LEGAL, 'brand' | 'domain' | 'lastUpdated'>;

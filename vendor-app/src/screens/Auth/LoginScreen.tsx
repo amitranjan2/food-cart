@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { requestVendorOtp } from '../../api/auth';
 import { Screen } from '../../components/Screen';
 import { useAuth } from '../../state/AuthContext';
 import { colors, radius, typography } from '../../theme';
 import { Button, Card, Field } from '../../ui';
+import { POLICY_URLS } from '../../utils/policies';
 
 const OTP_LENGTH = 6;
 const RESEND_SECONDS = 30;
@@ -113,6 +114,11 @@ export function LoginScreen() {
               {error ? <Text style={styles.error}>{error}</Text> : null}
               <Text style={typography.caption}>We send a login code on WhatsApp. New here? Use your number to open your stall.</Text>
               <Button label="Continue" busy={busy} onPress={continueWithMobile} style={styles.action} />
+              <Text style={[typography.caption, styles.center]}>
+                By continuing you agree to our{' '}
+                <Text style={styles.link} accessibilityRole="link" onPress={() => Linking.openURL(POLICY_URLS.terms)}>Terms</Text> and{' '}
+                <Text style={styles.link} accessibilityRole="link" onPress={() => Linking.openURL(POLICY_URLS.vendorPrivacy)}>Privacy Policy</Text>.
+              </Text>
             </Card>
           </>
         ) : (
@@ -194,6 +200,10 @@ const styles = StyleSheet.create({
   },
   center: {
     textAlign: 'center',
+  },
+  link: {
+    color: colors.link,
+    fontWeight: '800',
   },
   links: {
     flexDirection: 'row',
