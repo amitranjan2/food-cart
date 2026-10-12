@@ -54,6 +54,10 @@ export default function Privacy() {
         We use your browser&apos;s storage to keep you signed in and to remember the vendors you opened. We do not use advertising
         cookies or tracking tools. Signing out with &quot;Not you?&quot; removes the sign-in from your device.
       </p>
+      <p>
+        <b>Your location</b>: if you tap &quot;How far?&quot; on a stall&apos;s page, your browser asks if it may use your location. We use
+        it only in your browser, to estimate how long it takes to reach the stall. It is not sent to our servers or stored.
+      </p>
 
       <h2>How long we keep it</h2>
       <p>

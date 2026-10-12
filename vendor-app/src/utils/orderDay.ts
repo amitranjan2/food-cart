@@ -36,6 +36,13 @@ export function ordersForDay<T extends Pick<Order, 'scheduledFor' | 'createdAt' 
     .sort((a, b) => slotTime(a) - slotTime(b) || a.orderNumber - b.orderNumber);
 }
 
+const OPEN: Order['status'][] = ['PLACED', 'ACCEPTED', 'PREPARING', 'READY'];
+
+/** Orders still open (new, accepted, preparing or ready) on any day before dayKey: stalled orders the stall must close, for the badge on the previous-day arrow. */
+export function pastOpenOrderCount<T extends Pick<Order, 'scheduledFor' | 'createdAt' | 'status'>>(orders: T[], dayKey: string) {
+  return orders.filter(order => OPEN.includes(order.status) && orderDayKey(order) < dayKey).length;
+}
+
 /** Active orders (not rejected or cancelled) on any day after dayKey, for the badge on the next-day arrow. */
 export function futureOrderCount<T extends Pick<Order, 'scheduledFor' | 'createdAt' | 'status'>>(orders: T[], dayKey: string) {
   return orders.filter(order => order.status !== 'REJECTED' && order.status !== 'CANCELLED' && orderDayKey(order) > dayKey).length;

@@ -467,7 +467,7 @@ export default function Store({ params }: { params: { slug: string } }) {
         </div>
       ) : (
       <div className={underlay} aria-hidden={customizing ? true : undefined}>
-      <StoreHeader>
+      <StoreHeader lat={store.lat} lng={store.lng}>
         <VendorInfo vendor={store} />
       </StoreHeader>
       <StoreSearch query={query} onQueryChange={setQuery} />

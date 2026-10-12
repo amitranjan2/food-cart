@@ -8,12 +8,15 @@ export function DatePager({
   onPrev,
   onNext,
   nextCount = 0,
+  prevCount = 0,
 }: {
   title: string;
   onPrev: () => void;
   onNext: () => void;
   /** Orders on later days, shown as a badge on the next-day arrow. */
   nextCount?: number;
+  /** Orders still open on earlier days, shown as a badge on the previous-day arrow. */
+  prevCount?: number;
 }) {
   // A quick pop when an order for a later day arrives; not when the count changes because the day was changed.
   const scale = useRef(new Animated.Value(1)).current;
@@ -31,7 +34,18 @@ export function DatePager({
 
   return (
     <View style={styles.bar}>
-      <IconButton icon="chevronLeft" label="Previous day" onPress={onPrev} />
+      <View>
+        <IconButton
+          icon="chevronLeft"
+          label={prevCount > 0 ? `Previous day, ${prevCount} open ${prevCount === 1 ? 'order' : 'orders'} on earlier days` : 'Previous day'}
+          onPress={onPrev}
+        />
+        {prevCount > 0 ? (
+          <View pointerEvents="none" style={[styles.badge, styles.badgeLeft]}>
+            <Text style={styles.badgeLabel}>{prevCount > 9 ? '9+' : prevCount}</Text>
+          </View>
+        ) : null}
+      </View>
       <Text style={typography.bodyStrong}>{title}</Text>
       <View>
         <IconButton
@@ -73,6 +87,12 @@ const styles = StyleSheet.create({
     borderColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  // Orders left open on earlier days are overdue, so the badge is amber; later days (danger red) are just upcoming.
+  badgeLeft: {
+    right: 'auto',
+    left: -7,
+    backgroundColor: colors.warning,
   },
   badgeLabel: {
     color: colors.onPrimary,

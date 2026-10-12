@@ -27,7 +27,7 @@ import { ConfirmDialog, PageHeading } from '../../ui';
 import { paysAtStall } from '../../utils/orderStatus';
 import type { Order, OrderStatus } from '../../types';
 import { formatDayTitle, formatSlot } from '../../utils/format';
-import { futureOrderCount, indiaDay, orderDayKey, pagerDayKey } from '../../utils/orderDay';
+import { futureOrderCount, indiaDay, orderDayKey, pagerDayKey, pastOpenOrderCount } from '../../utils/orderDay';
 import type { OrdersStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<OrdersStackParamList, 'OrdersList'>;
@@ -91,6 +91,8 @@ export function OrdersScreen({ navigation }: Props) {
   const shown = useMemo(() => filterOrders(orders, day, 'ALL', ''), [orders, day]);
   // Badge on the next-day arrow, so advance orders aren't missed.
   const futureCount = useMemo(() => futureOrderCount(orders, pagerDayKey(day)), [orders, day]);
+  // Orders left open on earlier days (never completed or rejected), so none is forgotten.
+  const pastOpenCount = useMemo(() => pastOpenOrderCount(orders, pagerDayKey(day)), [orders, day]);
 
   // Scroll to the order picked from the header notice once its day is showing; runs when the target or day changes,
   // not on every 10 s refresh.
@@ -196,6 +198,7 @@ export function OrdersScreen({ navigation }: Props) {
             onPrev={() => setOffset(value => value - 1)}
             onNext={() => setOffset(value => value + 1)}
             nextCount={futureCount}
+            prevCount={pastOpenCount}
           />
           {actionError ? <Text style={styles.actionError}>{actionError}</Text> : null}
           {loading && orders.length === 0 ? (

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
+import { LegalBack, PolicyNav } from './LegalBack';
 import { LEGAL, missingLegalFields, type LegalField } from '../lib/legal';
 
 const LABELS: Record<LegalField, string> = {
@@ -32,13 +33,13 @@ export function Fill({ field }: { field: LegalField }) {
 export function PolicyFooter() {
   return (
     <footer className="policy-footer">
-      <nav aria-label="Policies">
+      <PolicyNav>
         <Link href="/terms">Terms</Link>
         <Link href="/privacy">Privacy</Link>
         <Link href="/refunds">Refunds &amp; cancellation</Link>
         <Link href="/contact">Contact</Link>
         <Link href="/vendor-terms">Vendor terms</Link>
-      </nav>
+      </PolicyNav>
       <p>© {new Date().getFullYear()} {LEGAL.company ?? LEGAL.brand}</p>
     </footer>
   );
@@ -49,7 +50,7 @@ export function LegalPage({ title, children }: { title: string; children: ReactN
   return (
     <main className="storefront legal">
       <header className="cart-header">
-        <div className="cart-title home-title"><h1>{title}</h1></div>
+        <div className="cart-title"><LegalBack /><h1>{title}</h1></div>
         <div className="store-scallop" aria-hidden="true">{Array.from({ length: 18 }, (_, index) => <span key={index} />)}</div>
       </header>
       <div className="status-body">

@@ -1,14 +1,12 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { StoreEta } from './StoreEta';
 
-export function StoreHeader({ children }: { children: ReactNode }) {
+export function StoreHeader({ children, lat, lng }: { children: ReactNode; lat?: number | null; lng?: number | null }) {
   return (
     <div className="store-header-top">
-      <div className="store-eta" aria-label="25 Mins">
-        <span className="store-eta-num">25</span>
-        <span className="store-eta-unit">Mins</span>
-      </div>
+      <StoreEta lat={lat} lng={lng} />
       {children}
     </div>
   );
