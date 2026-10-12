@@ -486,7 +486,7 @@ export default function Store({ params }: { params: { slug: string } }) {
           onQuantity={changeQuantity}
           searching={needle.length > 0}
           fallbackImage={store.coverImageUrl}
-          nav={<CategoryNav categories={shownCategories} selectedId={categoryId} onSelect={selectCategory} />}
+          nav={<CategoryNav categories={shownCategories} selectedId={categoryId} onSelect={selectCategory} ink={store.theme?.dark} />}
         />
         {/* FSSAI's e-commerce rules: the platform shows each listed food business's licence number (tracker S4.21). */}
         <section className="store-legal" aria-label="About this stall">

@@ -102,7 +102,7 @@ export default function Privacy() {
       <h3>What customers and others see</h3>
       <ul>
         <li><b>Anyone with your store link or QR code</b>: your storefront, address and map point, menu and opening hours.</li>
-        <li><b>Customers who have paid for an order</b>: your mobile number as well, so they can call you about it.</li>
+        <li><b>Customers who have placed an order with you</b> (paid online, or to pay at the stall): your mobile number as well, so they can call you about it.</li>
         <li><b>Your FSSAI number</b> is shown on your storefront, as food-safety rules for online food sales require.</li>
         <li><b>Not shown to customers</b>: your PAN and payout details. In the vendor app they are shown masked (for example AB•••••34F), and only our team can see them in full.</li>
       </ul>
@@ -110,6 +110,7 @@ export default function Privacy() {
       <h3>Who we share vendor data with</h3>
       <ul>
         <li><b>Our payment partner</b>: your PAN and payout details, to set you up for payouts and send you your money.</li>
+        <li><b>Our AI provider (Anthropic)</b>: the name of a new category you add to our shared list, to draw its icon. Nothing else about you or your stall is sent.</li>
         <li><b>WhatsApp (Meta Platforms)</b>: your mobile number and the sign-in code.</li>
         <li><b>Our hosting providers</b>, who store data for us under contract.</li>
         <li><b>Authorities</b>, when the law requires it, for example food-safety or tax authorities.</li>

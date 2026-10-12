@@ -1,8 +1,21 @@
 # Category art
 
 Every category in the storefront's "What's on your mind?" row gets one icon in the same style: a single line
-drawing of the dish on a round plate (or bowl), dark ink on white. Until a category has an approved icon, the
-storefront draws a generic plate.
+drawing of the dish on a round plate (or bowl). Until a category has an icon, the storefront draws a generic plate.
+
+**New categories draw themselves** (tracker S2.20). When a vendor adds a category, the API asks Claude to draw its icon
+in the background (set `ANTHROPIC_API_KEY`; see the README's variables), cleans the SVG with a strict whitelist
+(`CategoryIconSvg`), and serves it at `/category-art/<key>.svg?ink=<hex>` in the colour of the store showing it (the
+vendor's dark theme colour). Check, redo or take down a drawing with `ops/category-icons.sh list | regenerate | reject`.
+The four launch categories (Momos, Rolls, Drinks, Chaat) use the hand-drawn icons in
+`backend/src/main/resources/static/category-art/` (named by key: `momo.svg`, `roll.svg`, `drink.svg`, `chaat.svg`); the
+same four are shown to the model as the style to match (`category-art-examples/`).
+
+The rest of this page is the **manual route**, for an icon you want to make or fix yourself: generate → normalise →
+check → publish. A published file in `static/category-art/<key>.svg` is used when the category has no generated icon.
+
+> Note on colour: the kit below says `#30404E`. That is the default ink; the API swaps it for the store's colour when it
+> serves the icon, so always draw in `#30404E`.
 
 The work is: **generate → normalise → check → publish**. Generation can happen in Claude, ChatGPT, Gemini or Figma;
 the normaliser makes the results match no matter which tool drew them.

@@ -1,10 +1,14 @@
 import { useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
+import { SvgUri } from 'react-native-svg';
 import { mediaUrl } from '../../api/client';
 import { colors, radius, typography } from '../../theme';
 import { Field, Panel } from '../../ui';
 import type { MenuCategory } from '../../types';
 import { categoryTitle, searchCategories } from '../../utils/categorySearch';
+
+/** Category art is SVG, which React Native's Image can't draw on phones. */
+const IMAGE_SIZE = 28;
 
 /**
  * Search the shared category list; if nothing fits, add the typed name as a new category that every vendor
@@ -56,7 +60,7 @@ export function CategoryPicker({
       <ScrollView style={styles.list} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
         {matches.map(category => (
           <Pressable key={category.id} onPress={() => onPick(category)} style={styles.row} accessibilityRole="button">
-            {category.imageUrl ? <Image source={{ uri: mediaUrl(category.imageUrl) }} style={styles.image} /> : null}
+            {category.imageUrl ? <SvgUri uri={mediaUrl(category.imageUrl)} width={IMAGE_SIZE} height={IMAGE_SIZE} /> : null}
             <Text style={typography.body}>{category.name}</Text>
           </Pressable>
         ))}
@@ -89,11 +93,6 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 6,
     paddingVertical: 11,
-  },
-  image: {
-    width: 28,
-    height: 28,
-    borderRadius: radius.sm,
   },
   empty: {
     ...typography.small,

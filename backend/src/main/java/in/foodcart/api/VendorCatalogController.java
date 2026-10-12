@@ -3,6 +3,7 @@ package in.foodcart.api;
 import in.foodcart.data.CatalogCategoryEntity;
 import in.foodcart.data.CatalogCategoryRepository;
 import in.foodcart.service.AuthService;
+import in.foodcart.service.categories.CategoryIcons;
 import in.foodcart.service.categories.CategoryNames;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,10 +20,12 @@ public class VendorCatalogController {
 
   private final AuthService auth;
   private final CatalogCategoryRepository categories;
+  private final CategoryIcons icons;
 
-  public VendorCatalogController(AuthService auth, CatalogCategoryRepository categories) {
+  public VendorCatalogController(AuthService auth, CatalogCategoryRepository categories, CategoryIcons icons) {
     this.auth = auth;
     this.categories = categories;
+    this.icons = icons;
   }
 
   /** Body: {"name": "..."}. Returns {category, created}; a name that matches an existing category returns that one. */
@@ -44,7 +47,9 @@ public class VendorCatalogController {
     category.createdByVendorId = vendorId;
     category.createdAt = now;
     try {
-      return Map.of("category", categories.save(category), "created", true);
+      CatalogCategoryEntity saved = categories.save(category);
+      icons.requestAsync(saved.id); // the icon is drawn in the background (tracker S2.20)
+      return Map.of("category", saved, "created", true);
     } catch (org.springframework.dao.DuplicateKeyException race) {
       // Another vendor added the same name a moment ago.
       return Map.of("category", categories.findByNameKey(key).orElseThrow(), "created", false);

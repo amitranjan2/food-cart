@@ -1,11 +1,13 @@
 package in.foodcart.api;
 
+import in.foodcart.data.CatalogCategoryRepository;
 import in.foodcart.data.CustomerRepository;
 import in.foodcart.data.VendorEntity;
 import in.foodcart.service.StoreLinks;
 import in.foodcart.service.SupportRefunds;
 import in.foodcart.service.onboarding.SelfOnboarding;
 import in.foodcart.service.billing.VendorBilling;
+import in.foodcart.service.categories.CategoryIcons;
 import in.foodcart.service.billing.VendorCollections;
 import in.foodcart.service.VendorOnboarding;
 import org.slf4j.Logger;
@@ -36,11 +38,15 @@ public class AdminController {
   private final VendorBilling billing;
   private final VendorCollections collections;
   private final CustomerRepository customers;
+  private final CatalogCategoryRepository categories;
+  private final CategoryIcons icons;
 
   public AdminController(@Value("${ADMIN_TOKEN:}") String token, StoreLinks links, VendorOnboarding onboarding, SupportRefunds refunds, SelfOnboarding signups, VendorBilling billing,
-      VendorCollections collections, CustomerRepository customers) {
+      VendorCollections collections, CustomerRepository customers, CatalogCategoryRepository categories, CategoryIcons icons) {
     this.collections = collections;
     this.customers = customers;
+    this.categories = categories;
+    this.icons = icons;
     this.token = token.length() >= 24 ? token.getBytes(StandardCharsets.UTF_8) : null;
     if (!token.isEmpty() && this.token == null) log.warn("ADMIN_TOKEN is shorter than 24 characters, so the admin API stays off.");
     this.links = links;
@@ -155,6 +161,45 @@ public class AdminController {
     var inv = billing.markPaid(body.number(), body.ref());
     log.info("Vendor invoice {} marked paid", inv.number);
     return ResponseEntity.ok(Map.of("number", inv.number, "status", inv.status, "total", inv.total));
+  }
+
+  /** Every category with the state of its icon (ops/category-icons.sh list). */
+  @GetMapping("/category-art")
+  public ResponseEntity<?> categoryArt(@RequestHeader(value = "X-Admin-Token", required = false) String given) {
+    ResponseEntity<Map<String, Object>> refused = refuse(given);
+    if (refused != null) return refused;
+    return ResponseEntity.ok(categories.findAllByOrderBySortOrderAsc().stream().map(c -> {
+      Map<String, Object> row = new LinkedHashMap<>();
+      row.put("name", c.name);
+      row.put("status", c.iconStatus == null ? (c.imageUrl == null ? "NONE" : "BUNDLED") : c.iconStatus);
+      row.put("imageUrl", c.imageUrl);
+      row.put("error", c.iconError);
+      return row;
+    }).toList());
+  }
+
+  public record Named(String name) {}
+
+  /** Draws a category's icon again (waits for the result). Body: {"name": "Mini Rice Bowl"}. */
+  @PostMapping("/category-art/regenerate")
+  public ResponseEntity<Map<String, Object>> regenerateCategoryArt(@RequestHeader(value = "X-Admin-Token", required = false) String given, @RequestBody Named body) {
+    ResponseEntity<Map<String, Object>> refused = refuse(given);
+    if (refused != null) return refused;
+    if (!icons.enabled()) return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", "Icons are off: set ANTHROPIC_API_KEY."));
+    var category = categories.findByNameKey(in.foodcart.service.categories.CategoryNames.key(body.name() == null ? "" : body.name()))
+        .orElseThrow(() -> new IllegalArgumentException("No category called " + body.name() + "."));
+    String status = icons.generate(category.id, true);
+    return ResponseEntity.ok(Map.of("name", category.name, "status", status));
+  }
+
+  /** Takes an icon down: the generic plate comes back. Body: {"name": "Mini Rice Bowl"}. */
+  @PostMapping("/category-art/reject")
+  public ResponseEntity<Map<String, Object>> rejectCategoryArt(@RequestHeader(value = "X-Admin-Token", required = false) String given, @RequestBody Named body) {
+    ResponseEntity<Map<String, Object>> refused = refuse(given);
+    if (refused != null) return refused;
+    boolean done = icons.reject(in.foodcart.service.categories.CategoryNames.key(body.name() == null ? "" : body.name()));
+    if (!done) throw new IllegalArgumentException("No category called " + body.name() + ".");
+    return ResponseEntity.ok(Map.of("name", body.name(), "status", CategoryIcons.NONE));
   }
 
   public record Mobile(String mobile) {}

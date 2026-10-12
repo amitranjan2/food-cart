@@ -60,6 +60,8 @@ Step by step, with the DNS records for Hostinger: [DEPLOY.md](DEPLOY.md).
 | `BILLING_PAY_TO_UPI` | UPI ID shown to vendors for paying invoices and GST statements until payouts exist |
 | `PAYMENT_GATEWAY` | `fake` (local), `none` (pay at the stall only, the launch setting), later `razorpay` / `cashfree` |
 | `PAYMENT_CASH` | Pay at the stall on (`true`, default) or off |
+| `ANTHROPIC_API_KEY` | Turns on icons for new categories (S2.20): Claude draws one in the background when a vendor adds a category. Unset = the generic plate stays. Keep it in the host's variables only |
+| `CATEGORY_ART_MODEL`, `CATEGORY_ART_DAILY_CAP` | Model that draws the icons (default `claude-opus-5-5`; a cheaper one such as `claude-sonnet-5-5` or `claude-haiku-5-5` costs less and may draw less well) and how many drawings a day (default 30) |
 | `BILLING_SAC` | SAC code printed on vendor plan invoices (from the CA) |
 | `SELLER_NAME`, `SELLER_ADDRESS`, `SELLER_GSTIN` | The company printed on vendor plan invoices; defaults are Crestway's. Keep in step with `frontend/app/lib/legal.ts` |
 | `ADMIN_TOKEN` | Turns on `POST /api/admin/vendors` (used by `ops/create-vendor.sh`); 24+ random characters, a secret. Unset = the admin API answers 404 |

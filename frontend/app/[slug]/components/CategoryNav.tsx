@@ -60,10 +60,14 @@ function glyph(name: string): ReactNode {
   );
 }
 
-/** Approved category art (served by the API under /category-art/); the drawn glyph until then or if it fails to load. */
-function ChipArt({ category }: { category: MenuCategory }) {
+/**
+ * Category art (served by the API under /category-art/) in the store's own dark colour, via ?ink=<hex>; the drawn glyph
+ * until there is one or if it fails to load.
+ */
+function ChipArt({ category, ink }: { category: MenuCategory; ink?: string }) {
   const [broken, setBroken] = useState(false);
-  const src = category.imageUrl && (/^https?:\/\//i.test(category.imageUrl) ? category.imageUrl : API + category.imageUrl);
+  const color = ink && /^#?[0-9a-f]{6}$/i.test(ink) ? ink.replace('#', '') : '';
+  const src = category.imageUrl && (/^https?:\/\//i.test(category.imageUrl) ? category.imageUrl : API + category.imageUrl + (color ? '?ink=' + color : ''));
   if (src && !broken) return <img className="cat-chip-art" src={src} alt="" onError={() => setBroken(true)} />;
   return (
     <svg viewBox="0 0 72 72" aria-hidden="true">
@@ -78,10 +82,13 @@ export function CategoryNav({
   categories,
   selectedId,
   onSelect,
+  ink,
 }: {
   categories: MenuCategory[];
   selectedId: string | null;
   onSelect: (categoryId: string) => void;
+  /** The store's dark theme colour, for the icons. */
+  ink?: string;
 }) {
   if (categories.length === 0) return null;
   return (
@@ -98,7 +105,7 @@ export function CategoryNav({
               onClick={() => onSelect(category.id)}
               className={'cat-chip' + (selected ? ' selected' : '')}
             >
-              <ChipArt category={category} />
+              <ChipArt category={category} ink={ink} />
               <span>{category.name}</span>
             </button>
           );

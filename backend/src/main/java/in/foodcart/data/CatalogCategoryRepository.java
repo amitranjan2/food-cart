@@ -12,4 +12,7 @@ public interface CatalogCategoryRepository extends MongoRepository<CatalogCatego
   Optional<CatalogCategoryEntity> findByNameKey(String nameKey);
 
   long countByCreatedByVendorIdAndCreatedAtAfter(String vendorId, Instant after);
+
+  /** Icons asked for since then, for the daily cap on drawing. */
+  long countByIconRequestedAtAfter(Instant after);
 }

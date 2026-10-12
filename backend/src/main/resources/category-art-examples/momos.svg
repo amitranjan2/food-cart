@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<g fill="none" stroke="#30404E" stroke-width="9" stroke-linecap="round" stroke-linejoin="round">
+<circle cx="256" cy="256" r="232"/>
+<g transform="translate(256 120) rotate(0)">
+<path d="M-54 22C-60-62 60-62 54 22Q0 42-54 22Z"/>
+<path d="M-30-30L-24 4M-10-40L-8 8M10-40L8 8M30-30L24 4" stroke-width="7"/>
+</g>
+<g transform="translate(373.8 188) rotate(60)">
+<path d="M-54 22C-60-62 60-62 54 22Q0 42-54 22Z"/>
+<path d="M-30-30L-24 4M-10-40L-8 8M10-40L8 8M30-30L24 4" stroke-width="7"/>
+</g>
+<g transform="translate(373.8 324) rotate(120)">
+<path d="M-54 22C-60-62 60-62 54 22Q0 42-54 22Z"/>
+<path d="M-30-30L-24 4M-10-40L-8 8M10-40L8 8M30-30L24 4" stroke-width="7"/>
+</g>
+<g transform="translate(256 392) rotate(180)">
+<path d="M-54 22C-60-62 60-62 54 22Q0 42-54 22Z"/>
+<path d="M-30-30L-24 4M-10-40L-8 8M10-40L8 8M30-30L24 4" stroke-width="7"/>
+</g>
+<g transform="translate(138.2 324) rotate(240)">
+<path d="M-54 22C-60-62 60-62 54 22Q0 42-54 22Z"/>
+<path d="M-30-30L-24 4M-10-40L-8 8M10-40L8 8M30-30L24 4" stroke-width="7"/>
+</g>
+<g transform="translate(138.2 188) rotate(300)">
+<path d="M-54 22C-60-62 60-62 54 22Q0 42-54 22Z"/>
+<path d="M-30-30L-24 4M-10-40L-8 8M10-40L8 8M30-30L24 4" stroke-width="7"/>
+</g>
+<circle cx="256" cy="256" r="46"/>
+<circle cx="256" cy="256" r="31" stroke-width="6"/>
+<path d="M244 252h.1" stroke-width="6"/>
+<path d="M262 246h.1" stroke-width="6"/>
+<path d="M258 267h.1" stroke-width="6"/>
+<path d="M242 268h.1" stroke-width="6"/>
+</g>
+</svg>

@@ -52,6 +52,11 @@ app:
     verify-otp-per-ip: ${AUTH_VERIFY_OTP_PER_IP:60}
   # true only behind a load balancer that sets X-Forwarded-For; otherwise clients could fake their address.
   trust-proxy: ${TRUST_PROXY:false}
+  # Icons for new categories (tracker S2.20): drawn by Claude when ANTHROPIC_API_KEY is set; otherwise the generic plate stays.
+  category-art:
+    model: ${CATEGORY_ART_MODEL:claude-opus-5-5}
+    # Drawings per rolling day, so a burst of new categories can't run up the bill.
+    daily-cap: ${CATEGORY_ART_DAILY_CAP:30}
   # Which payment gateway is active: "fake" (local profile only), "none" (pay at the stall only, the launch setting),
   # later "cashfree" or "razorpay".
   payments.gateway: ${PAYMENT_GATEWAY:fake}

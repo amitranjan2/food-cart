@@ -87,6 +87,7 @@ Plan: Vercel's free Hobby plan is for non-commercial use; a business pilot belon
    | `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_OTP_TEMPLATE` (`suprmama_otp`), `WHATSAPP_OTP_LANGUAGE`, `WHATSAPP_API_VERSION` | from N3 |
    | `PAYMENT_GATEWAY` | `none` at launch (pay at the stall only); later `razorpay` or `cashfree` + its keys (S2.3) |
    | `PAYMENT_CASH` | leave unset (`true`); `false` only to stop pay at the stall once online payment exists |
+   | `ANTHROPIC_API_KEY` | optional: icons for new categories. Create a key for this app only (console.anthropic.com), set a monthly spend limit on it, and keep it here. Without it new categories show the generic plate. Check drawings with `ops/category-icons.sh list` |
    | `BILLING_START`, `BILLING_TEST_MOBILES`, `BILLING_PAY_TO_UPI`, `BILLING_SAC` | launch day, the team's numbers, the company UPI ID, the SAC from the CA (vendor billing) |
 
    `PORT` and `UPLOAD_DIR` are set by Railway and the image; leave them.
