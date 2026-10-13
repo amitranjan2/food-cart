@@ -30,9 +30,10 @@ class CheckoutServiceTest {
   private final PaymentService payments = mock(PaymentService.class);
   private final OrderNumbers numbers = mock(OrderNumbers.class);
   private final CustomerHistory customerHistory = mock(CustomerHistory.class);
+  private final SubscriptionRepository subscriptionRepo = mock(SubscriptionRepository.class);
   private final in.foodcart.service.pricing.InvoiceNumbers invoices = mock(in.foodcart.service.pricing.InvoiceNumbers.class);
   private final CheckoutService checkout = new CheckoutService(vendors, items, orders, customers, payments,
-      new in.foodcart.service.pricing.Pricing(new BigDecimal("5"), new BigDecimal("2.5"), new BigDecimal("18")), invoices, numbers, customerHistory);
+      new in.foodcart.service.pricing.Pricing(new BigDecimal("5"), new BigDecimal("2.5"), new BigDecimal("18")), invoices, numbers, customerHistory, subscriptionRepo);
 
   @BeforeEach
   void setUp() {

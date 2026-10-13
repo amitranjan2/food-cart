@@ -11,6 +11,8 @@ export type CustomerOrder = {
   /** The customer's handover code; whoever hands the order over must enter it. */
   handover?: { code?: string | null; verifiedAt?: string | null } | null;
   total: number;
+  /** Set when a weekly order placed this one. */
+  subscriptionId?: string | null;
   items: { menuItemId: string; name: string; portion?: string; summary?: string | null; quantity: number; lineTotal: number }[];
   payment?: { status: string } | null;
   /** The bill as charged; missing on orders from before pricing (their total is the item total). */

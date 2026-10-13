@@ -6,6 +6,8 @@ import { request, type Vendor } from './lib/api';
 import { savedVendorSlugs } from './lib/savedVendors';
 import { storedSession } from './lib/session';
 import { PolicyFooter } from './components/LegalPage';
+import { useLiveOrders } from './lib/liveOrders';
+import { LiveOrders, LIVE_BAR_LIMIT, LIVE_BAR_SPACE } from './[slug]/components/LiveOrders';
 
 type Saved = { vendor: Vendor; totalOrders: number };
 
@@ -24,8 +26,11 @@ function VendorPhoto({ src }: { src?: string }) {
  */
 export default function Home() {
   const [saved, setSaved] = useState<Saved[] | null>(null);
+  const [token, setToken] = useState('');
+  const liveOrders = useLiveOrders(token);
 
   useEffect(() => {
+    setToken(storedSession());
     let active = true;
     async function load() {
       const token = storedSession();
@@ -48,12 +53,21 @@ export default function Home() {
   }, []);
 
   return (
-    <main className="storefront">
+    <main className="storefront" style={{ '--live-extra': Math.min(liveOrders.length, LIVE_BAR_LIMIT) * LIVE_BAR_SPACE + 'px' } as React.CSSProperties}>
       <header className="cart-header">
         <div className="cart-title home-title"><h1>Your vendors</h1></div>
         <div className="store-scallop" aria-hidden="true">{Array.from({ length: 18 }, (_, index) => <span key={index} />)}</div>
       </header>
       <div className="status-body">
+        {token ? (
+          <Link href="/weekly" className="status-card home-vendor home-weekly">
+            <div className="home-vendor-copy">
+              <b>Weekly orders</b>
+              <span>Your repeating orders, and what’s coming up</span>
+            </div>
+            <span className="home-vendor-go" aria-hidden="true">›</span>
+          </Link>
+        ) : null}
         {saved === null ? (
           <p className="status-message">Loading…</p>
         ) : saved.length === 0 ? (
@@ -80,6 +94,7 @@ export default function Home() {
         )}
         <PolicyFooter />
       </div>
+      <LiveOrders orders={liveOrders} raised={false} />
     </main>
   );
 }

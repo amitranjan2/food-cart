@@ -3,6 +3,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { request, type MenuCategory, type MenuItem, type PublicMenu, type Vendor } from '../lib/api';
 import { CartBar } from './components/CartBar';
+import { LiveOrders, LIVE_BAR_LIMIT, LIVE_BAR_SPACE } from './components/LiveOrders';
+import { useLiveOrders } from '../lib/liveOrders';
 import { Cart, type OrderType } from './components/Cart';
 import { CategoryMenu } from './components/CategoryMenu';
 import { CategoryNav } from './components/CategoryNav';
@@ -28,7 +30,7 @@ import { addLine, lastLineOf, linesOf, quantitiesByItem, setLineQuantity, type C
 import { RepeatPrompt } from './components/RepeatPrompt';
 import { PolicyFooter } from '../components/LegalPage';
 import { LEGAL } from '../lib/legal';
-import { themeStyle } from '../lib/theme';
+import { applyTheme, themeStyle } from '../lib/theme';
 import { billOf, type PaymentMethod } from '../lib/bill';
 import { usePricing } from '../lib/useRates';
 
@@ -52,7 +54,7 @@ export default function Store({ params }: { params: { slug: string } }) {
   const [closingCustomizer, setClosingCustomizer] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout>>();
   const [open, setOpen] = useState(false);
-  const [slots, setSlots] = useState<{ open?: boolean; hoursSet: boolean; slots: string[] } | null>(null);
+  const [slots, setSlots] = useState<{ open?: boolean; hoursSet: boolean; slots: string[]; week?: Record<string, string[]> } | null>(null);
   const [mobile, setMobile] = useState('');
   const [otp, setOtp] = useState('');
   /** Set once the customer submits a correct OTP; Pay uses it. */
@@ -61,6 +63,7 @@ export default function Store({ params }: { params: { slug: string } }) {
   /** Dishes this customer ordered here before (newest first); empty when signed out or on a first visit. */
   const [orderAgainIds, setOrderAgainIds] = useState<string[]>([]);
   const [testCheckout, setTestCheckout] = useState<{ amount: number; resolve: (outcome: CheckoutOutcome) => void } | null>(null);
+  const liveOrders = useLiveOrders(customerToken);
   const homeScroll = useRef(0);
   const router = useRouter();
   const [query, setQuery] = useState('');
@@ -81,7 +84,9 @@ export default function Store({ params }: { params: { slug: string } }) {
     setMissing(false);
     request<Vendor>('/api/public/vendors/' + params.slug)
       .then(next => {
-        if (active) setVendor(next);
+        if (!active) return;
+        setVendor(next);
+        applyTheme(next.theme);
       })
       .catch(() => active && setMissing(true));
     request<PublicMenu>('/api/public/vendors/' + params.slug + '/menu').then(menu => {
@@ -229,7 +234,7 @@ export default function Store({ params }: { params: { slug: string } }) {
   }, [open, params.slug]);
 
   function loadSlots() {
-    request<{ open?: boolean; hoursSet: boolean; slots: string[] }>('/api/public/vendors/' + params.slug + '/slots')
+    request<{ open?: boolean; hoursSet: boolean; slots: string[]; week?: Record<string, string[]> }>('/api/public/vendors/' + params.slug + '/slots')
       .then(setSlots)
       .catch(() => setSlots({ hoursSet: true, slots: [] }));
   }
@@ -254,6 +259,8 @@ export default function Store({ params }: { params: { slug: string } }) {
   const total = chosen.reduce((sum, { line }) => sum + line.config.unitPrice * line.quantity, 0);
   // What the customer pays: items + GST (+ platform charges when paying online) (lib/bill.ts, same sums as the API).
   const bill = billOf(total, pricing.byMethod[method]);
+  // A weekly order is always paid at the stall, whatever else is offered.
+  const weeklyTotal = billOf(total, pricing.byMethod.CASH).total;
   // Cheapest first across the whole menu (not grouped by category): easy add-ons at the front. Capped so it stays a nudge.
   const suggestions = linked
     .filter(item => item.available && !cart[item.id])
@@ -390,6 +397,37 @@ export default function Store({ params }: { params: { slug: string } }) {
   }
 
 
+  /** Starts a weekly order; the stall's first one is placed 12 hours before the first pick-up (S2.21). */
+  async function subscribe(type: OrderType, days: string[], time: string) {
+    setPaying(true);
+    setPayError('');
+    try {
+      await request('/api/subscriptions', {
+        method: 'POST',
+        body: JSON.stringify({
+          vendorId: store.id,
+          type,
+          days,
+          time,
+          displayedTotal: weeklyTotal,
+          items: chosen.map(({ line, item }) => ({
+            menuItemId: item.id,
+            quantity: line.quantity,
+            portion: line.config.portion,
+            sizeId: line.config.sizeId,
+            options: line.config.options,
+            displayedPrice: line.config.unitPrice,
+          })),
+        }),
+      }, customerToken);
+      router.push('/weekly?new=1');
+    } catch (error) {
+      setPayError(error instanceof Error ? error.message : 'Could not start the weekly order.');
+    } finally {
+      setPaying(false);
+    }
+  }
+
   const repeatItem = repeatId ? linked.find(item => item.id === repeatId) : undefined;
   const repeatLast = repeatId ? lastLineOf(lines, repeatId) : undefined;
   const repeatSheet = repeatItem && repeatLast && (
@@ -421,10 +459,12 @@ export default function Store({ params }: { params: { slug: string } }) {
     />
   );
 
+  // Bars for orders in progress, shown on the menu only (not in the cart, which is for placing one).
+  const liveBars = !open && !customizing ? Math.min(liveOrders.length, LIVE_BAR_LIMIT) : 0;
   const underlay = customizing ? 'customizer-underlay' : undefined;
 
   return (
-    <main className={'storefront' + (customizing ? ' customizing' : '') + (customizing && closingCustomizer ? ' closing' : '') + (open ? ' cart-open' : '')} style={themeStyle(store)}>
+    <main className={'storefront' + (customizing ? ' customizing' : '') + (customizing && closingCustomizer ? ' closing' : '') + (open ? ' cart-open' : '')} style={{ ...themeStyle(store), '--live-extra': liveBars ? liveBars * LIVE_BAR_SPACE + 'px' : '0px' } as React.CSSProperties}>
       {open ? (
         <div className={underlay} aria-hidden={customizing ? true : undefined}>
           <Cart
@@ -444,6 +484,8 @@ export default function Store({ params }: { params: { slug: string } }) {
             onMethod={setChosenMethod}
             slots={slots?.slots ?? null}
             hoursSet={slots?.hoursSet ?? true}
+            week={slots?.week ?? {}}
+            weeklyTotal={weeklyTotal}
             storeOpen={slots?.open ?? store.status === 'OPEN'}
             mobile={mobile}
             otp={otp}
@@ -461,13 +503,14 @@ export default function Store({ params }: { params: { slug: string } }) {
             onSaveName={saveName}
             onSignOut={signOut}
             onPay={place}
+            onSubscribe={subscribe}
             paying={paying}
             payError={payError}
           />
         </div>
       ) : (
       <div className={underlay} aria-hidden={customizing ? true : undefined}>
-      <StoreHeader lat={store.lat} lng={store.lng}>
+      <StoreHeader slug={store.slug} status={store.status} lat={store.lat} lng={store.lng}>
         <VendorInfo vendor={store} />
       </StoreHeader>
       <StoreSearch query={query} onQueryChange={setQuery} />
@@ -514,6 +557,7 @@ export default function Store({ params }: { params: { slug: string } }) {
       )}
       </div>
       )}
+      {!open && !customizing && <LiveOrders orders={liveOrders} raised={chosen.length > 0} />}
       {sheet}
       {repeatSheet}
       {paymentSheet}

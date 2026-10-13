@@ -113,6 +113,58 @@ public final class SlotRules {
     return new ArrayList<>(result);
   }
 
+  /** Whether the stall offers a slot starting at `time` ("HH:mm", on the half hour) on that weekday. */
+  public static boolean offersSlot(List<OpeningHours> hours, DayOfWeek day, String time) {
+    if (hours == null || time == null || !time.matches("\\d{2}:\\d{2}")) return false;
+    int start = Integer.parseInt(time.substring(0, 2)) * 60 + Integer.parseInt(time.substring(3));
+    if (start % SLOT_MINUTES != 0) return false;
+    for (OpeningHours h : hours) {
+      if (h.day == day && start >= minutes(h.opens, h.day, false) && start < minutes(h.closes, h.day, true)) return true;
+    }
+    return false;
+  }
+
+  /** Every slot start ("HH:mm") the stall offers on a weekday, in order; what a weekly order can pick from. */
+  public static List<String> startTimes(List<OpeningHours> hours, DayOfWeek day) {
+    TreeSet<Integer> starts = new TreeSet<>();
+    if (hours != null) {
+      for (OpeningHours h : hours) {
+        if (h.day != day) continue;
+        for (int t = minutes(h.opens, h.day, false); t < minutes(h.closes, h.day, true); t += SLOT_MINUTES) starts.add(t);
+      }
+    }
+    return starts.stream().map(SlotRules::text).toList();
+  }
+
+  /** Whether `now` falls inside one of the stall's opening slots (the stall is serving right now). */
+  public static boolean servingNow(List<OpeningHours> hours, LocalDateTime now) {
+    if (hours == null) return false;
+    int minute = now.getHour() * 60 + now.getMinute();
+    for (OpeningHours h : hours) {
+      if (h.day != now.getDayOfWeek()) continue;
+      if (minute >= minutes(h.opens, h.day, false) && minute < minutes(h.closes, h.day, true)) return true;
+    }
+    return false;
+  }
+
+  /**
+   * When the stall next opens after `now` (looking a week ahead), or null if it has no hours. Only meaningful when it
+   * isn't serving now; a slot that starts exactly when the previous one ended (24:00 then 00:00) counts as one opening.
+   */
+  public static LocalDateTime nextOpening(List<OpeningHours> hours, LocalDateTime now) {
+    if (hours == null || hours.isEmpty()) return null;
+    LocalDateTime best = null;
+    for (int ahead = 0; ahead <= 7; ahead++) {
+      LocalDate day = now.toLocalDate().plusDays(ahead);
+      for (OpeningHours h : hours) {
+        if (h.day != day.getDayOfWeek()) continue;
+        LocalDateTime start = day.atStartOfDay().plusMinutes(minutes(h.opens, h.day, false));
+        if (start.isAfter(now) && (best == null || start.isBefore(best))) best = start;
+      }
+    }
+    return best;
+  }
+
   /** "HH:mm" on the half hour → minutes after midnight. "24:00" is allowed only as a closing time. */
   private static int minutes(String value, DayOfWeek day, boolean closing) {
     if (value != null && value.matches("\\d{2}:\\d{2}")) {

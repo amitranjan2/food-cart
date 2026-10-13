@@ -36,7 +36,7 @@ export const LEGAL = {
   /** Days after a vendor closes their stall within which their licence, PAN and payout details are deleted. */
   vendorDeletionDays: '30' as string | null,
   /** Change whenever a policy's wording changes. */
-  lastUpdated: '12 October 2026',
+  lastUpdated: '13 October 2026',
 };
 
 export type LegalField = Exclude<keyof typeof LEGAL, 'brand' | 'domain' | 'lastUpdated' | 'vendorPlans'>;

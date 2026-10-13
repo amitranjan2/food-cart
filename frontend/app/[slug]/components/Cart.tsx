@@ -18,32 +18,22 @@ export type CartLine = {
   summary?: string;
 };
 
-type Plan = 'once' | 'subscribe';
+type Plan = 'once' | 'weekly';
 type Fulfillment = 'pickup' | 'dinein' | 'delivery';
 // The server accepts only PICKUP and DINE_IN until V2, so a DELIVERY order fails loudly instead of becoming a pickup.
 const ORDER_TYPES = { pickup: 'PICKUP', dinein: 'DINE_IN', delivery: 'DELIVERY' } as const;
 export type OrderType = (typeof ORDER_TYPES)[Fulfillment];
-type Frequency = 'weekly' | 'monthly';
 
+/** Ids are the server's day names; a weekly order is sent as these. */
 const DAYS = [
-  { id: 'mon', label: 'M' },
-  { id: 'tue', label: 'T' },
-  { id: 'wed', label: 'W' },
-  { id: 'thu', label: 'TH' },
-  { id: 'fri', label: 'F' },
-  { id: 'sat', label: 'S' },
-  { id: 'sun', label: 'SU' },
+  { id: 'MONDAY', label: 'Mon' },
+  { id: 'TUESDAY', label: 'Tue' },
+  { id: 'WEDNESDAY', label: 'Wed' },
+  { id: 'THURSDAY', label: 'Thu' },
+  { id: 'FRIDAY', label: 'Fri' },
+  { id: 'SATURDAY', label: 'Sat' },
+  { id: 'SUNDAY', label: 'Sun' },
 ];
-
-function nextHalfHour(from = new Date()) {
-  const next = new Date(from);
-  next.setSeconds(0, 0);
-  const minutes = next.getMinutes();
-  if (minutes === 0 || minutes === 30) return next;
-  if (minutes < 30) next.setMinutes(30);
-  else next.setHours(next.getHours() + 1, 0, 0, 0);
-  return next;
-}
 
 /** Server slots are India wall-clock times ("2026-10-09T14:30"); they are shown as written, whatever the phone's time zone. */
 function slotDate(slot: string) {
@@ -82,20 +72,10 @@ function dayHeading(date: Date) {
   return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
-const DAILY_HALF_HOURS = Array.from({ length: 48 }, (_, index) => index * 30);
-
-function minutesFromDate(date: Date) {
-  return date.getHours() * 60 + date.getMinutes();
-}
-
-function dateAtMinutes(minutes: number) {
-  const date = new Date();
-  date.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0);
-  return date;
-}
-
-function firstOnceSlotWithTime(options: Date[], minutes: number) {
-  return options.find(slot => minutesFromDate(slot) === minutes);
+/** "13:30" → "1:30 PM". */
+function timeLabel(time: string) {
+  const [hour, minute] = time.split(':').map(Number);
+  return clockLabel(new Date(2000, 0, 1, hour, minute));
 }
 
 function LinePhoto({ item, fallbackImage }: { item: MenuItem; fallbackImage?: string }) {
@@ -123,6 +103,8 @@ export function Cart({
   onMethod,
   slots,
   hoursSet,
+  week,
+  weeklyTotal,
   storeOpen = true,
   mobile,
   otp,
@@ -140,6 +122,7 @@ export function Cart({
   onSaveName,
   onSignOut,
   onPay,
+  onSubscribe,
   paying,
   payError,
 }: {
@@ -156,6 +139,10 @@ export function Cart({
   /** null while loading. */
   slots: string[] | null;
   hoursSet: boolean;
+  /** Slot starts ("HH:mm") the stall offers on each weekday (MONDAY…), for choosing a weekly order's time. */
+  week: Record<string, string[]>;
+  /** What each weekly order costs at the stall (items + GST). */
+  weeklyTotal: number;
   /** False while the vendor has switched the stall off. */
   storeOpen?: boolean;
   mobile: string;
@@ -179,16 +166,25 @@ export function Cart({
   /** Forgets the verified customer so someone else can order. */
   onSignOut: () => void;
   onPay: (type: OrderType, slot: string) => void;
+  /** Starts a weekly order: on these days (MONDAY…) at this "HH:mm" time. */
+  onSubscribe: (type: OrderType, days: string[], time: string) => void;
   paying?: boolean;
   payError?: string;
 }) {
   const [plan, setPlan] = useState<Plan>('once');
   const [fulfillment, setFulfillment] = useState<Fulfillment>('pickup');
-  const [frequency, setFrequency] = useState<Frequency>('weekly');
-  const [weekdays, setWeekdays] = useState<string[]>([]);
+  const [weekDays, setWeekDays] = useState<string[]>([]);
+  const [weekTime, setWeekTime] = useState('');
   const onceOptions = useMemo(() => (slots ?? []).map(slotDate), [slots]);
   const [onceSlot, setOnceSlot] = useState<Date | null>(null);
-  const [subscribeMinutes, setSubscribeMinutes] = useState(() => minutesFromDate(nextHalfHour()));
+  // A weekly order's time must be one the stall offers on every chosen day.
+  const weekTimes = useMemo(() => {
+    const lists = weekDays.map(day => week[day] ?? []);
+    return lists.length ? lists.reduce((common, list) => common.filter(time => list.includes(time))) : [];
+  }, [weekDays, week]);
+  useEffect(() => {
+    setWeekTime(current => (weekTimes.includes(current) ? current : ''));
+  }, [weekTimes]);
 
   // The customer must pick a slot; keep it only while the server still offers it.
   useEffect(() => {
@@ -271,13 +267,11 @@ export function Cart({
   }
 
   function toggleDay(id: string) {
-    setWeekdays(current => current.includes(id) ? current.filter(day => day !== id) : [...current, id]);
+    setWeekDays(current => current.includes(id) ? current.filter(day => day !== id) : [...current, id]);
   }
 
   function selectPlan(next: Plan) {
     if (next === plan) return;
-    if (next === 'subscribe') setSubscribeMinutes(minutesFromDate(onceSlot ?? nextHalfHour()));
-    else setOnceSlot(firstOnceSlotWithTime(onceOptions, subscribeMinutes) ?? null);
     setEditing(false);
     setPlan(next);
   }
@@ -293,7 +287,11 @@ export function Cart({
   const shownDay = onceGroups.find(group => group.key === slotDay) ?? onceGroups.find(group => onceSlot && group.key === slotKey(onceSlot).slice(0, 10)) ?? onceGroups[0];
   const slotPill = plan === 'once'
     ? onceSlot ? slotLabel(onceSlot) : slots === null ? '…' : onceOptions.length ? 'Select a time' : 'None'
-    : clockLabel(dateAtMinutes(subscribeMinutes));
+    : weekTime ? timeLabel(weekTime) : weekDays.length === 0 ? 'Pick days first' : weekTimes.length ? 'Select a time' : 'No common time';
+  const weeklyReady = plan === 'weekly' && weekDays.length > 0 && weekTime !== '';
+  const weeklySummary = weeklyReady
+    ? `Every ${DAYS.filter(day => weekDays.includes(day.id)).map(day => day.label).join(', ')} at ${timeLabel(weekTime)}`
+    : '';
   const slotProblem = slots === null || onceOptions.length ? ''
     : !storeOpen ? 'This stall isn’t taking orders right now. Check back when it opens.'
     : hoursSet ? 'No time slots left today or tomorrow.' : 'This vendor hasn’t set opening hours yet, so orders can’t be placed.';
@@ -329,32 +327,34 @@ export function Cart({
         </div>
       </header>
 
-      {lines.length === 0 ? (
-        <p className="menu-empty">Your cart is empty.</p>
-      ) : (
-        <ul className="cart-rows">
-          {lines.map(line => (
-            <li className="cart-row" key={line.key}>
-              <LinePhoto item={line.item} fallbackImage={fallbackImage} />
-              <div className="cart-row-copy">
-                <h3>{line.item.name}</h3>
-                {line.summary ? <p>{line.summary}</p> : null}
-                <b>{formatRupee(line.unitPrice * line.quantity)}</b>
-              </div>
-              <span className="qty">
-                <button type="button" aria-label={'Remove one ' + line.item.name + (line.summary ? ` (${line.summary})` : '')} onClick={() => onLineQuantity(line.key, line.quantity - 1)}>−</button>
-                <span>{line.quantity}</span>
-                <button
-                  type="button"
-                  aria-label={'Add one ' + line.item.name + (line.summary ? ` (${line.summary})` : '')}
-                  onClick={() => onLineQuantity(line.key, line.quantity + 1)}
-                  disabled={!line.item.available}
-                >+</button>
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
+      <div className="cart-items">
+        {lines.length === 0 ? (
+          <p className="menu-empty">Your cart is empty.</p>
+        ) : (
+          <ul className="cart-rows">
+            {lines.map(line => (
+              <li className="cart-row" key={line.key}>
+                <LinePhoto item={line.item} fallbackImage={fallbackImage} />
+                <div className="cart-row-copy">
+                  <h3>{line.item.name}</h3>
+                  {line.summary ? <p>{line.summary}</p> : null}
+                  <b>{formatRupee(line.unitPrice * line.quantity)}</b>
+                </div>
+                <span className="qty">
+                  <button type="button" aria-label={'Remove one ' + line.item.name + (line.summary ? ` (${line.summary})` : '')} onClick={() => onLineQuantity(line.key, line.quantity - 1)}>−</button>
+                  <span>{line.quantity}</span>
+                  <button
+                    type="button"
+                    aria-label={'Add one ' + line.item.name + (line.summary ? ` (${line.summary})` : '')}
+                    onClick={() => onLineQuantity(line.key, line.quantity + 1)}
+                    disabled={!line.item.available}
+                  >+</button>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       {suggestions.length > 0 && (
         <section className="menu-section cart-also" aria-label="You may also like">
@@ -375,38 +375,38 @@ export function Cart({
         </section>
       )}
 
-      <section className="plan-box">
-        {FEATURES.subscribe && (
-          <>
-            <div className="plan-row" role="radiogroup" aria-label="Order type">
-              <button type="button" role="radio" aria-checked={plan === 'once'} className={plan === 'once' ? 'on' : undefined} onClick={() => selectPlan('once')}>One-Time</button>
-              <button type="button" role="radio" aria-checked={plan === 'subscribe'} className={plan === 'subscribe' ? 'on' : undefined} onClick={() => selectPlan('subscribe')}>Subscribe</button>
-            </div>
-            <div className="plan-rule" />
-          </>
+      <section className="plan-box" aria-label="When">
+        {FEATURES.subscribe && methods.includes('CASH') && (
+          <div className="plan-row" role="radiogroup" aria-label="Order type">
+            <button type="button" role="radio" aria-checked={plan === 'once'} className={plan === 'once' ? 'on' : undefined} onClick={() => selectPlan('once')}>Just once</button>
+            <button type="button" role="radio" aria-checked={plan === 'weekly'} className={plan === 'weekly' ? 'on' : undefined} onClick={() => selectPlan('weekly')}>Every week</button>
+          </div>
         )}
-        {plan === 'subscribe' && (
-          <>
-            <div className="day-line">
-              <span>Day(s)</span>
-              <div className="day-picks" role="group" aria-label="Days">
-                {DAYS.map(day => (
+        {plan === 'weekly' && (
+          <div className="day-line">
+            <span>Days</span>
+            <div className="day-picks" role="group" aria-label="Days">
+              {DAYS.map(day => {
+                const closed = (week[day.id] ?? []).length === 0;
+                return (
                   <button
                     key={day.id}
                     type="button"
                     role="checkbox"
-                    aria-checked={weekdays.includes(day.id)}
-                    className={weekdays.includes(day.id) ? 'on' : undefined}
+                    aria-checked={weekDays.includes(day.id)}
+                    className={weekDays.includes(day.id) ? 'on' : undefined}
+                    disabled={closed}
+                    title={closed ? 'Closed' : undefined}
                     onClick={() => toggleDay(day.id)}
                   >
                     {day.label}
                   </button>
-                ))}
-              </div>
+                );
+              })}
             </div>
-          </>
+          </div>
         )}
-        <div className="slot-head">
+        <div className={'slot-head' + (FEATURES.subscribe && methods.includes('CASH') ? ' slot-head-spaced' : '')}>
           <div className="slot-copy">
             <span>{fulfillment === 'dinein' ? 'Dine-in time' : 'Pick-up time'}</span>
             <b>{slotPill}</b>
@@ -414,16 +414,19 @@ export function Cart({
           <button
             type="button"
             className="slot-change"
-            disabled={plan === 'once' && onceOptions.length === 0}
+            disabled={plan === 'once' ? onceOptions.length === 0 : weekTimes.length === 0}
             aria-expanded={editing}
             onClick={() => {
               setSlotDay('');
               setEditing(value => !value);
             }}
           >
-            {editing ? 'Done' : onceSlot || plan !== 'once' ? 'Change' : 'Select'}
+            {editing ? 'Done' : (plan === 'once' ? onceSlot : weekTime) ? 'Change' : 'Select'}
           </button>
         </div>
+        {plan === 'weekly' && weekDays.length > 0 && weekTimes.length === 0 && (
+          <p className="plan-hint">These days don’t share an opening time. Pick days with the same hours, or order them separately.</p>
+        )}
         {editing && plan === 'once' && shownDay && (
           <div className="slot-picker">
             {onceGroups.length > 1 && (
@@ -461,24 +464,32 @@ export function Cart({
             </div>
           </div>
         )}
-        {editing && plan === 'subscribe' && (
+        {editing && plan === 'weekly' && weekTimes.length > 0 && (
           <div className="slot-picker">
-            <div className="slot-grid slot-grid-day">
-              {DAILY_HALF_HOURS.map(minutes => (
+            <div className="slot-grid" role="radiogroup" aria-label="Weekly time">
+              {weekTimes.map(time => (
                 <button
-                  key={minutes}
+                  key={time}
                   type="button"
-                  className={subscribeMinutes === minutes ? 'on' : undefined}
+                  role="radio"
+                  aria-checked={weekTime === time}
+                  className={weekTime === time ? 'on' : undefined}
                   onClick={() => {
-                    setSubscribeMinutes(minutes);
+                    setWeekTime(time);
                     setEditing(false);
                   }}
                 >
-                  {clockLabel(dateAtMinutes(minutes))}
+                  {timeLabel(time)}
                 </button>
               ))}
             </div>
           </div>
+        )}
+        {weeklySummary && (
+          <p className="plan-summary">
+            <b>{weeklySummary}</b>
+            About {formatRupee(weeklyTotal)} each time, at today’s prices. We place each order 12 hours before pick-up; skip any one until then.
+          </p>
         )}
       </section>
 
@@ -512,7 +523,7 @@ export function Cart({
       </div>
 
       <section className="plan-box pay-box" aria-label="Payment">
-        {methods.length > 1 ? (
+        {methods.length > 1 && plan === 'once' ? (
           <div className="plan-row" role="radiogroup" aria-label="How you pay">
             {methods.map(id => (
               <button type="button" role="radio" key={id} aria-checked={method === id} className={method === id ? 'on' : undefined} onClick={() => onMethod(id)}>
@@ -521,21 +532,22 @@ export function Cart({
             ))}
           </div>
         ) : null}
-        <p className="pay-note">
-          {method === 'CASH'
-            ? `Pay ${formatRupee(bill.total)} at the stall when you collect, in cash or by UPI to the stall. Show your code after paying.`
-            : 'Pay now online. The stall sees your order once the payment goes through.'}
-        </p>
-      </section>
-
-      {plan === 'subscribe' && (
-        <section className="plan-box freq-box">
-          <div className="plan-row" role="radiogroup" aria-label="Payment frequency">
-            <button type="button" role="radio" aria-checked={frequency === 'weekly'} className={frequency === 'weekly' ? 'on' : undefined} onClick={() => setFrequency('weekly')}>Weekly</button>
-            <button type="button" role="radio" aria-checked={frequency === 'monthly'} className={frequency === 'monthly' ? 'on' : undefined} onClick={() => setFrequency('monthly')}>Monthly</button>
+        {plan === 'weekly' || method === 'CASH' ? (
+          <div className="pay-card">
+            <i aria-hidden="true">₹</i>
+            <div>
+              <b>Pay at the stall</b>
+              <p className="pay-note">
+                {plan === 'weekly'
+                  ? `Pay about ${formatRupee(weeklyTotal)} each time you collect, in cash or by UPI to the stall. Weekly UPI autopay is coming later.`
+                  : `Pay ${formatRupee(bill.total)} when you collect, in cash or by UPI to the stall. Show your code after paying.`}
+              </p>
+            </div>
           </div>
-        </section>
-      )}
+        ) : (
+          <p className="pay-note">Pay now online. The stall sees your order once the payment goes through.</p>
+        )}
+      </section>
 
       {needsAddress ? (
         <footer className="customizer-bar address-bar">
@@ -664,9 +676,19 @@ export function Cart({
             <svg className={'bill-chevron' + (billOpen ? ' flipped' : '')} width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M6 15l6-6 6 6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            <strong aria-live="polite">{formatRupee(bill.total)}</strong>
+            <strong aria-live="polite">{formatRupee(plan === 'weekly' ? weeklyTotal : bill.total)}</strong>
           </button>
-          <button type="button" className="customizer-add" disabled={paying || !verified || !customerName || !onceSlot} onClick={() => onceSlot && onPay(ORDER_TYPES[fulfillment], slotKey(onceSlot))}>{paying ? '…' : method === 'CASH' ? 'Place order' : 'Pay'}</button>
+          <button
+            type="button"
+            className="customizer-add"
+            disabled={paying || !verified || !customerName || (plan === 'once' ? !onceSlot : !weeklyReady)}
+            onClick={() => {
+              if (plan === 'weekly') onSubscribe(ORDER_TYPES[fulfillment], weekDays, weekTime);
+              else if (onceSlot) onPay(ORDER_TYPES[fulfillment], slotKey(onceSlot));
+            }}
+          >
+            {paying ? '…' : plan === 'weekly' ? 'Start weekly order' : method === 'CASH' ? 'Place order' : 'Pay'}
+          </button>
         </footer>
       </div>
       </>

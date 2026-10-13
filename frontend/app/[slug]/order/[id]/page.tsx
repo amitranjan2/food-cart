@@ -7,7 +7,7 @@ import { indiaTime, orderBill, paysAtStall, type CustomerOrder, type OrderView }
 import { BillRows } from '../../../components/BillRows';
 import { storedSession } from '../../../lib/session';
 import { formatRupee } from '../../lib/customization';
-import { themeStyle } from '../../../lib/theme';
+import { applyTheme, themeStyle } from '../../../lib/theme';
 import { LEGAL } from '../../../lib/legal';
 
 /** Statuses that never change again; the page stops refreshing once it reaches one. */
@@ -66,7 +66,7 @@ export default function OrderStatus({ params }: { params: { slug: string; id: st
 
   // Photos and the cover image come from the public menu; the order itself only stores names and prices.
   useEffect(() => {
-    request<Vendor>('/api/public/vendors/' + params.slug).then(setVendor).catch(() => {});
+    request<Vendor>('/api/public/vendors/' + params.slug).then(next => { setVendor(next); applyTheme(next.theme); }).catch(() => {});
     request<PublicMenu>('/api/public/vendors/' + params.slug + '/menu')
       .then(menu => setPhotos(Object.fromEntries(menu.items.filter(item => item.imageUrl).map(item => [item.id, item.imageUrl as string]))))
       .catch(() => {});
@@ -157,7 +157,7 @@ export default function OrderStatus({ params }: { params: { slug: string; id: st
 
         <section className={'status-card status-items' + (cancelled ? ' muted' : '')} aria-label={order.orderNumber ? 'Order #' + order.orderNumber : 'Your order'}>
           {/* Orders are numbered once paid; an unpaid one has no number yet. */}
-          <p className="status-kicker">{order.orderNumber ? 'Order #' + order.orderNumber : 'Your order'}</p>
+          <p className="status-kicker">{(order.orderNumber ? 'Order #' + order.orderNumber : 'Your order') + (order.subscriptionId ? ' · Weekly order' : '')}</p>
           {order.items.map((item, index) => {
             const photo = photos[item.menuItemId] || vendor?.coverImageUrl;
             return (

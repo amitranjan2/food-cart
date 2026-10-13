@@ -37,7 +37,10 @@ export function OrderCard({
     <Card style={[styles.card, highlighted ? styles.highlighted : null]}>
       <View style={styles.row}>
         <Text style={typography.heading}>#{order.orderNumber}</Text>
-        <Badge label={badge.label} tone={badge.tone} />
+        <View style={styles.badges}>
+          {order.subscriptionId ? <Badge label="Weekly" /> : null}
+          <Badge label={badge.label} tone={badge.tone} />
+        </View>
       </View>
       <View style={styles.row}>
         <Text style={[typography.bodyStrong, styles.customer]} numberOfLines={1}>
@@ -92,6 +95,7 @@ function portionLabel(portion: string) {
 }
 
 const styles = StyleSheet.create({
+  badges: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   card: {
     gap: 8,
     borderWidth: 2,

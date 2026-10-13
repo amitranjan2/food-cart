@@ -54,6 +54,13 @@ export default function Refunds() {
         pay at the stall is turned off for your number.
       </p>
 
+      <h2>Weekly orders</h2>
+      <p>
+        A weekly order is placed 12 hours before each pick-up and is paid at the stall, so there is nothing to refund when you skip,
+        pause or cancel it. Skip a week before the order is placed, or call the stall after. Once an order is placed it follows the
+        rules above.
+      </p>
+
       <h2>How long refunds take</h2>
       <p>
         We start refunds straight away. The money goes back to the account or card you paid with, usually within 5–7 working

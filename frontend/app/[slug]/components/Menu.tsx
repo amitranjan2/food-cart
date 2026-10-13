@@ -97,7 +97,7 @@ export function Menu({
         <>
           {specials.length > 0 && <SpecialCarousel items={specials} quantities={quantities} fallbackImage={fallbackImage} onAdd={onAdd} onQuantity={onQuantity} />}
           {orderAgain.length > 0 && <section className="menu-section" aria-label="Order again">
-            <h2>ORDER AGAIN!</h2>
+            <h2>Order again</h2>
             <DishRow items={orderAgain} variant="compact" quantities={quantities} fallbackImage={fallbackImage} onAdd={onAdd} onQuantity={onQuantity} className="card-row" label="Order again" />
           </section>}
         </>

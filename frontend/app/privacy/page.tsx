@@ -23,6 +23,7 @@ export default function Privacy() {
         <li><b>Mobile number</b>: to sign you in with a one-time code sent on WhatsApp, and to let the vendor call you about your order.</li>
         <li><b>Name</b>: shown to the vendor so they can hand your order to you.</li>
         <li><b>Orders</b>: the vendor, dishes and options, Pick Up or Dine In, time slot, amount, how you paid (online or at the stall), status and handover details.</li>
+        <li><b>Weekly orders</b>: the vendor, dishes and options, days and time you chose, weeks you skipped, and whether it is active or paused, until you cancel it.</li>
         <li><b>Orders not collected</b>: how many of your pay-at-the-stall orders a vendor marked as not collected, so we can turn pay at the stall off after 2.</li>
         <li><b>Payment details from our payment partner</b>: payment status, reference and amount. We do not receive card numbers, UPI PINs or bank passwords.</li>
         <li><b>Vendors you open</b>: stalls whose page you opened or ordered from, so they appear under &quot;Your vendors&quot;.</li>

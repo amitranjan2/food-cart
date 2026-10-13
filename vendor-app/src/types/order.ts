@@ -36,6 +36,8 @@ export type Order = {
   handover?: { attempts: number; lockedUntil?: string | null; verifiedAt?: string | null } | null;
   /** CASH: the customer pays the stall on collection (total = items + GST). ONLINE: paid before the order arrived. */
   paymentMethod?: string | null;
+  /** Set when the customer's weekly order placed this one (not a walk-up decision, so the stall can plan for it). */
+  subscriptionId?: string | null;
   /** Present on orders paid online. */
   payment?: { status: string } | null;
   rejectionReason?: string | null;

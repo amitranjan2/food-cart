@@ -6,6 +6,8 @@ import in.foodcart.data.MenuItemEntity;
 import in.foodcart.data.MenuItemRepository;
 import in.foodcart.data.OrderEntity;
 import in.foodcart.data.OrderRepository;
+import in.foodcart.data.SubscriptionEntity;
+import in.foodcart.data.SubscriptionRepository;
 import in.foodcart.data.VendorEntity;
 import in.foodcart.data.VendorRepository;
 import in.foodcart.domain.OrderStatus;
@@ -40,6 +42,7 @@ public class CheckoutService {
   private final InvoiceNumbers invoices;
   private final OrderNumbers numbers;
   private final CustomerHistory history;
+  private final SubscriptionRepository subscriptions;
   /** A customer's pay-at-stall orders not yet collected; more must wait. */
   public static final int OPEN_CASH_LIMIT = 2;
   /** Pay-at-stall orders a number may fail to collect before pay-at-stall is off for it. */
@@ -53,7 +56,8 @@ public class CheckoutService {
   Clock clock = Clock.system(SlotRules.ZONE);
 
   public CheckoutService(VendorRepository v, MenuItemRepository i, OrderRepository o, CustomerRepository c, PaymentService p, Pricing pricing, InvoiceNumbers invoices,
-      OrderNumbers numbers, CustomerHistory history) {
+      OrderNumbers numbers, CustomerHistory history, SubscriptionRepository subscriptions) {
+    this.subscriptions = subscriptions;
     this.numbers = numbers;
     this.history = history;
     vendors = v;
@@ -75,22 +79,28 @@ public class CheckoutService {
   public record Request(String vendorId, String type, String slot, BigDecimal displayedTotal, List<Line> items, String paymentMethod) {}
 
   public OrderEntity create(String customerId, Request request) {
-    VendorEntity v = vendors.findById(request.vendorId()).orElseThrow(() -> new IllegalArgumentException("Vendor not found"));
+    return place(customerId, request, null);
+  }
+
+  /**
+   * An occurrence of a weekly subscription (tracker S2.21): priced now from the menu (there is no cart the customer
+   * saw), always paid at the stall, and not held back by the limit on waiting orders, which they chose on purpose.
+   */
+  public OrderEntity createScheduled(String customerId, Request request, String subscriptionId) {
+    return place(customerId, request, subscriptionId);
+  }
+
+  /** What one order of these lines costs at the stall right now (items + GST); refuses lines that can't be ordered. */
+  public BigDecimal quoteAtStall(String vendorId, List<Line> lines) {
+    VendorEntity v = vendors.findById(vendorId).orElseThrow(() -> new IllegalArgumentException("Vendor not found"));
     if (!v.live()) throw new IllegalArgumentException("Vendor not found");
-    if (v.status != VendorStatus.OPEN) throw new IllegalStateException("This vendor is currently closed.");
-    OrderEntity o = new OrderEntity();
-    o.vendorId = v.id;
-    o.customerId = customerId;
-    CustomerEntity customer = customers.findById(customerId).orElseThrow(() -> new SecurityException("Customer not found"));
-    if (customer.name == null || customer.name.isBlank()) throw new IllegalStateException("Add your name before paying.");
-    PaymentMethod method = PaymentMethod.parse(request.paymentMethod());
-    if (method == PaymentMethod.ONLINE && !payments.onlineAvailable()) throw new IllegalStateException("Online payment isn't available yet. Choose pay at the stall.");
-    if (method == PaymentMethod.CASH) checkCashAllowed(customer);
-    o.customerMobile = customer.mobile;
-    o.customerName = customer.name;
-    o.type = OrderType.parse(request.type());
-    o.scheduledFor = checkedSlot(v, request.slot()).atZone(SlotRules.ZONE).toInstant();
-    for (Line line : request.items()) {
+    BigDecimal subtotal = priced(v, lines).stream().map(x -> x.lineTotal).reduce(BigDecimal.ZERO, BigDecimal::add);
+    return pricing.bill(subtotal, PaymentMethod.CASH).total();
+  }
+
+  private List<OrderEntity.Item> priced(VendorEntity v, List<Line> lines) {
+    List<OrderEntity.Item> result = new java.util.ArrayList<>();
+    for (Line line : lines) {
       MenuItemEntity m = items.findByIdAndVendorId(line.menuItemId(), v.id).orElseThrow(() -> new IllegalStateException("An item no longer exists."));
       MenuLinePrice.Quote quote = MenuLinePrice.quote(m, line.portion(), line.sizeId(), line.options());
       boolean half = "HALF".equals(quote.portion());
@@ -109,15 +119,36 @@ public class CheckoutService {
       snap.price = quote.price();
       snap.quantity = line.quantity();
       snap.lineTotal = quote.price().multiply(BigDecimal.valueOf(line.quantity()));
-      o.items.add(snap);
+      result.add(snap);
     }
-    if (o.items.isEmpty()) throw new IllegalArgumentException("Cart is empty");
+    if (result.isEmpty()) throw new IllegalArgumentException("Cart is empty");
+    return result;
+  }
+
+  private OrderEntity place(String customerId, Request request, String subscriptionId) {
+    VendorEntity v = vendors.findById(request.vendorId()).orElseThrow(() -> new IllegalArgumentException("Vendor not found"));
+    if (!v.live()) throw new IllegalArgumentException("Vendor not found");
+    if (v.status != VendorStatus.OPEN) throw new IllegalStateException(subscriptionId == null ? "This vendor is currently closed." : v.name + " is switched off.");
+    OrderEntity o = new OrderEntity();
+    o.vendorId = v.id;
+    o.customerId = customerId;
+    o.subscriptionId = subscriptionId;
+    CustomerEntity customer = customers.findById(customerId).orElseThrow(() -> new SecurityException("Customer not found"));
+    if (customer.name == null || customer.name.isBlank()) throw new IllegalStateException("Add your name before paying.");
+    PaymentMethod method = subscriptionId == null ? PaymentMethod.parse(request.paymentMethod()) : PaymentMethod.CASH;
+    if (method == PaymentMethod.ONLINE && !payments.onlineAvailable()) throw new IllegalStateException("Online payment isn't available yet. Choose pay at the stall.");
+    if (method == PaymentMethod.CASH) checkCashAllowed(customer, subscriptionId == null);
+    o.customerMobile = customer.mobile;
+    o.customerName = customer.name;
+    o.type = OrderType.parse(request.type());
+    o.scheduledFor = checkedSlot(v, request.slot()).atZone(SlotRules.ZONE).toInstant();
+    o.items.addAll(priced(v, request.items()));
     o.subtotal = o.items.stream().map(x -> x.lineTotal).reduce(BigDecimal.ZERO, BigDecimal::add);
     BillRules.Bill bill = pricing.bill(o.subtotal, method);
     o.bill = snapshot(bill);
     o.total = bill.total();
     // Rounded to paise: the browser adds prices as floating point (0.1 + 0.2 = 0.30000000000000004).
-    if (request.displayedTotal() == null || o.total.compareTo(request.displayedTotal().setScale(2, RoundingMode.HALF_UP)) != 0) {
+    if (subscriptionId == null && (request.displayedTotal() == null || o.total.compareTo(request.displayedTotal().setScale(2, RoundingMode.HALF_UP)) != 0)) {
       throw new IllegalStateException("Your cart total has changed. Please review your cart.");
     }
     o.paymentMethod = method.name();
@@ -136,12 +167,13 @@ public class CheckoutService {
   }
 
   /** Pay-at-stall needs no payment up front, so: not after repeated no-shows, and only a few uncollected at once. */
-  private void checkCashAllowed(CustomerEntity customer) {
+  private void checkCashAllowed(CustomerEntity customer, boolean limitWaitingOrders) {
     if (!payments.cashAvailable()) throw new IllegalStateException("Pay at the stall isn't available. Please pay online.");
     if (customer.noShows >= NO_SHOW_LIMIT) {
       throw new IllegalStateException("Pay at the stall is off for this number because " + NO_SHOW_LIMIT
           + " orders weren't collected. Write to tech@suprmama.in to turn it back on.");
     }
+    if (!limitWaitingOrders) return;
     Instant since = Instant.now(clock).minus(OPEN_FOR);
     if (orders.countByCustomerIdAndPaymentMethodAndStatusInAndScheduledForAfter(customer.id, PaymentMethod.CASH.name(), OPEN, since) >= OPEN_CASH_LIMIT) {
       throw new IllegalStateException("You already have " + OPEN_CASH_LIMIT + " pay-at-stall orders waiting. Collect them before ordering again.");
@@ -227,6 +259,16 @@ public class CheckoutService {
     }
     o.status = OrderStatus.NO_SHOW;
     o.noShowAt = now;
+    // A weekly order nobody collected pauses the subscription: the stall shouldn't cook for a customer who stopped coming.
+    if (o.subscriptionId != null) {
+      subscriptions.findById(o.subscriptionId).ifPresent(sub -> {
+        if (sub.status == SubscriptionEntity.Status.ACTIVE) {
+          sub.status = SubscriptionEntity.Status.PAUSED;
+          sub.pauseReason = "MISSED";
+          subscriptions.save(sub);
+        }
+      });
+    }
     customers.findById(o.customerId).ifPresent(c -> {
       c.noShows++;
       c.updatedAt = now;

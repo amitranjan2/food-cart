@@ -59,6 +59,15 @@ export default function Terms() {
           are marked as not collected, pay at the stall is turned off for your number; write to <Fill field="email" /> to ask for it back.
         </li>
       </ul>
+      <p>
+        <b>Weekly orders.</b> You can ask for the same order to repeat each week, on days and at a time the vendor is open (up to 3
+        weekly orders at a time). We place each one as a normal pay-at-the-stall order 12 hours before the pick-up time, at the
+        vendor&apos;s prices on that day, which may differ from the price you first saw. You can skip any single week until the
+        order is placed, and pause or cancel the weekly order at any time from &quot;Weekly orders&quot;; orders already placed stay
+        as they are. If the vendor is switched off or a dish is unavailable when an order is due, that week is skipped. If a weekly
+        order is marked as not collected, the weekly order is paused until you resume it, and it counts towards the limit above.
+        Weekly orders are paid at the stall each time; nothing is charged in advance.
+      </p>
 
       <h2>4. Payments</h2>
       <p>

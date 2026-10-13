@@ -83,6 +83,12 @@ export default function VendorTerms() {
           <b> before</b> you enter the code. Entering the code records the order as paid. If the customer doesn&apos;t come, you may mark
           the order as not collected from 30 minutes after their slot; only do so when they really didn&apos;t come.
         </li>
+        <li>
+          <b>Weekly orders</b>: a customer can ask for an order to repeat on days and times inside your opening hours. We place each
+          one as a normal pay-at-the-stall order 12 hours ahead, at your current prices, and it appears with a &quot;Weekly&quot; tag.
+          Treat it like any order: accept it and prepare it. If you switch the stall off or a dish is unavailable, that week is skipped
+          for the customer. Change your opening hours with care: a weekly order only keeps going on times you still offer.
+        </li>
         <li>Repeatedly accepting orders you then can&apos;t make may lead to suspension (section 9).</li>
       </ul>
 

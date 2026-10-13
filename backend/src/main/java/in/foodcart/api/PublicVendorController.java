@@ -57,7 +57,11 @@ public class PublicVendorController {
         .orElse(ResponseEntity.notFound().build());
   }
 
-  /** Slots the customer can pick now, in India time ("2026-10-09T14:30"). hoursSet is false until the vendor saves opening hours; open is false while the stall is switched off. */
+  /**
+   * Slots the customer can pick now, in India time ("2026-10-09T14:30"). hoursSet is false until the vendor saves opening
+   * hours; open is false while the stall is switched off ("on hold"). servingNow is whether it is inside opening hours
+   * right now, and opensAt when it next opens, for the store header's state.
+   */
   @GetMapping("/{slug}/slots")
   public ResponseEntity<Map<String, Object>> slots(@PathVariable String slug) {
     return live(slug).map(v -> {
@@ -67,7 +71,16 @@ public class PublicVendorController {
       Map<String, Object> result = new LinkedHashMap<>();
       result.put("open", open);
       result.put("hoursSet", v.openingHours != null && !v.openingHours.isEmpty());
+      LocalDateTime now = LocalDateTime.now(SlotRules.ZONE);
+      boolean serving = SlotRules.servingNow(v.openingHours, now);
+      result.put("servingNow", serving);
+      LocalDateTime opensAt = serving ? null : SlotRules.nextOpening(v.openingHours, now);
+      result.put("opensAt", opensAt == null ? null : opensAt.toString());
       result.put("slots", slots);
+      // Slot starts per weekday, for choosing a weekly order's time.
+      Map<String, List<String>> week = new LinkedHashMap<>();
+      for (java.time.DayOfWeek d : java.time.DayOfWeek.values()) week.put(d.name(), SlotRules.startTimes(v.openingHours, d));
+      result.put("week", week);
       return ResponseEntity.ok(result);
     }).orElse(ResponseEntity.notFound().build());
   }

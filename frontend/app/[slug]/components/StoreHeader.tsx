@@ -3,10 +3,10 @@
 import type { ReactNode } from 'react';
 import { StoreEta } from './StoreEta';
 
-export function StoreHeader({ children, lat, lng }: { children: ReactNode; lat?: number | null; lng?: number | null }) {
+export function StoreHeader({ children, slug, status, lat, lng }: { children: ReactNode; slug: string; status: 'OPEN' | 'CLOSED'; lat?: number | null; lng?: number | null }) {
   return (
     <div className="store-header-top">
-      <StoreEta lat={lat} lng={lng} />
+      <StoreEta slug={slug} status={status} lat={lat} lng={lng} />
       {children}
     </div>
   );
