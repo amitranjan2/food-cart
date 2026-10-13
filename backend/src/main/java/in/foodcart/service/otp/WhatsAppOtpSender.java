@@ -24,7 +24,16 @@ public class WhatsAppOtpSender implements OtpSender {
   static final String FAILED = "Couldn't send the code on WhatsApp. Try again.";
 
   /** Everything that comes from the environment; see the README. */
-  public record Settings(String token, String phoneNumberId, String template, String language, String apiVersion) {}
+  public record Settings(String token, String phoneNumberId, String template, String language, String apiVersion, boolean testMode) {
+    public Settings(String token, String phoneNumberId, String template, String language, String apiVersion) {
+      this(token, phoneNumberId, template, language, apiVersion, false);
+    }
+  }
+
+  /** Test mode sends Meta's pre-approved sample template, which carries no code, so the login code is fixed instead. */
+  static final String TEST_TEMPLATE = "hello_world";
+  static final String TEST_LANGUAGE = "en_US";
+  static final String TEST_CODE = "123456";
 
   private final Settings settings;
   private final RestClient http;
@@ -37,6 +46,11 @@ public class WhatsAppOtpSender implements OtpSender {
     factory.setReadTimeout(timeout);
     // Buffered so the request carries a Content-Length instead of being streamed in chunks.
     this.http = RestClient.builder().baseUrl(baseUrl).requestFactory(new BufferingClientHttpRequestFactory(factory)).build();
+  }
+
+  @Override
+  public String fixedCode() {
+    return settings.testMode() ? TEST_CODE : null;
   }
 
   @Override
@@ -64,6 +78,14 @@ public class WhatsAppOtpSender implements OtpSender {
    * Mobile numbers are stored as 10 Indian digits (AuthService checks this), so the country code is always 91.
    */
   Map<String, Object> message(String mobile, String code) {
+    if (settings.testMode()) {
+      // The sample template has no parameters: the recipient only sees "Hello World", proving the connection works.
+      return Map.of(
+          "messaging_product", "whatsapp",
+          "to", "91" + mobile,
+          "type", "template",
+          "template", Map.of("name", TEST_TEMPLATE, "language", Map.of("code", TEST_LANGUAGE)));
+    }
     List<Map<String, Object>> codeOnly = List.of(Map.of("type", "text", "text", code));
     return Map.of(
         "messaging_product", "whatsapp",

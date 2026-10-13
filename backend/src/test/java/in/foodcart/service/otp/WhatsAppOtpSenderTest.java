@@ -104,7 +104,36 @@ class WhatsAppOtpSenderTest {
   @Test
   void configRefusesToStartWithMissingSettings() {
     IllegalStateException e = assertThrows(IllegalStateException.class,
-        () -> new WhatsAppOtpConfig().whatsAppOtpSender("token", "", "foodcart_otp", " ", "v21.0", "https://graph.facebook.com"));
+        () -> new WhatsAppOtpConfig().whatsAppOtpSender("token", "", "foodcart_otp", " ", "v21.0", "https://graph.facebook.com", false, env("local")));
     assertEquals("WHATSAPP_TOKEN is set but these are missing: WHATSAPP_PHONE_NUMBER_ID, WHATSAPP_OTP_LANGUAGE", e.getMessage());
+  }
+
+  private static org.springframework.mock.env.MockEnvironment env(String profile) {
+    org.springframework.mock.env.MockEnvironment env = new org.springframework.mock.env.MockEnvironment();
+    env.setActiveProfiles(profile);
+    return env;
+  }
+
+  @Test
+  void testModeSendsTheSampleTemplateAndKeepsALocalCode() throws Exception {
+    WhatsAppOtpSender test = new WhatsAppOtpSender(
+        new WhatsAppOtpSender.Settings("test-token", "1234567890", "", "", "v21.0", true), "http://127.0.0.1:" + meta.getAddress().getPort(), Duration.ofSeconds(2));
+    assertEquals("123456", test.fixedCode(), "the sample template carries no code, so the code is fixed");
+    test.send("9876543210", "123456");
+    JsonNode sent = new ObjectMapper().readTree(body.get());
+    assertEquals("hello_world", sent.path("template").path("name").asText());
+    assertEquals("en_US", sent.path("template").path("language").path("code").asText());
+    assertTrue(sent.path("template").path("components").isMissingNode(), "no parameters on the sample template");
+    assertFalse(body.get().contains("123456"), "the code is never sent in test mode");
+    assertNull(sender(Duration.ofSeconds(2)).fixedCode(), "the real sender still generates random codes");
+  }
+
+  @Test
+  void testModeNeedsNoTemplateButOnlyRunsLocally() {
+    OtpSender ok = new WhatsAppOtpConfig().whatsAppOtpSender("token", "1", "", "", "v21.0", "https://graph.facebook.com", true, env("local"));
+    assertEquals("123456", ok.fixedCode());
+    IllegalStateException e = assertThrows(IllegalStateException.class,
+        () -> new WhatsAppOtpConfig().whatsAppOtpSender("token", "1", "", "", "v21.0", "https://graph.facebook.com", true, env("prod")));
+    assertTrue(e.getMessage().contains("local testing only"));
   }
 }
