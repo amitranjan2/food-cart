@@ -35,12 +35,23 @@ public class WhatsAppOtpSender implements OtpSender {
   static final String TEST_LANGUAGE = "en_US";
   static final String TEST_CODE = "123456";
 
+  /** Told about each message Meta accepts, for delivery tracking (WhatsAppDelivery). */
+  public interface Recorder {
+    void sent(String messageId, String mobile, String purpose);
+  }
+
   private final Settings settings;
   private final RestClient http;
+  private final Recorder recorder;
   private final ObjectMapper json = new ObjectMapper();
 
   public WhatsAppOtpSender(Settings settings, String baseUrl, Duration timeout) {
+    this(settings, baseUrl, timeout, (id, mobile, purpose) -> {});
+  }
+
+  public WhatsAppOtpSender(Settings settings, String baseUrl, Duration timeout, Recorder recorder) {
     this.settings = settings;
+    this.recorder = recorder;
     SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
     factory.setConnectTimeout(timeout);
     factory.setReadTimeout(timeout);
@@ -55,14 +66,15 @@ public class WhatsAppOtpSender implements OtpSender {
 
   @Override
   public void send(String mobile, String code) {
+    String reply;
     try {
-      http.post()
+      reply = http.post()
           .uri("/{version}/{phoneNumberId}/messages", settings.apiVersion(), settings.phoneNumberId())
           .header("Authorization", "Bearer " + settings.token())
           .contentType(MediaType.APPLICATION_JSON)
           .body(message(mobile, code))
           .retrieve()
-          .toBodilessEntity();
+          .body(String.class);
     } catch (RestClientResponseException e) {
       // Meta's error code says what went wrong (bad token, template not approved, …). Never log the token or the code.
       log.warn("WhatsApp send failed: HTTP {} Meta error {}", e.getStatusCode().value(), metaError(e.getResponseBodyAsString()));
@@ -70,6 +82,17 @@ public class WhatsAppOtpSender implements OtpSender {
     } catch (RestClientException e) {
       log.warn("WhatsApp send failed: {}", e.getClass().getSimpleName());
       throw new IllegalStateException(FAILED);
+    }
+    // The code is on its way; tracking is best effort and must never fail the login.
+    String id = messageId(reply);
+    if (id == null) {
+      log.warn("WhatsApp accepted the message but sent no message id; it won't be tracked");
+      return;
+    }
+    try {
+      recorder.sent(id, mobile, settings.testMode() ? "OTP_TEST" : "OTP");
+    } catch (RuntimeException e) {
+      log.warn("Could not record a WhatsApp message for delivery tracking: {}", e.toString());
     }
   }
 
@@ -97,6 +120,16 @@ public class WhatsAppOtpSender implements OtpSender {
             "components", List.of(
                 Map.of("type", "body", "parameters", codeOnly),
                 Map.of("type", "button", "sub_type", "url", "index", "0", "parameters", codeOnly))));
+  }
+
+  /** Meta's reply: {"messages":[{"id":"wamid.…"}]}. */
+  private String messageId(String body) {
+    try {
+      String id = json.readTree(body == null ? "" : body).path("messages").path(0).path("id").asText(null);
+      return id == null || id.isBlank() ? null : id;
+    } catch (Exception unreadable) {
+      return null;
+    }
   }
 
   private String metaError(String body) {

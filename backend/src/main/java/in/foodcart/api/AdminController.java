@@ -202,6 +202,28 @@ public class AdminController {
     return ResponseEntity.ok(Map.of("name", body.name(), "status", CategoryIcons.NONE));
   }
 
+  /** Delivery tracking for login codes; a field so the long constructor (and its tests) stay as they are. */
+  @org.springframework.beans.factory.annotation.Autowired
+  private in.foodcart.service.whatsapp.WhatsAppDelivery whatsapp;
+
+  /** Login-code delivery per day for the last `days` days (ops/whatsapp-stats.sh). */
+  @GetMapping("/whatsapp/stats")
+  public ResponseEntity<Map<String, Object>> whatsappStats(@RequestHeader(value = "X-Admin-Token", required = false) String given, @RequestParam(defaultValue = "7") int days) {
+    ResponseEntity<Map<String, Object>> refused = refuse(given);
+    if (refused != null) return refused;
+    return ResponseEntity.ok(whatsapp.stats(days));
+  }
+
+  /** The last 10 login codes sent to one number and what happened to each ("my code never came"). */
+  @GetMapping("/whatsapp/messages")
+  public ResponseEntity<Map<String, Object>> whatsappMessages(@RequestHeader(value = "X-Admin-Token", required = false) String given, @RequestParam String mobile) {
+    ResponseEntity<Map<String, Object>> refused = refuse(given);
+    if (refused != null) return refused;
+    String digits = mobile.replaceAll("\\D", "");
+    if (digits.length() == 12 && digits.startsWith("91")) digits = digits.substring(2);
+    return ResponseEntity.ok(Map.of("mobile", digits, "messages", whatsapp.lookup(digits)));
+  }
+
   public record Mobile(String mobile) {}
 
   /** Turns pay at the stall back on for a number blocked after no-shows (ops/cash-reset.sh). */

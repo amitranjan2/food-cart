@@ -84,7 +84,8 @@ Plan: Vercel's free Hobby plan is for non-commercial use; a business pilot belon
    | `TRUST_PROXY` | `true` (Railway sits in front of the API) |
    | `ADMIN_TOKEN` | 32+ random characters (`openssl rand -base64 32`) |
    | `NOMINATIM_CONTACT` | `tech@suprmama.in` |
-   | `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_OTP_TEMPLATE` (`suprmama_otp`), `WHATSAPP_OTP_LANGUAGE`, `WHATSAPP_API_VERSION` | from N3 |
+   | `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_OTP_TEMPLATE` (`suprmama_otp`), `WHATSAPP_OTP_LANGUAGE`, `WHATSAPP_API_VERSION` | from N3 (`1374337695763992`, `en`, `v26.0`). Never set `WHATSAPP_TEST_MODE` here: the API refuses to start with it |
+   | `WHATSAPP_APP_SECRET`, `WHATSAPP_WEBHOOK_VERIFY_TOKEN` | delivery webhook (step 5b): the app secret from developers.facebook.com → Supr-Mama → App settings → Basic → App secret; the verify token is any 32+ random characters you make up (`openssl rand -hex 32`) |
    | `PAYMENT_GATEWAY` | `none` at launch (pay at the stall only); later `razorpay` or `cashfree` + its keys (S2.3) |
    | `PAYMENT_CASH` | leave unset (`true`); `false` only to stop pay at the stall once online payment exists |
    | `ANTHROPIC_API_KEY` | optional: icons for new categories. Create a key for this app only (console.anthropic.com), set a monthly spend limit on it, and keep it here. Without it new categories show the generic plate. Check drawings with `ops/category-icons.sh list` |
@@ -93,6 +94,16 @@ Plan: Vercel's free Hobby plan is for non-commercial use; a business pilot belon
    `PORT` and `UPLOAD_DIR` are set by Railway and the image; leave them.
 5. **Networking → Custom Domain** → `api.suprmama.in`. Add the record Railway shows at Hostinger:
    `CNAME` `api` → `….up.railway.app`.
+
+### 5b. WhatsApp delivery webhook (after the API answers on `api.suprmama.in`)
+1. developers.facebook.com → Supr-Mama → **Use cases → Connect on WhatsApp → Customize → Step 2: Production setup →
+   Configure Webhooks**.
+2. **Callback URL** `https://api.suprmama.in/api/whatsapp/webhook`, **Verify token** = the same value as
+   `WHATSAPP_WEBHOOK_VERIFY_TOKEN` → **Verify and save**. (Meta calls the URL straight away; it fails if the API isn't
+   live or the two tokens differ.)
+3. Under **Webhook fields**, subscribe to **messages** only (it carries the sent / delivered / read / failed statuses).
+4. Send yourself a login code, then `API_BASE=https://api.suprmama.in ADMIN_TOKEN=… ops/whatsapp-stats.sh 1`: it should
+   show 1 sent and, within seconds, 1 delivered.
 
 ### 6. Vendor web app (second Vercel project)
 1. Vercel → Add New → Project → same repo, **Root Directory** `vendor-app` (`vercel.json` there sets the build).

@@ -104,7 +104,7 @@ class WhatsAppOtpSenderTest {
   @Test
   void configRefusesToStartWithMissingSettings() {
     IllegalStateException e = assertThrows(IllegalStateException.class,
-        () -> new WhatsAppOtpConfig().whatsAppOtpSender("token", "", "foodcart_otp", " ", "v21.0", "https://graph.facebook.com", false, env("local")));
+        () -> new WhatsAppOtpConfig().whatsAppOtpSender("token", "", "foodcart_otp", " ", "v21.0", "https://graph.facebook.com", false, env("local"), null));
     assertEquals("WHATSAPP_TOKEN is set but these are missing: WHATSAPP_PHONE_NUMBER_ID, WHATSAPP_OTP_LANGUAGE", e.getMessage());
   }
 
@@ -130,10 +130,27 @@ class WhatsAppOtpSenderTest {
 
   @Test
   void testModeNeedsNoTemplateButOnlyRunsLocally() {
-    OtpSender ok = new WhatsAppOtpConfig().whatsAppOtpSender("token", "1", "", "", "v21.0", "https://graph.facebook.com", true, env("local"));
+    OtpSender ok = new WhatsAppOtpConfig().whatsAppOtpSender("token", "1", "", "", "v21.0", "https://graph.facebook.com", true, env("local"), null);
     assertEquals("123456", ok.fixedCode());
     IllegalStateException e = assertThrows(IllegalStateException.class,
-        () -> new WhatsAppOtpConfig().whatsAppOtpSender("token", "1", "", "", "v21.0", "https://graph.facebook.com", true, env("prod")));
+        () -> new WhatsAppOtpConfig().whatsAppOtpSender("token", "1", "", "", "v21.0", "https://graph.facebook.com", true, env("prod"), null));
     assertTrue(e.getMessage().contains("local testing only"));
+  }
+
+  @Test
+  void recordsMetasMessageIdForDeliveryTracking() {
+    reply = "{\"messaging_product\":\"whatsapp\",\"messages\":[{\"id\":\"wamid.HBgM\"}]}";
+    java.util.List<String> seen = new java.util.ArrayList<>();
+    new WhatsAppOtpSender(new WhatsAppOtpSender.Settings("test-token", "1234567890", "foodcart_otp", "en_US", "v21.0"),
+        "http://127.0.0.1:" + meta.getAddress().getPort(), Duration.ofSeconds(2), (id, mobile, purpose) -> seen.add(id + " " + mobile + " " + purpose))
+        .send("9876543210", "482913");
+    assertEquals(java.util.List.of("wamid.HBgM 9876543210 OTP"), seen);
+  }
+
+  @Test
+  void aTrackingFailureDoesNotFailTheLogin() {
+    assertDoesNotThrow(() -> new WhatsAppOtpSender(new WhatsAppOtpSender.Settings("test-token", "1234567890", "foodcart_otp", "en_US", "v21.0"),
+        "http://127.0.0.1:" + meta.getAddress().getPort(), Duration.ofSeconds(2), (id, mobile, purpose) -> { throw new RuntimeException("db down"); })
+        .send("9876543210", "482913"));
   }
 }
