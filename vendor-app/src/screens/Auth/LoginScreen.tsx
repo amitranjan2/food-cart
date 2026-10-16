@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { requestVendorOtp } from '../../api/auth';
 import { Screen } from '../../components/Screen';
 import { useAuth } from '../../state/AuthContext';
+import { useOtpDelivery } from '../../hooks/useOtpDelivery';
 import { colors, radius, typography } from '../../theme';
 import { Button, Card, Field } from '../../ui';
 import { POLICY_URLS } from '../../utils/policies';
@@ -28,6 +29,9 @@ export function LoginScreen() {
   const [busy, setBusy] = useState(false);
   const [seconds, setSeconds] = useState(RESEND_SECONDS);
   const otpRef = useRef<TextInput>(null);
+  /** Reference to the last code sent, to show whether WhatsApp delivered it. */
+  const [codeRef, setCodeRef] = useState('');
+  const delivery = useOtpDelivery(step === 'otp' ? codeRef : '');
 
   useEffect(() => {
     if (step !== 'otp') return;
@@ -45,7 +49,9 @@ export function LoginScreen() {
     try {
       setError('');
       setBusy(true);
-      await requestVendorOtp(mobile);
+      setCodeRef('');
+      const sent = await requestVendorOtp(mobile);
+      setCodeRef(sent.ref ?? '');
       setOtp('');
       setSeconds(RESEND_SECONDS);
       setStep('otp');
@@ -78,7 +84,9 @@ export function LoginScreen() {
     try {
       setError('');
       setBusy(true);
-      await requestVendorOtp(mobile);
+      setCodeRef('');
+      const sent = await requestVendorOtp(mobile);
+      setCodeRef(sent.ref ?? '');
       setSeconds(RESEND_SECONDS);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong');
@@ -153,13 +161,22 @@ export function LoginScreen() {
                 </Pressable>
               </View>
               {error ? <Text style={[styles.error, styles.center]}>{error}</Text> : null}
+              {delivery?.state === 'FAILED' ? (
+                <View style={styles.failed} accessibilityRole="alert">
+                  <Text style={styles.failedText}>{delivery.message ?? 'WhatsApp couldn’t deliver the code. Tap Resend code.'}</Text>
+                </View>
+              ) : null}
               <Button label="Continue" busy={busy} onPress={continueWithOtp} style={styles.action} />
               <View style={styles.links}>
-                <Button label="Change number" variant="quiet" size="sm" onPress={() => { setStep('mobile'); setError(''); setOtp(''); }} />
+                <Button label="Change number" variant="quiet" size="sm" onPress={() => { setStep('mobile'); setError(''); setOtp(''); setCodeRef(''); }} />
                 <Button label={seconds > 0 ? `Resend in ${formatTimer(seconds)}` : 'Resend code'} variant="quiet" size="sm" disabled={seconds > 0 || busy} onPress={resend} />
               </View>
             </Card>
-            <Text style={[typography.caption, styles.center]}>Didn&apos;t get it? Make sure {mobile} is on WhatsApp.</Text>
+            {delivery?.state === 'DELIVERED' ? (
+              <Text style={[typography.caption, styles.center]} accessibilityLiveRegion="polite">Delivered on WhatsApp to {mobile}.</Text>
+            ) : delivery?.state !== 'FAILED' ? (
+              <Text style={[typography.caption, styles.center]}>Didn&apos;t get it? Make sure {mobile} is on WhatsApp.</Text>
+            ) : null}
           </>
         )}
       </View>
@@ -197,6 +214,18 @@ const styles = StyleSheet.create({
     color: colors.danger,
     fontSize: 13,
     fontWeight: '600',
+  },
+  failed: {
+    backgroundColor: colors.dangerBg,
+    borderRadius: radius.md,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  failedText: {
+    color: colors.danger,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 18,
   },
   center: {
     textAlign: 'center',
