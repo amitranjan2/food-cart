@@ -1,6 +1,7 @@
 package in.foodcart.api;
 
 import in.foodcart.service.AuthService;
+import in.foodcart.service.otp.OtpDelivery;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -9,9 +10,11 @@ import java.util.Map;
 @RequestMapping("/api/auth")
 public class AuthController {
   private final AuthService auth;
+  private final OtpDelivery delivery;
 
-  public AuthController(AuthService a) {
+  public AuthController(AuthService a, OtpDelivery d) {
     auth = a;
+    delivery = d;
   }
 
   record RequestOtp(String mobile) {}
@@ -20,8 +23,14 @@ public class AuthController {
 
   @PostMapping("/{role}/request-otp")
   Map<String, Object> request(@PathVariable String role, @RequestBody RequestOtp body) {
-    auth.requestOtp(role, body.mobile());
-    return Map.of("sent", true);
+    String ref = auth.requestOtp(role, body.mobile());
+    return ref == null ? Map.of("sent", true) : Map.of("sent", true, "ref", ref);
+  }
+
+  /** Did the code from request-otp reach WhatsApp? WAITING, DELIVERED or FAILED (with a message to show). */
+  @GetMapping("/otp-delivery/{ref}")
+  Map<String, Object> delivery(@PathVariable String ref) {
+    return delivery.status(ref);
   }
 
   @PostMapping("/logout")

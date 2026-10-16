@@ -118,9 +118,24 @@ class OtpServiceTest {
     assertNull(saved[0].lastSentAt, "the 30 s resend gap must not block the retry");
     assertEquals(1, saved[0].sendsInWindow);
 
-    otp.send("CUSTOMER", "9876543210"); // retry straight away
+    assertNull(saved[0].deliveryRef, "a failed send leaves nothing to ask about");
+
+    String ref = otp.send("CUSTOMER", "9876543210"); // retry straight away
     assertNotNull(saved[0].codeHash);
     assertEquals(2, saved[0].sendsInWindow);
+    assertEquals(ref, saved[0].deliveryRef);
+  }
+
+  @Test
+  void eachSendGetsAFreshUnguessableReference() {
+    OtpChallengeEntity[] saved = storeChallenges();
+    OtpService otp = service(sender);
+    String first = otp.send("CUSTOMER", "9876543210");
+    assertTrue(first.length() >= 22, first);
+    now = now.plusSeconds(31);
+    String second = otp.send("CUSTOMER", "9876543210");
+    assertNotEquals(first, second);
+    assertEquals(second, saved[0].deliveryRef);
   }
 
   private static String eq(String value) {

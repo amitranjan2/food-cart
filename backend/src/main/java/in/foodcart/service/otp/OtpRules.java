@@ -22,6 +22,13 @@ public final class OtpRules {
 
   private OtpRules() {}
 
+  /** 128 random bits, URL-safe: unguessable, so only the browser that asked for the code can ask about it. */
+  public static String newReference() {
+    byte[] bytes = new byte[16];
+    RANDOM.nextBytes(bytes);
+    return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+  }
+
   public static String newCode() {
     return String.format("%06d", RANDOM.nextInt(1_000_000));
   }

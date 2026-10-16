@@ -2,4 +2,8 @@ package in.foodcart.data;
 
 import org.springframework.data.mongodb.repository.MongoRepository;
 
-public interface OtpChallengeRepository extends MongoRepository<OtpChallengeEntity, String> {}
+import java.util.Optional;
+
+public interface OtpChallengeRepository extends MongoRepository<OtpChallengeEntity, String> {
+  Optional<OtpChallengeEntity> findByDeliveryRef(String deliveryRef);
+}

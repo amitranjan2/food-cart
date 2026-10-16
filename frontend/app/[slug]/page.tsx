@@ -33,6 +33,7 @@ import { LEGAL } from '../lib/legal';
 import { applyTheme, themeStyle } from '../lib/theme';
 import { billOf, type PaymentMethod } from '../lib/bill';
 import { usePricing } from '../lib/useRates';
+import { useOtpDelivery } from '../lib/otpDelivery';
 
 /** Most dishes shown in the cart's "You may also like" row. */
 const SUGGESTION_LIMIT = 12;
@@ -57,6 +58,8 @@ export default function Store({ params }: { params: { slug: string } }) {
   const [slots, setSlots] = useState<{ open?: boolean; hoursSet: boolean; slots: string[]; week?: Record<string, string[]> } | null>(null);
   const [mobile, setMobile] = useState('');
   const [otp, setOtp] = useState('');
+  /** Reference to the last code sent, to ask whether WhatsApp delivered it; cleared once verified or the number changes. */
+  const [otpRef, setOtpRef] = useState('');
   /** Set once the customer submits a correct OTP; Pay uses it. */
   const [customerToken, setCustomerToken] = useState('');
   const [customerName, setCustomerName] = useState('');
@@ -64,6 +67,7 @@ export default function Store({ params }: { params: { slug: string } }) {
   const [orderAgainIds, setOrderAgainIds] = useState<string[]>([]);
   const [testCheckout, setTestCheckout] = useState<{ amount: number; resolve: (outcome: CheckoutOutcome) => void } | null>(null);
   const liveOrders = useLiveOrders(customerToken);
+  const otpDelivery = useOtpDelivery(customerToken ? '' : otpRef);
   const homeScroll = useRef(0);
   const router = useRouter();
   const [query, setQuery] = useState('');
@@ -177,6 +181,7 @@ export default function Store({ params }: { params: { slug: string } }) {
 
   function changeMobile(next: string) {
     setMobile(next);
+    setOtpRef('');
     setCustomerToken('');
     setCustomerName('');
     storeSession('');
@@ -336,10 +341,12 @@ export default function Store({ params }: { params: { slug: string } }) {
   }
 
   async function sendOtp() {
-    await request('/api/auth/customer/request-otp', {
+    setOtpRef('');
+    const sent = await request<{ sent: boolean; ref?: string }>('/api/auth/customer/request-otp', {
       method: 'POST',
       body: JSON.stringify({ mobile }),
     });
+    setOtpRef(sent.ref ?? '');
   }
 
   async function waitForPayment(orderId: string) {
@@ -489,6 +496,7 @@ export default function Store({ params }: { params: { slug: string } }) {
             storeOpen={slots?.open ?? store.status === 'OPEN'}
             mobile={mobile}
             otp={otp}
+            otpDelivery={otpDelivery}
             fallbackImage={store.coverImageUrl}
             onBack={() => setOpen(false)}
             onQuantity={changeQuantity}

@@ -26,13 +26,14 @@ public class AuthService {
   }
 
   /** role is "vendor" or "customer", as it appears in the URL. */
-  public void requestOtp(String role, String mobile) {
+  /** Returns the code's delivery reference (see OtpDelivery). */
+  public String requestOtp(String role, String mobile) {
     validMobile(mobile);
     if ("vendor".equals(role)) {
       // Any number: a new one signs up a stall (SelfOnboarding). The OTP limits cap what this can cost.
-      otp.send("VENDOR", mobile);
+      return otp.send("VENDOR", mobile);
     } else if ("customer".equals(role)) {
-      otp.send("CUSTOMER", mobile);
+      return otp.send("CUSTOMER", mobile);
     } else {
       throw new IllegalArgumentException("Unknown login type.");
     }

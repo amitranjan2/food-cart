@@ -367,6 +367,7 @@ html.scroll-locked,html.scroll-locked body,.storefront.scroll-locked{overflow:hi
 .policy-footer a{color:var(--store-ink);font-weight:700;text-decoration:none}
 .policy-footer p{margin:0}
 .cart-otp-hint{margin:6px 4px 0;font-size:var(--fs-xs);color:var(--store-muted);line-height:1.4}
+.cart-otp-hint.cart-otp-failed{padding:10px 12px;border-radius:12px;background:#fdecea;color:#b42318;font-weight:700}
 
 /* Printable "Scan to order" poster (/[slug]/qr): A4 on paper, a scaled preview on screen. */
 .poster-page{--store-sky:#b3d8fa;--store-ink:#30404e;min-height:100vh;background:#e9edf1;padding:16px;display:flex;flex-direction:column;align-items:center;gap:12px;font-family:"Plus Jakarta Sans","DM Sans",sans-serif;color:var(--store-ink)}

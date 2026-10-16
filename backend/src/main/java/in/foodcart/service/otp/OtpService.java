@@ -44,8 +44,11 @@ public class OtpService {
     }
   }
 
-  /** Sends a code. Callers decide whether the mobile is allowed to log in before calling this. */
-  public void send(String role, String mobile) {
+  /**
+   * Sends a code and returns a random reference to it (OtpDelivery: did it arrive?). Callers decide whether the mobile
+   * is allowed to log in before calling this.
+   */
+  public String send(String role, String mobile) {
     Instant now = clock.instant();
     LocalDate day = OtpLimits.day(now);
     // A number that used up its wrong guesses gets no more codes today: they would only cost a WhatsApp message each.
@@ -58,6 +61,7 @@ public class OtpService {
     });
     String code = sender.fixedCode() != null ? sender.fixedCode() : OtpRules.newCode();
     OtpRules.recordSend(challenge, code, now);
+    challenge.deliveryRef = OtpRules.newReference();
     // Counted after the per-number checks, so refused requests don't use up the day's allowance.
     long sentToday = counters.add(OtpLimits.sendsKey(day), day);
     if (sentToday > limits.dailySendCap()) {
@@ -72,9 +76,11 @@ public class OtpService {
       challenge.codeHash = null;
       challenge.codeExpiresAt = null;
       challenge.lastSentAt = null;
+      challenge.deliveryRef = null;
       challenges.save(challenge);
       throw failed;
     }
+    return challenge.deliveryRef;
   }
 
   public void verify(String role, String mobile, String code) {

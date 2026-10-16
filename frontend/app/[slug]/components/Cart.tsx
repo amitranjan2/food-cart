@@ -5,6 +5,7 @@ import { BillRows } from '../../components/BillRows';
 import type { Bill, PaymentMethod } from '../../lib/bill';
 import type { MenuItem } from '../../lib/api';
 import { FEATURES } from '../../lib/features';
+import type { OtpDelivery } from '../../lib/otpDelivery';
 import { formatRupee } from '../lib/customization';
 import { AddressFlow, addressLabel, type AddressStep, type SavedAddress } from './AddressFlow';
 import { MenuItemCard } from './MenuItemCard';
@@ -108,6 +109,7 @@ export function Cart({
   storeOpen = true,
   mobile,
   otp,
+  otpDelivery,
   fallbackImage,
   onBack,
   onQuantity,
@@ -147,6 +149,8 @@ export function Cart({
   storeOpen?: boolean;
   mobile: string;
   otp: string;
+  /** Whether WhatsApp delivered the last code; null until known. */
+  otpDelivery?: OtpDelivery | null;
   fallbackImage?: string;
   onBack: () => void;
   /** For the suggestion cards (whole dish). */
@@ -589,6 +593,9 @@ export function Cart({
               onChange={event => {
                 onMobileChange(event.target.value.replace(/\D/g, '').slice(0, 10));
                 setOtpSentTo('');
+                // The 30 s resend gap is per number: a corrected number can get a code straight away.
+                setResendIn(0);
+                setOtpError('');
               }}
             />
           </label>
@@ -625,7 +632,13 @@ export function Cart({
           </label>
         )}
         {otpSent && !verified && (
-          <p className="cart-otp-hint">Code sent on WhatsApp to {mobile}. Didn&apos;t get it? Make sure this number is on WhatsApp.</p>
+          otpDelivery?.state === 'FAILED' ? (
+            <p className="cart-otp-hint cart-otp-failed" role="alert">{otpDelivery.message ?? 'WhatsApp couldn’t deliver the code. Tap Resend.'}</p>
+          ) : otpDelivery?.state === 'DELIVERED' ? (
+            <p className="cart-otp-hint" aria-live="polite">Delivered on WhatsApp to {mobile}. Enter the 6-digit code.</p>
+          ) : (
+            <p className="cart-otp-hint" aria-live="polite">Code sent on WhatsApp to {mobile}. Didn&apos;t get it? Make sure this number is on WhatsApp.</p>
+          )
         )}
         {verified && (
           <div className="cart-otp-row">

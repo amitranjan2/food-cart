@@ -17,6 +17,8 @@ public class OtpChallengeEntity {
   public Instant lastSentAt;
   public Instant windowStartedAt;
   public int sendsInWindow;
+  /** Random reference for the latest code, given only to whoever asked for it, so the cart can ask whether it arrived. */
+  @Indexed(sparse = true) public String deliveryRef;
   /** Keeps the send-count window alive after the code itself has expired. */
   @Indexed(expireAfterSeconds = 0) public Instant purgeAt;
 }
