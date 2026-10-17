@@ -1,2 +1,76 @@
-package in.foodcart.api; import in.foodcart.service.AuthService; import jakarta.validation.constraints.*; import org.springframework.web.bind.annotation.*; import java.util.*;
-@RestController @RequestMapping("/api/auth") public class AuthController { private final AuthService auth; public AuthController(AuthService a){auth=a;} record Verify(@NotBlank String mobile,@NotBlank String otp){} @PostMapping("/{role}/request-otp") Map<String,Object> request(@PathVariable String role,@RequestBody Map<String,String> body){return Map.of("sent",true,"message","Use 123456 in local development");}@PostMapping("/{role}/verify-otp") Map<String,String> verify(@PathVariable String role,@RequestBody Verify b){String token="vendor".equals(role)?auth.vendor(b.mobile(),b.otp()):auth.customer(b.mobile(),b.otp());return Map.of("token",token,"role",role);}}
+package in.foodcart.api;
+
+import in.foodcart.service.AuthService;
+import in.foodcart.service.otp.OtpDelivery;
+import in.foodcart.service.otp.OtpSender;
+import in.foodcart.service.whatsapp.WhatsAppLogin;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/auth")
+public class AuthController {
+  private final AuthService auth;
+  private final OtpDelivery delivery;
+  private final WhatsAppLogin whatsapp;
+  private final ObjectProvider<OtpSender> otpSender;
+
+  public AuthController(AuthService a, OtpDelivery d, WhatsAppLogin w, ObjectProvider<OtpSender> s) {
+    auth = a;
+    delivery = d;
+    whatsapp = w;
+    otpSender = s;
+  }
+
+  /** Which ways to sign in work right now, so the apps show only those. */
+  @GetMapping("/methods")
+  Map<String, Object> methods() {
+    OtpSender sender = otpSender.getIfAvailable();
+    return Map.of("otp", sender != null && sender.available(), "whatsappLogin", whatsapp.enabled());
+  }
+
+  /** Starts "Login with WhatsApp": returns the code to send, a wa.me link and a QR code, and the secret to poll with. */
+  @PostMapping("/{role}/wa-login")
+  Map<String, Object> waLogin(@PathVariable String role, @RequestBody RequestOtp body) {
+    return whatsapp.start(role, body.mobile());
+  }
+
+  /** WAITING, WRONG_NUMBER, EXPIRED, or SIGNED_IN with the session token (given once). */
+  @GetMapping("/wa-login/{secret}")
+  Map<String, Object> waLoginState(@PathVariable String secret) {
+    return whatsapp.poll(secret);
+  }
+
+  record RequestOtp(String mobile) {}
+
+  record Verify(String mobile, String otp) {}
+
+  @PostMapping("/{role}/request-otp")
+  Map<String, Object> request(@PathVariable String role, @RequestBody RequestOtp body) {
+    String ref = auth.requestOtp(role, body.mobile());
+    return ref == null ? Map.of("sent", true) : Map.of("sent", true, "ref", ref);
+  }
+
+  /** Did the code from request-otp reach WhatsApp? WAITING, DELIVERED or FAILED (with a message to show). */
+  @GetMapping("/otp-delivery/{ref}")
+  Map<String, Object> delivery(@PathVariable String ref) {
+    return delivery.status(ref);
+  }
+
+  @PostMapping("/logout")
+  Map<String, Object> logout(@RequestHeader(value = "Authorization", required = false) String h) {
+    auth.logout(h);
+    return Map.of("loggedOut", true);
+  }
+
+  @PostMapping("/{role}/verify-otp")
+  Map<String, String> verify(@PathVariable String role, @RequestBody Verify b) {
+    String token;
+    if ("vendor".equals(role)) token = auth.vendor(b.mobile(), b.otp());
+    else if ("customer".equals(role)) token = auth.customer(b.mobile(), b.otp());
+    else throw new IllegalArgumentException("Unknown login type.");
+    return Map.of("token", token, "role", role);
+  }
+}

@@ -1,2 +1,3 @@
 package in.foodcart.domain;
-public enum OrderStatus { PLACED, ACCEPTED, PREPARING, READY, COMPLETED, REJECTED, CANCELLED }
+/** PAYMENT_PENDING and EXPIRED orders are never shown to vendors. NO_SHOW: a pay-at-stall order nobody collected. */
+public enum OrderStatus { PAYMENT_PENDING, PLACED, ACCEPTED, PREPARING, READY, COMPLETED, REJECTED, CANCELLED, EXPIRED, NO_SHOW }

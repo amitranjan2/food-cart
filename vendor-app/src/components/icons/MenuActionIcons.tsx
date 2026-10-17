@@ -5,6 +5,7 @@ const icons = {
   copy: require('../../../assets/menu/copy.png'),
   pause: require('../../../assets/menu/pause.png'),
   delete: require('../../../assets/menu/delete.png'),
+  add: require('../../../assets/menu/add.png'),
 } as const;
 
 type IconProps = {
@@ -19,6 +20,10 @@ function MenuIcon({ source, size = 18 }: { source: number; size?: number }) {
   );
 }
 
+export function AddIcon({ size = 18 }: IconProps) {
+  return <MenuIcon source={icons.add} size={size} />;
+}
+
 export function EditDishIcon({ size = 18 }: IconProps) {
   return <MenuIcon source={icons.edit} size={size} />;
 }
@@ -28,7 +33,7 @@ export function CopyDishIcon({ size = 18 }: IconProps) {
 }
 
 export function PauseDishIcon({ size = 18, color }: IconProps & { color?: string }) {
-  const paused = color === '#E53935';
+  const paused = !!color;
   return (
     <View style={[styles.box, { width: size, height: size }]}>
       <Image

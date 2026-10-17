@@ -1,99 +1,91 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors } from '../theme';
+import { StyleSheet, Text, View } from 'react-native';
+import { colors, radius, typography } from '../theme';
 import type { Order } from '../types';
-import { formatElapsed } from '../utils/format';
-import { formatOrderType, ORDER_LIST_ACTION, orderStatusStartedAt } from '../utils/orderStatus';
-import { StatusChip } from './StatusChip';
+import { Badge, Button, Card } from '../ui';
+import { formatElapsed, formatSlot, rupees } from '../utils/format';
+import { canMarkNoShow, formatOrderType, ORDER_BADGE, ORDER_LIST_ACTION, orderStatusStartedAt, paysAtStall } from '../utils/orderStatus';
 
 export function OrderCard({
   order,
   busy,
   now,
-  onPress,
+  highlighted,
   onAdvance,
   onReject,
+  onNoShow,
 }: {
   order: Order;
   busy?: boolean;
   now: number;
-  onPress: () => void;
+  /** Briefly outlined when the vendor arrives here from the new-order banner. */
+  highlighted?: boolean;
   onAdvance?: () => void;
   onReject?: () => void;
+  /** Pay-at-stall orders, 30 minutes after the pickup time. */
+  onNoShow?: () => void;
 }) {
+  const atStall = paysAtStall(order);
+  const noShow = onNoShow && canMarkNoShow(order, now);
   const action = ORDER_LIST_ACTION[order.status];
   const elapsed = formatElapsed(orderStatusStartedAt(order), now);
   const typeLabel = formatOrderType(order.type);
+  const slotLabel = formatSlot(order.scheduledFor, now);
+  const badge = ORDER_BADGE[order.status];
   const isNew = order.status === 'PLACED';
 
   return (
-    <Pressable onPress={onPress} style={styles.card}>
+    <Card style={[styles.card, highlighted ? styles.highlighted : null]}>
       <View style={styles.row}>
-        <Text style={styles.number}>#{order.orderNumber}</Text>
-        <StatusChip status={order.status} />
+        <Text style={typography.heading}>#{order.orderNumber}</Text>
+        <View style={styles.badges}>
+          {order.subscriptionId ? <Badge label="Weekly" /> : null}
+          <Badge label={badge.label} tone={badge.tone} />
+        </View>
       </View>
-      <View style={[styles.row, styles.customerRow]}>
-        <Text style={styles.customer} numberOfLines={1}>
-          {order.customerMobile || 'Customer'}
+      <View style={styles.row}>
+        <Text style={[typography.bodyStrong, styles.customer]} numberOfLines={1}>
+          {[order.customerName, order.customerMobile].filter(Boolean).join(' · ') || 'Customer'}
         </Text>
-        {typeLabel ? (
-          <View style={styles.type}>
-            <Text style={styles.typeLabel}>{typeLabel}</Text>
-          </View>
-        ) : null}
+        {typeLabel ? <Badge label={typeLabel} /> : null}
       </View>
+      {slotLabel ? <Text style={styles.slot}>For {slotLabel}</Text> : null}
       <View style={styles.items}>
         {order.items?.map((item, index) => (
           <Text key={`${item.menuItemId ?? 'line'}-${index}`} style={styles.item}>
-            {item.quantity}x {item.name}
+            {item.quantity}× {item.name}
             {item.portion ? ` (${portionLabel(item.portion)})` : ''}
+            {item.summary ? ` · ${item.summary}` : ''}
           </Text>
         ))}
       </View>
-      {isNew ? (
-        <View style={styles.actionsEnd}>
-          <Pressable
-            disabled={busy}
-            onPress={event => {
-              event.stopPropagation();
-              onReject?.();
-            }}
-            style={[styles.reject, busy ? styles.busy : null]}
-          >
-            <Text style={styles.rejectLabel}>Reject</Text>
-          </Pressable>
-          <Pressable
-            disabled={busy}
-            onPress={event => {
-              event.stopPropagation();
-              onAdvance?.();
-            }}
-            style={[styles.primary, busy ? styles.busy : null]}
-          >
-            <Text style={styles.primaryLabel}>{busy ? '…' : `Accept${elapsed ? `(${elapsed})` : ''}`}</Text>
-          </Pressable>
-        </View>
-      ) : action ? (
-        <View style={styles.actionsSpread}>
-          {elapsed ? (
-            <View style={styles.timer}>
+      {/* The stall's own prices; the customer also paid GST and platform charges, which aren't the stall's. */}
+      <View style={styles.row}>
+        <Text style={typography.heading} accessibilityLabel={`Item total ${rupees(order.subtotal ?? order.total)}`}>{rupees(order.subtotal ?? order.total)}</Text>
+        {/* Pay at the stall: the customer pays the full bill (items + GST) here; the GST part is ours (monthly statement). */}
+        {atStall && order.status !== 'REJECTED' && order.status !== 'CANCELLED' && order.status !== 'NO_SHOW' ? (
+          <Badge label={order.status === 'COMPLETED' ? `Collected ${rupees(order.total)}` : `Collect ${rupees(order.total)}`} tone={order.status === 'COMPLETED' ? 'success' : 'warning'} />
+        ) : !atStall ? (
+          <Badge label="Paid online" tone="success" />
+        ) : null}
+      </View>
+      {action ? (
+        <View style={styles.actions}>
+          {isNew ? (
+            <Button label="Reject" variant="secondary" size="sm" disabled={busy} onPress={onReject} />
+          ) : elapsed ? (
+            <View style={styles.timer} accessibilityLabel={`${elapsed} in this step`}>
               <Text style={styles.timerLabel}>{elapsed}</Text>
             </View>
           ) : (
             <View />
           )}
-          <Pressable
-            disabled={busy}
-            onPress={event => {
-              event.stopPropagation();
-              onAdvance?.();
-            }}
-            style={[styles.primary, busy ? styles.busy : null]}
-          >
-            <Text style={styles.primaryLabel}>{busy ? '…' : action}</Text>
-          </Pressable>
+          <View style={styles.buttons}>
+            {noShow ? <Button label="Didn't come" variant="quiet" size="sm" disabled={busy} onPress={onNoShow} /> : null}
+            <Button label={isNew && elapsed ? `${action} · ${elapsed}` : action} size="sm" busy={busy} onPress={onAdvance} />
+          </View>
         </View>
       ) : null}
-    </Pressable>
+    </Card>
   );
 }
 
@@ -103,16 +95,14 @@ function portionLabel(portion: string) {
 }
 
 const styles = StyleSheet.create({
+  badges: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   card: {
-    backgroundColor: colors.white,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    shadowColor: '#101828',
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+    gap: 8,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  highlighted: {
+    borderColor: colors.success,
   },
   row: {
     flexDirection: 'row',
@@ -120,90 +110,40 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  number: {
-    flex: 1,
-    color: '#1d2939',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  customerRow: {
-    marginTop: 12,
-  },
   customer: {
     flex: 1,
-    color: '#1d2939',
+  },
+  slot: {
+    ...typography.bodyStrong,
     fontSize: 15,
-    fontWeight: '700',
-  },
-  type: {
-    borderWidth: 1,
-    borderColor: '#E4E7EC',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  typeLabel: {
-    color: '#344054',
-    fontSize: 12,
-    fontWeight: '600',
   },
   items: {
-    marginTop: 8,
     gap: 2,
   },
   item: {
-    color: '#667085',
-    fontSize: 13,
-    lineHeight: 18,
+    ...typography.small,
   },
-  actionsEnd: {
-    marginTop: 14,
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 8,
-  },
-  actionsSpread: {
-    marginTop: 14,
+  actions: {
+    marginTop: 4,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 8,
+  },
+  buttons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   timer: {
-    backgroundColor: '#F2F4F7',
-    borderRadius: 8,
+    backgroundColor: colors.tint,
+    borderRadius: radius.sm,
     paddingHorizontal: 10,
-    paddingVertical: 8,
+    minHeight: 36,
+    justifyContent: 'center',
   },
   timerLabel: {
-    color: '#344054',
+    ...typography.bodyStrong,
     fontSize: 13,
-    fontWeight: '700',
-  },
-  primary: {
-    backgroundColor: '#243447',
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  primaryLabel: {
-    color: colors.white,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  reject: {
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: '#D0D5DD',
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-  },
-  rejectLabel: {
-    color: '#344054',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  busy: {
-    opacity: 0.6,
   },
 });

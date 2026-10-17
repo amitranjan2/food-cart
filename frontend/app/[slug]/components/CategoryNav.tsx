@@ -1,7 +1,7 @@
 'use client';
 
-import type { ReactNode } from 'react';
-import type { MenuCategory } from '../../lib/api';
+import { useState, type ReactNode } from 'react';
+import { API, type MenuCategory } from '../../lib/api';
 
 function glyph(name: string): ReactNode {
   const n = name.toLowerCase();
@@ -60,14 +60,35 @@ function glyph(name: string): ReactNode {
   );
 }
 
+/**
+ * Category art (served by the API under /category-art/) in the store's own dark colour, via ?ink=<hex>; the drawn glyph
+ * until there is one or if it fails to load.
+ */
+function ChipArt({ category, ink }: { category: MenuCategory; ink?: string }) {
+  const [broken, setBroken] = useState(false);
+  const color = ink && /^#?[0-9a-f]{6}$/i.test(ink) ? ink.replace('#', '') : '';
+  const src = category.imageUrl && (/^https?:\/\//i.test(category.imageUrl) ? category.imageUrl : API + category.imageUrl + (color ? '?ink=' + color : ''));
+  if (src && !broken) return <img className="cat-chip-art" src={src} alt="" onError={() => setBroken(true)} />;
+  return (
+    <svg viewBox="0 0 72 72" aria-hidden="true">
+      <circle cx="36" cy="36" r="33" fill="none" stroke="currentColor" strokeWidth="1.4" />
+      <circle cx="36" cy="36" r="27" fill="none" stroke="currentColor" strokeWidth="1.2" />
+      {glyph(category.name)}
+    </svg>
+  );
+}
+
 export function CategoryNav({
   categories,
   selectedId,
   onSelect,
+  ink,
 }: {
   categories: MenuCategory[];
   selectedId: string | null;
   onSelect: (categoryId: string) => void;
+  /** The store's dark theme colour, for the icons. */
+  ink?: string;
 }) {
   if (categories.length === 0) return null;
   return (
@@ -84,11 +105,7 @@ export function CategoryNav({
               onClick={() => onSelect(category.id)}
               className={'cat-chip' + (selected ? ' selected' : '')}
             >
-              <svg viewBox="0 0 72 72" aria-hidden="true">
-                <circle cx="36" cy="36" r="33" fill="none" stroke="currentColor" strokeWidth="1.4" />
-                <circle cx="36" cy="36" r="27" fill="none" stroke="currentColor" strokeWidth="1.2" />
-                {glyph(category.name)}
-              </svg>
+              <ChipArt category={category} ink={ink} />
               <span>{category.name}</span>
             </button>
           );

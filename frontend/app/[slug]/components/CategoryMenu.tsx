@@ -20,18 +20,30 @@ export function CategoryMenu({
   const [pastCategories, setPastCategories] = useState(false);
 
   useEffect(() => {
-    function check() {
-      const section = document.getElementById('store-categories');
-      const dock = document.querySelector('.store-search-dock');
+    const section = document.getElementById('store-categories');
+    const scroller = document.querySelector('.storefront');
+    const dock = document.querySelector('.store-search-dock');
+    if (!section || !scroller) return;
+
+    // An arrow function keeps the null check above; a hoisted function declaration loses it.
+    const update = () => {
       const top = dock ? dock.getBoundingClientRect().bottom : 0;
-      setPastCategories(!section || section.getBoundingClientRect().bottom <= top);
-    }
-    check();
-    window.addEventListener('scroll', check, { passive: true });
-    window.addEventListener('resize', check);
+      setPastCategories(section.getBoundingClientRect().bottom <= top + 8);
+    };
+
+    update();
+    const io = new IntersectionObserver(() => update(), {
+      root: scroller,
+      rootMargin: `-${Math.round(dock?.getBoundingClientRect().height ?? 0)}px 0px 0px 0px`,
+      threshold: [0, 0.01, 1],
+    });
+    io.observe(section);
+    scroller.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
     return () => {
-      window.removeEventListener('scroll', check);
-      window.removeEventListener('resize', check);
+      io.disconnect();
+      scroller.removeEventListener('scroll', update);
+      window.removeEventListener('resize', update);
     };
   }, [categories]);
 

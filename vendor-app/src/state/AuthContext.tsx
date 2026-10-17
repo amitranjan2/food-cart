@@ -10,6 +10,8 @@ type AuthState = {
   vendor: Vendor | null;
   restoring: boolean;
   login: (mobile: string, otp: string) => Promise<void>;
+  /** Signs in with a session the server already issued (Login with WhatsApp). */
+  loginWithToken: (token: string) => Promise<void>;
   logout: () => Promise<void>;
   setVendor: (vendor: Vendor) => void;
 };
@@ -70,9 +72,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [restore],
   );
 
+  const loginWithToken = useCallback(
+    async (session: string) => {
+      await storeToken(session);
+      await restore(session);
+    },
+    [restore],
+  );
+
   const value = useMemo(
-    () => ({ token, vendor, restoring, login, logout, setVendor }),
-    [token, vendor, restoring, login, logout],
+    () => ({ token, vendor, restoring, login, loginWithToken, logout, setVendor }),
+    [token, vendor, restoring, login, loginWithToken, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

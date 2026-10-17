@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
-import { getVendorOrders, patchOrderStatus } from '../api/orders';
+import { ordersForDay, pagerDayKey } from '../utils/orderDay';
+import { getVendorOrders, handOverOrder, patchOrderStatus } from '../api/orders';
 import { isAuthFailure } from '../api/client';
 import { useAuth } from '../state/AuthContext';
 import type { Order, OrderStatus } from '../types';
@@ -13,20 +14,24 @@ export function useOrders() {
   const [error, setError] = useState('');
 
   const refresh = useCallback(
-    async (silent = false) => {
+    /** quiet: background polling — no spinner, and a failed check keeps the current list instead of showing an error. */
+    async (silent = false, quiet = false) => {
       if (!token) return;
-      if (!silent) setLoading(true);
-      else setRefreshing(true);
-      setError('');
+      if (!quiet) {
+        if (!silent) setLoading(true);
+        else setRefreshing(true);
+        setError('');
+      }
       try {
         const next = await getVendorOrders(token);
         setOrders(next);
+        if (quiet) setError('');
       } catch (e) {
         if (isAuthFailure(e)) {
           await logout();
           return;
         }
-        setError(e instanceof Error ? e.message : 'Could not load orders');
+        if (!quiet) setError(e instanceof Error ? e.message : 'Could not load orders');
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -58,7 +63,17 @@ export function useOrders() {
     [token],
   );
 
-  return { orders, loading, refreshing, error, refresh, advanceStatus };
+  /** READY orders complete only through the customer's handover code. */
+  const handOver = useCallback(
+    async (order: Order, code: string) => {
+      if (!token) return;
+      await handOverOrder(token, order.id, code);
+      setOrders(await getVendorOrders(token));
+    },
+    [token],
+  );
+
+  return { orders, loading, refreshing, error, refresh, advanceStatus, handOver };
 }
 
 export function filterOrders(
@@ -68,16 +83,11 @@ export function filterOrders(
   query: string,
 ) {
   const needle = query.trim().toLowerCase();
-  return orders.filter(order => {
-    const created = order.createdAt ? new Date(order.createdAt) : new Date();
-    const sameDay =
-      created.getFullYear() === day.getFullYear() &&
-      created.getMonth() === day.getMonth() &&
-      created.getDate() === day.getDate();
-    if (!sameDay) return false;
+  // Orders belong to the day of their slot (an order placed tonight for tomorrow shows on tomorrow), earliest slot first.
+  return ordersForDay(orders, pagerDayKey(day)).filter(order => {
     if (status !== 'ALL' && order.status !== status) return false;
     if (!needle) return true;
-    const haystack = `${order.orderNumber} ${order.customerMobile ?? ''} ${order.items.map(item => item.name).join(' ')}`.toLowerCase();
+    const haystack = `${order.orderNumber} ${order.customerName ?? ''} ${order.customerMobile ?? ''} ${order.items.map(item => item.name).join(' ')}`.toLowerCase();
     return haystack.includes(needle);
   });
 }

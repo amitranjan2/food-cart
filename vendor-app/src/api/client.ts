@@ -2,9 +2,12 @@ import { Platform } from 'react-native';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8080';
 
+/** The web build's API address, set at build time (Vercel: https://api.suprmama.in). Unset: same origin as the page, as with the local proxy. */
+const WEB_API_URL = process.env.EXPO_PUBLIC_WEB_API_URL;
+
 export function getApiUrl() {
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
-    return window.location.origin;
+    return WEB_API_URL || window.location.origin;
   }
   return BACKEND_URL;
 }
@@ -58,7 +61,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   try {
     response = await fetch(`${getApiUrl()}${path}`, { ...rest, headers, body: payload });
   } catch {
-    throw new ApiError('Cannot reach the FoodCart API. Confirm the backend is running on port 8080.', 0);
+    throw new ApiError('Cannot reach the Supr-Mama API. Confirm the backend is running on port 8080.', 0);
   }
 
   const text = await response.text();

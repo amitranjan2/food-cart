@@ -26,7 +26,6 @@ const styles = StyleSheet.create({
     width: 44,
     height: 26,
     borderRadius: 30,
-    backgroundColor: '#D0D5DD',
     padding: 3,
     justifyContent: 'center',
   },
@@ -34,15 +33,15 @@ const styles = StyleSheet.create({
     height: 20,
     width: 20,
     borderRadius: 10,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
   },
   knobOn: {
     alignSelf: 'flex-end',
   },
   trackOn: {
-    backgroundColor: '#34C759',
+    backgroundColor: colors.success,
   },
   trackOff: {
-    backgroundColor: '#E53935',
+    backgroundColor: colors.danger,
   },
 });

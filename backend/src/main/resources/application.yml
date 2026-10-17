@@ -1,7 +1,64 @@
 spring:
   application.name: foodcart-api
-  data.mongodb.uri: ${MONGODB_URI:mongodb://localhost:27017/foodcart}
+  data.mongodb:
+    uri: ${MONGODB_URI:mongodb://localhost:27017/foodcart}
+    auto-index-creation: true
+  servlet.multipart:
+    max-file-size: 5MB
+    max-request-size: 6MB
 server.port: ${PORT:8080}
 app:
-  cors-origin: ${CORS_ORIGIN:http://localhost:3000}
-  development-otp: ${DEVELOPMENT_OTP:123456}
+  # Browser origins allowed to call the API, comma-separated (storefront and vendor web app).
+  cors-origin: ${CORS_ORIGIN:https://suprmama.in}
+  # Absolute address of this API, used to build image URLs (e.g. https://api.suprmama.in).
+  public-base-url: ${PUBLIC_BASE_URL:http://localhost:8080}
+  upload-dir: ${UPLOAD_DIR:uploads}
+  # Where customers open stores: {store-url}/{slug}. Used for share links and QR codes.
+  store-url: ${PUBLIC_STORE_URL:https://suprmama.in}
+  # The customer's bill (BillRules). GST on food is paid by us as the e-commerce operator (CGST Act s.9(5)).
+  pricing:
+    food-gst-percent: ${FOOD_GST_PERCENT:5}
+    # Covers online payment charges; a percentage of (items + GST on food).
+    platform-fee-percent: ${PLATFORM_FEE_PERCENT:2.5}
+    platform-fee-gst-percent: ${PLATFORM_FEE_GST_PERCENT:18}
+  # What stalls pay us (tracker S4.24), before GST. Billing is off until BILLING_START (yyyy-MM-dd) is set.
+  billing:
+    daily: ${BILLING_DAILY:100}
+    monthly: ${BILLING_MONTHLY:2500}
+    yearly: ${BILLING_YEARLY:25000}
+    gst-percent: ${BILLING_GST_PERCENT:18}
+    start: ${BILLING_START:}
+    # The team's own numbers: their test orders never make a charged day.
+    test-mobiles: ${BILLING_TEST_MOBILES:}
+    # Where vendors pay invoices until payouts exist.
+    pay-to-upi: ${BILLING_PAY_TO_UPI:}
+    # SAC code for the plan charges, printed on each invoice (ask the CA, tracker N6).
+    sac: ${BILLING_SAC:}
+  # The company that issues our tax invoices. Not secret: it is printed on every invoice. Keep in step with
+  # frontend/app/lib/legal.ts.
+  seller:
+    name: ${SELLER_NAME:Crestway Properties Private Limited}
+    address: ${SELLER_ADDRESS:C/O Manju Devi, Ganesh Colony, Narnaul, Haryana 123001}
+    gstin: ${SELLER_GSTIN:06AAMCC1614M1ZL}
+  # Login-code limits (tracker S4.8). Per number per hour: see OtpRules.
+  otp:
+    # WhatsApp codes sent per India day across all numbers; past it, login is refused until midnight.
+    daily-send-cap: ${OTP_DAILY_SEND_CAP:1000}
+    # Wrong codes one number may enter per day before its logins stop until midnight.
+    daily-wrong-codes-per-number: ${OTP_DAILY_WRONG_CODES:15}
+  auth-limits:
+    # Per IP address in each 10 minutes. Mobile networks share addresses, so keep these generous.
+    request-otp-per-ip: ${AUTH_REQUEST_OTP_PER_IP:30}
+    verify-otp-per-ip: ${AUTH_VERIFY_OTP_PER_IP:60}
+  # true only behind a load balancer that sets X-Forwarded-For; otherwise clients could fake their address.
+  trust-proxy: ${TRUST_PROXY:false}
+  # Icons for new categories (tracker S2.20): drawn by Claude when ANTHROPIC_API_KEY is set; otherwise the generic plate stays.
+  category-art:
+    model: ${CATEGORY_ART_MODEL:claude-opus-5-5}
+    # Drawings per rolling day, so a burst of new categories can't run up the bill.
+    daily-cap: ${CATEGORY_ART_DAILY_CAP:30}
+  # Which payment gateway is active: "fake" (local profile only), "none" (pay at the stall only, the launch setting),
+  # later "cashfree" or "razorpay".
+  payments.gateway: ${PAYMENT_GATEWAY:fake}
+  # Pay at the stall when collecting (tracker S2.19).
+  payments.cash: ${PAYMENT_CASH:true}

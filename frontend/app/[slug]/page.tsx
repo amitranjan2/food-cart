@@ -1,40 +1,106 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { request, type MenuCategory, type MenuItem, type PublicMenu, type Vendor } from '../lib/api';
 import { CartBar } from './components/CartBar';
-import { Cart } from './components/Cart';
+import { LiveOrders, LIVE_BAR_LIMIT, LIVE_BAR_SPACE } from './components/LiveOrders';
+import { useLiveOrders } from '../lib/liveOrders';
+import { Cart, type OrderType } from './components/Cart';
 import { CategoryMenu } from './components/CategoryMenu';
 import { CategoryNav } from './components/CategoryNav';
 import { ItemCustomizer } from './components/ItemCustomizer';
 import { Menu } from './components/Menu';
-import { OrderConfirmation, type PlacedOrder } from './components/OrderConfirmation';
-import { StoreHeader } from './components/StoreHeader';
+import { useRouter } from 'next/navigation';
+import { storedSession, storeSession } from '../lib/session';
+import { saveVendor, syncSavedVendors } from '../lib/savedVendors';
+import type { CustomerOrder, OrderView } from '../lib/orders';
+import { TestCheckout } from './components/TestCheckout';
+import { openCheckout, type CheckoutOutcome, type StartedPayment } from '../lib/payments';
+import { StoreHeader, StoreSearch } from './components/StoreHeader';
 import { VendorInfo } from './components/VendorInfo';
-import { type StoredConfiguration } from './lib/customization';
+import {
+  autoSelection,
+  configurationFrom,
+  customizationFor,
+  needsCustomization,
+  type StoredConfiguration,
+} from './lib/customization';
 import { linkItemsToCategories } from './lib/menuLinks';
+import { addLine, lastLineOf, linesOf, quantitiesByItem, setLineQuantity, type CartEntry } from './lib/cartLines';
+import { RepeatPrompt } from './components/RepeatPrompt';
+import { PolicyFooter } from '../components/LegalPage';
+import { LEGAL } from '../lib/legal';
+import { applyTheme, themeStyle } from '../lib/theme';
+import { billOf, type PaymentMethod } from '../lib/bill';
+import { usePricing } from '../lib/useRates';
+import { useOtpDelivery } from '../lib/otpDelivery';
+import { useLoginMethods, useWhatsAppLogin, type WaLoginStart } from '../lib/whatsappLogin';
+
+/** Most dishes shown in the cart's "You may also like" row. */
+const SUGGESTION_LIMIT = 12;
 
 export default function Store({ params }: { params: { slug: string } }) {
   const [vendor, setVendor] = useState<Vendor>();
+  const [missing, setMissing] = useState(false);
+  const pricing = usePricing();
+  const [chosenMethod, setChosenMethod] = useState<PaymentMethod>('ONLINE');
+  // Online when it's offered and chosen; otherwise pay at the stall (the launch setting).
+  const method: PaymentMethod = pricing.methods.includes(chosenMethod) ? chosenMethod : pricing.methods[0];
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [items, setItems] = useState<MenuItem[]>([]);
-  const [cart, setCart] = useState<Record<string, number>>({});
-  const [configs, setConfigs] = useState<Record<string, StoredConfiguration>>({});
+  const [lines, setLines] = useState<CartEntry[]>([]);
+  /** Dish whose "Repeat last / Choose again" prompt is open. */
+  const [repeatId, setRepeatId] = useState<string | null>(null);
   const [customizingId, setCustomizingId] = useState<string | null>(null);
   const [closingCustomizer, setClosingCustomizer] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout>>();
   const [open, setOpen] = useState(false);
+  const [slots, setSlots] = useState<{ open?: boolean; hoursSet: boolean; slots: string[]; week?: Record<string, string[]> } | null>(null);
   const [mobile, setMobile] = useState('');
   const [otp, setOtp] = useState('');
-  const [order, setOrder] = useState<PlacedOrder>();
+  /** Reference to the last code sent, to ask whether WhatsApp delivered it; cleared once verified or the number changes. */
+  const [otpRef, setOtpRef] = useState('');
+  /** Set once the customer submits a correct OTP; Pay uses it. */
+  const [customerToken, setCustomerToken] = useState('');
+  const [customerName, setCustomerName] = useState('');
+  /** Dishes this customer ordered here before (newest first); empty when signed out or on a first visit. */
+  const [orderAgainIds, setOrderAgainIds] = useState<string[]>([]);
+  const [testCheckout, setTestCheckout] = useState<{ amount: number; resolve: (outcome: CheckoutOutcome) => void } | null>(null);
+  const liveOrders = useLiveOrders(customerToken);
+  const otpDelivery = useOtpDelivery(customerToken ? '' : otpRef);
+  const loginMethods = useLoginMethods();
+  /** A started "Login with WhatsApp", until it signs in or the number changes. */
+  const [waStart, setWaStart] = useState<WaLoginStart | null>(null);
+  const waState = useWhatsAppLogin(customerToken ? null : waStart, token => {
+    setWaStart(null);
+    signedIn(token).catch(() => setPayError('Signed in, but your details could not be loaded. Please refresh.'));
+  });
+  const homeScroll = useRef(0);
+  const router = useRouter();
   const [query, setQuery] = useState('');
+  const [paying, setPaying] = useState(false);
+  const [payError, setPayError] = useState('');
+  const [chromeHeight, setChromeHeight] = useState(130);
+  const menuScroll = useRef(0);
+  const restoreScroll = useRef(false);
+
+  function captureScroll() {
+    const scroller = document.querySelector('.storefront');
+    if (!scroller) return;
+    menuScroll.current = scroller.scrollTop;
+  }
 
   useEffect(() => {
     let active = true;
-    request<Vendor>('/api/public/vendors/' + params.slug).then(next => {
-      if (active) setVendor(next);
-    });
+    setMissing(false);
+    request<Vendor>('/api/public/vendors/' + params.slug)
+      .then(next => {
+        if (!active) return;
+        setVendor(next);
+        applyTheme(next.theme);
+      })
+      .catch(() => active && setMissing(true));
     request<PublicMenu>('/api/public/vendors/' + params.slug + '/menu').then(menu => {
       if (!active) return;
       const nextCategories = menu.categories ?? [];
@@ -49,15 +115,181 @@ export default function Store({ params }: { params: { slug: string } }) {
 
   useEffect(() => () => clearTimeout(closeTimer.current), []);
 
+  useEffect(() => {
+    if (!vendor) return;
+    const scroller = document.querySelector('.storefront');
+    if (!scroller) return;
+    const keep = () => {
+      if (!restoreScroll.current || scroller.scrollTop === menuScroll.current) return;
+      scroller.scrollTop = menuScroll.current;
+    };
+    scroller.addEventListener('scroll', keep);
+    return () => scroller.removeEventListener('scroll', keep);
+  }, [vendor]);
+
+  useLayoutEffect(() => {
+    if (!restoreScroll.current) return;
+    const scroller = document.querySelector('.storefront');
+    if (scroller) scroller.scrollTop = menuScroll.current;
+    if (customizingId) return;
+    const timer = window.setTimeout(() => {
+      if (scroller) scroller.scrollTop = menuScroll.current;
+      restoreScroll.current = false;
+    }, 80);
+    return () => clearTimeout(timer);
+  }, [customizingId]);
+
+  useEffect(() => {
+    if (open) return;
+    const header = document.querySelector<HTMLElement>('.storefront .store-header-top');
+    const search = document.querySelector<HTMLElement>('.storefront .store-search-dock');
+    if (!header || !search) return;
+    const update = () => {
+      const next = header.offsetHeight + search.offsetHeight;
+      if (next > 0) setChromeHeight(next);
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(header);
+    observer.observe(search);
+    return () => observer.disconnect();
+  }, [open, vendor]);
+
   const linked = useMemo(() => linkItemsToCategories(categories, items), [categories, items]);
   const customizing = linked.find(item => item.id === customizingId) ?? null;
 
+  // The cart and the menu share one scroller: open the cart at its top, and return to the same spot in the menu.
+  useLayoutEffect(() => {
+    const scroller = document.querySelector('.storefront');
+    if (scroller) scroller.scrollTop = open ? 0 : homeScroll.current;
+  }, [open]);
+
+  function openCart() {
+    homeScroll.current = document.querySelector('.storefront')?.scrollTop ?? 0;
+    setOpen(true);
+  }
+
+  // Opening a storefront (QR scan or link) saves the vendor for this customer's home page.
+  useEffect(() => {
+    saveVendor(params.slug, storedSession() || undefined);
+  }, [params.slug]);
+
+  // A returning customer is recognised without a new OTP; an expired or revoked session is forgotten.
+  useEffect(() => {
+    const token = storedSession();
+    if (!token) return;
+    request<{ mobile: string; name: string | null }>('/api/customers/me', {}, token)
+      .then(profile => {
+        setMobile(profile.mobile);
+        setCustomerName(profile.name ?? '');
+        setCustomerToken(token);
+      })
+      .catch(() => storeSession(''));
+  }, []);
+
+  function changeMobile(next: string) {
+    setMobile(next);
+    setOtpRef('');
+    setWaStart(null);
+    setCustomerToken('');
+    setCustomerName('');
+    storeSession('');
+  }
+
+  /** "Not you?": ends the session on the server too, so the old token stops working. */
+  function signOut() {
+    if (customerToken) request('/api/auth/logout', { method: 'POST' }, customerToken).catch(() => {});
+    storeSession('');
+    setCustomerToken('');
+    setCustomerName('');
+    setMobile('');
+    setOtp('');
+    setWaStart(null);
+  }
+
+  async function verifyOtp() {
+    const session = await request<{ token: string }>('/api/auth/customer/verify-otp', {
+      method: 'POST',
+      body: JSON.stringify({ mobile, otp }),
+    });
+    await signedIn(session.token);
+  }
+
+  /** After a code or a WhatsApp login: keep the session. Returning customers already have a name and skip that step. */
+  async function signedIn(token: string) {
+    const profile = await request<{ mobile: string; name: string | null }>('/api/customers/me', {}, token);
+    setCustomerName(profile.name ?? '');
+    setCustomerToken(token);
+    storeSession(token);
+    syncSavedVendors(token);
+  }
+
+  async function startWhatsApp() {
+    setWaStart(null);
+    setWaStart(await request<WaLoginStart>('/api/auth/customer/wa-login', { method: 'POST', body: JSON.stringify({ mobile }) }));
+  }
+
+  async function saveName(name: string) {
+    const profile = await request<{ name: string | null }>('/api/customers/me', {
+      method: 'PATCH',
+      body: JSON.stringify({ name }),
+    }, customerToken);
+    setCustomerName(profile.name ?? '');
+  }
+
+  useEffect(() => {
+    if (!customerToken) {
+      setOrderAgainIds([]);
+      return;
+    }
+    let active = true;
+    request<{ itemIds: string[] }>('/api/customers/me/vendors/' + params.slug + '/order-again', {}, customerToken)
+      .then(result => active && setOrderAgainIds(result.itemIds ?? []))
+      .catch(() => active && setOrderAgainIds([]));
+    return () => {
+      active = false;
+    };
+  }, [customerToken, params.slug]);
+
+  // Slots move every half hour, so fetch them each time the cart opens.
+  useEffect(() => {
+    if (!open) return;
+    loadSlots();
+  }, [open, params.slug]);
+
+  function loadSlots() {
+    request<{ open?: boolean; hoursSet: boolean; slots: string[]; week?: Record<string, string[]> }>('/api/public/vendors/' + params.slug + '/slots')
+      .then(setSlots)
+      .catch(() => setSlots({ hoursSet: true, slots: [] }));
+  }
+
+  if (missing) {
+    return (
+      <main className="storefront store-missing">
+        <h1>No store at this link</h1>
+        <p>Check the link, or scan the QR code at the stall again.</p>
+        <a href="/">Go to your stalls</a>
+      </main>
+    );
+  }
   if (!vendor) return <main className="storefront"><p className="store-loading">Loading…</p></main>;
   const store = vendor;
 
-  const chosen = linked.filter(item => cart[item.id]);
-  const total = chosen.reduce((sum, item) => sum + (configs[item.id]?.unitPrice ?? item.price) * cart[item.id], 0);
-  const suggestions = linked.filter(item => item.available && !cart[item.id]);
+  const cart = quantitiesByItem(lines);
+  const chosen = lines.flatMap(line => {
+    const item = linked.find(entry => entry.id === line.itemId);
+    return item ? [{ line, item }] : [];
+  });
+  const total = chosen.reduce((sum, { line }) => sum + line.config.unitPrice * line.quantity, 0);
+  // What the customer pays: items + GST (+ platform charges when paying online) (lib/bill.ts, same sums as the API).
+  const bill = billOf(total, pricing.byMethod[method]);
+  // A weekly order is always paid at the stall, whatever else is offered.
+  const weeklyTotal = billOf(total, pricing.byMethod.CASH).total;
+  // Cheapest first across the whole menu (not grouped by category): easy add-ons at the front. Capped so it stays a nudge.
+  const suggestions = linked
+    .filter(item => item.available && !cart[item.id])
+    .sort((a, b) => a.price - b.price || a.name.localeCompare(b.name))
+    .slice(0, SUGGESTION_LIMIT);
   const needle = query.trim().toLowerCase();
   const shown = needle
     ? linked.filter(item => item.name.toLowerCase().includes(needle) || (item.description ?? '').toLowerCase().includes(needle))
@@ -69,32 +301,43 @@ export default function Store({ params }: { params: { slug: string } }) {
     return counts;
   }, {});
 
+  /** + / − on a menu card, which shows the dish's total across its cart lines. */
   function changeQuantity(item: MenuItem, next: number) {
-    setCart(current => {
-      const updated = { ...current };
-      if (next < 1) delete updated[item.id];
-      else updated[item.id] = next;
-      return updated;
-    });
-    if (next < 1) {
-      setConfigs(current => {
-        const updated = { ...current };
-        delete updated[item.id];
-        return updated;
-      });
+    const own = linesOf(lines, item.id);
+    const current = own.reduce((sum, line) => sum + line.quantity, 0);
+    if (next > current) {
+      if (own.length === 0) addItem(item);
+      // A dish with choices asks whether to repeat the last one or pick again (a new line).
+      else if (needsCustomization(customizationFor(item))) setRepeatId(item.id);
+      else setLines(all => setLineQuantity(all, own[0].key, own[0].quantity + 1));
+      return;
     }
+    if (own.length === 1) setLines(all => setLineQuantity(all, own[0].key, next));
+    // Several versions in the cart: the card can't tell which one to remove, so show them in the cart.
+    else if (own.length > 1) openCart();
   }
 
   function addConfigured(item: MenuItem, configuration: StoredConfiguration) {
-    setCart(current => ({ ...current, [item.id]: (current[item.id] ?? 0) + 1 }));
-    setConfigs(current => ({ ...current, [item.id]: configuration }));
-    closeCustomizer();
+    setLines(all => addLine(all, item.id, configuration));
+    if (customizingId) closeCustomizer();
   }
 
   function openCustomizer(id: string) {
+    captureScroll();
+    restoreScroll.current = true;
     clearTimeout(closeTimer.current);
     setClosingCustomizer(false);
     setCustomizingId(id);
+  }
+
+  function addItem(item: MenuItem) {
+    captureScroll();
+    const spec = customizationFor(item);
+    if (!needsCustomization(spec)) {
+      addConfigured(item, configurationFrom(item, spec, autoSelection(spec)));
+      return;
+    }
+    openCustomizer(item.id);
   }
 
   // Keeps the sheet mounted until the slide-down animation in globals.css finishes.
@@ -116,105 +359,222 @@ export default function Store({ params }: { params: { slug: string } }) {
     document.getElementById('menu-category-' + id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  // Checkout stays unwired until OTP and payment exist.
-  async function place() {
-    const session = await request<{ token: string }>('/api/auth/customer/verify-otp', {
+  async function sendOtp() {
+    setOtpRef('');
+    const sent = await request<{ sent: boolean; ref?: string }>('/api/auth/customer/request-otp', {
       method: 'POST',
-      body: JSON.stringify({ mobile, otp }),
+      body: JSON.stringify({ mobile }),
     });
-    const placed = await request<PlacedOrder>('/api/orders', {
-      method: 'POST',
-      body: JSON.stringify({
-        vendorId: store.id,
-        type: 'PICKUP',
-        items: chosen.map(item => {
-          // Orders only accept catalog HALF/FULL prices. Add-on and Large
-          // amounts stay on the cart until the order API grows modifiers.
-          const half = configs[item.id]?.sizeId === 'half' && item.halfPrice != null && item.halfAvailable !== false;
-          return {
-            menuItemId: item.id,
-            quantity: cart[item.id],
-            portion: half ? 'HALF' : 'FULL',
-            displayedPrice: half ? item.halfPrice : item.price,
-          };
-        }),
-      }),
-    }, session.token);
-    setOrder(placed);
+    setOtpRef(sent.ref ?? '');
   }
 
-  if (order) return <OrderConfirmation vendor={store} order={order} />;
+  async function waitForPayment(orderId: string) {
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const current = (await request<OrderView>('/api/orders/' + orderId, {}, customerToken)).order;
+      if (current.status === 'PLACED') return current;
+      if (current.status !== 'PAYMENT_PENDING') throw new Error('This payment could not be used for the order. Any amount taken will be refunded.');
+      await new Promise(done => setTimeout(done, 1000));
+    }
+    throw new Error('We are still confirming your payment. Check your orders in a minute before paying again.');
+  }
 
-  const cartOpen = open && !customizing;
+  async function place(type: OrderType, slot: string) {
+    setPaying(true);
+    setPayError('');
+    try {
+      const created = await request<{ order: CustomerOrder; payment: StartedPayment | null }>('/api/orders', {
+        method: 'POST',
+        body: JSON.stringify({
+          vendorId: store.id,
+          type,
+          slot,
+          displayedTotal: bill.total,
+          paymentMethod: method,
+          items: chosen.map(({ line, item }) => ({
+            menuItemId: item.id,
+            quantity: line.quantity,
+            portion: line.config.portion,
+            sizeId: line.config.sizeId,
+            options: line.config.options,
+            displayedPrice: line.config.unitPrice,
+          })),
+        }),
+      }, customerToken);
+      // Pay at the stall: placed already, nothing to pay now.
+      if (!created.payment) {
+        router.push(`/${params.slug}/order/${created.order.id}`);
+        return;
+      }
+      const outcome = await openCheckout(created.payment, () => new Promise(resolve => setTestCheckout({ amount: created.order.total, resolve })));
+      setTestCheckout(null);
+      if (outcome === 'closed') throw new Error('Payment was not completed. Nothing was charged.');
+      if (outcome === 'failure') throw new Error('Payment failed. Nothing was charged; please try again.');
+      // The gateway's webhook confirms the payment on the server; wait for it rather than trusting the browser.
+      const placed = await waitForPayment(created.order.id);
+      router.push(`/${params.slug}/order/${placed.id}`);
+    } catch (error) {
+      setPayError(error instanceof Error ? error.message : 'Could not place the order.');
+      // The chosen slot may have just expired; show the current ones.
+      loadSlots();
+    } finally {
+      setTestCheckout(null);
+      setPaying(false);
+    }
+  }
+
+
+  /** Starts a weekly order; the stall's first one is placed 12 hours before the first pick-up (S2.21). */
+  async function subscribe(type: OrderType, days: string[], time: string) {
+    setPaying(true);
+    setPayError('');
+    try {
+      await request('/api/subscriptions', {
+        method: 'POST',
+        body: JSON.stringify({
+          vendorId: store.id,
+          type,
+          days,
+          time,
+          displayedTotal: weeklyTotal,
+          items: chosen.map(({ line, item }) => ({
+            menuItemId: item.id,
+            quantity: line.quantity,
+            portion: line.config.portion,
+            sizeId: line.config.sizeId,
+            options: line.config.options,
+            displayedPrice: line.config.unitPrice,
+          })),
+        }),
+      }, customerToken);
+      router.push('/weekly?new=1');
+    } catch (error) {
+      setPayError(error instanceof Error ? error.message : 'Could not start the weekly order.');
+    } finally {
+      setPaying(false);
+    }
+  }
+
+  const repeatItem = repeatId ? linked.find(item => item.id === repeatId) : undefined;
+  const repeatLast = repeatId ? lastLineOf(lines, repeatId) : undefined;
+  const repeatSheet = repeatItem && repeatLast && (
+    <RepeatPrompt
+      item={repeatItem}
+      last={repeatLast.config}
+      onRepeat={() => {
+        setLines(all => setLineQuantity(all, repeatLast.key, repeatLast.quantity + 1));
+        setRepeatId(null);
+      }}
+      onChooseAgain={() => {
+        setRepeatId(null);
+        openCustomizer(repeatItem.id);
+      }}
+      onClose={() => setRepeatId(null)}
+    />
+  );
+
+  const paymentSheet = testCheckout && (
+    <TestCheckout amount={testCheckout.amount} onChoose={outcome => testCheckout.resolve(outcome)} />
+  );
+
+  const sheet = customizing && (
+    <ItemCustomizer
+      item={customizing}
+      inset={chromeHeight}
+      onClose={closeCustomizer}
+      onAdd={configuration => addConfigured(customizing, configuration)}
+    />
+  );
+
+  // Bars for orders in progress, shown on the menu only (not in the cart, which is for placing one).
+  const liveBars = !open && !customizing ? Math.min(liveOrders.length, LIVE_BAR_LIMIT) : 0;
+  const underlay = customizing ? 'customizer-underlay' : undefined;
 
   return (
-    <main className={'storefront' + (customizing ? ' customizing' : '') + (customizing && closingCustomizer ? ' closing' : '') + (cartOpen ? ' cart-open' : '')}>
-      {open && (
-        <div className={customizing ? 'cart-parked' : undefined}>
+    <main className={'storefront' + (customizing ? ' customizing' : '') + (customizing && closingCustomizer ? ' closing' : '') + (open ? ' cart-open' : '')} style={{ ...themeStyle(store), '--live-extra': liveBars ? liveBars * LIVE_BAR_SPACE + 'px' : '0px' } as React.CSSProperties}>
+      {open ? (
+        <div className={underlay} aria-hidden={customizing ? true : undefined}>
           <Cart
-            lines={chosen.map(item => ({
+            lines={chosen.map(({ line, item }) => ({
+              key: line.key,
               item,
-              quantity: cart[item.id],
-              unitPrice: configs[item.id]?.unitPrice ?? item.price,
-              summary: configs[item.id]?.summary,
+              quantity: line.quantity,
+              unitPrice: line.config.unitPrice,
+              summary: line.config.summary,
             }))}
             suggestions={suggestions}
             quantities={cart}
             total={total}
+            bill={bill}
+            methods={pricing.methods}
+            method={method}
+            onMethod={setChosenMethod}
+            slots={slots?.slots ?? null}
+            hoursSet={slots?.hoursSet ?? true}
+            week={slots?.week ?? {}}
+            weeklyTotal={weeklyTotal}
+            storeOpen={slots?.open ?? store.status === 'OPEN'}
             mobile={mobile}
             otp={otp}
+            otpDelivery={otpDelivery}
+            loginMethods={loginMethods}
+            waLogin={waStart ? { start: waStart, state: waState } : null}
+            onStartWhatsApp={startWhatsApp}
+            onCancelWhatsApp={() => setWaStart(null)}
             fallbackImage={store.coverImageUrl}
             onBack={() => setOpen(false)}
             onQuantity={changeQuantity}
-            onAdd={item => openCustomizer(item.id)}
-            onMobileChange={setMobile}
+            onLineQuantity={(key, next) => setLines(all => setLineQuantity(all, key, next))}
+            onAdd={addItem}
+            onMobileChange={changeMobile}
             onOtpChange={setOtp}
+            onSendOtp={sendOtp}
+            onVerifyOtp={verifyOtp}
+            verified={customerToken !== ''}
+            customerName={customerName}
+            onSaveName={saveName}
+            onSignOut={signOut}
+            onPay={place}
+            onSubscribe={subscribe}
+            paying={paying}
+            payError={payError}
           />
         </div>
-      )}
-      {(!open || customizing) && (
-      <>
-      <StoreHeader
-        query={query}
-        onQueryChange={setQuery}
-        onClose={customizing ? closeCustomizer : undefined}
-      >
+      ) : (
+      <div className={underlay} aria-hidden={customizing ? true : undefined}>
+      <StoreHeader slug={store.slug} status={store.status} lat={store.lat} lng={store.lng}>
         <VendorInfo vendor={store} />
       </StoreHeader>
+      <StoreSearch query={query} onQueryChange={setQuery} />
       <div className="store-body">
-        {customizing && (
-          <button type="button" className="customizer-close" onClick={closeCustomizer} aria-label="Close customization">
-            <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-              <path d="M3 3l8 8M11 3 3 11" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-            </svg>
-          </button>
-        )}
-        <div className={customizing ? 'menu-underlay' : undefined} aria-hidden={customizing ? true : undefined}>
-          <Menu
-            items={shown}
-            categories={categories}
-            quantities={cart}
-            onAdd={item => openCustomizer(item.id)}
-            onQuantity={changeQuantity}
-            searching={needle.length > 0}
-            fallbackImage={store.coverImageUrl}
-            nav={<CategoryNav categories={shownCategories} selectedId={categoryId} onSelect={selectCategory} />}
-          />
-        </div>
-        {customizing && (
-          <ItemCustomizer
-            item={customizing}
-            fallbackImage={store.coverImageUrl}
-            onClose={closeCustomizer}
-            onAdd={configuration => addConfigured(customizing, configuration)}
-          />
-        )}
+        {store.status === 'CLOSED' ? (
+          <p className="store-closed" role="status">
+            <strong>Not taking orders right now.</strong> You can still look at the menu; check back when the stall opens.
+          </p>
+        ) : null}
+        <Menu
+          items={shown}
+          orderAgain={orderAgainIds.map(id => items.find(item => item.id === id)).filter((item): item is MenuItem => item !== undefined)}
+          categories={categories}
+          quantities={cart}
+          onAdd={addItem}
+          onQuantity={changeQuantity}
+          searching={needle.length > 0}
+          fallbackImage={store.coverImageUrl}
+          nav={<CategoryNav categories={shownCategories} selectedId={categoryId} onSelect={selectCategory} ink={store.theme?.dark} />}
+        />
+        {/* FSSAI's e-commerce rules: the platform shows each listed food business's licence number (tracker S4.21). */}
+        <section className="store-legal" aria-label="About this stall">
+          <p><b>{store.name}</b>{store.address ? `, ${store.address}` : ''}</p>
+          {store.fssai ? <p>FSSAI Lic. No. {store.fssai}</p> : null}
+          <p>The stall prepares and sells the food. Ordering through {LEGAL.brand}.</p>
+        </section>
+        <PolicyFooter />
       </div>
       {!customizing && chosen.length > 0 && (
         <CartBar
-          itemCount={chosen.reduce((sum, item) => sum + cart[item.id], 0)}
+          itemCount={chosen.reduce((sum, { line }) => sum + line.quantity, 0)}
           total={total}
-          onOpen={() => setOpen(true)}
+          onOpen={openCart}
         />
       )}
       {!customizing && (
@@ -226,8 +586,12 @@ export default function Store({ params }: { params: { slug: string } }) {
           onSelect={selectCategory}
         />
       )}
-      </>
+      </div>
       )}
+      {!open && !customizing && <LiveOrders orders={liveOrders} raised={chosen.length > 0} />}
+      {sheet}
+      {repeatSheet}
+      {paymentSheet}
     </main>
   );
 }

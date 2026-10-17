@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { AppState, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -10,31 +10,45 @@ import { EmptyState } from '../../components/EmptyState';
 import { ErrorState } from '../../components/ErrorState';
 import { Header } from '../../components/Header';
 import { LoadingState } from '../../components/LoadingState';
+import { HandoverSheet } from '../../components/HandoverSheet';
 import { OrderCard } from '../../components/OrderCard';
 import { Screen } from '../../components/Screen';
+import { ShareStoreSheet } from '../../components/ShareStoreSheet';
 import { MenuPanel } from '../Menu/MenuPanel';
+import { SetupPanel } from '../Onboarding/SetupPanel';
 import { StoreSwitch } from '../../components/StoreSwitch';
 import { filterOrders, useOrders } from '../../hooks/useOrders';
+import { useNewOrderAlert } from '../../hooks/useNewOrderAlert';
 import { patchVendorStatus } from '../../api/vendor';
 import { isAuthFailure } from '../../api/client';
 import { useAuth } from '../../state/AuthContext';
-import { spacing } from '../../theme';
-import type { OrderStatus } from '../../types';
-import { formatDayTitle } from '../../utils/format';
+import { colors, spacing } from '../../theme';
+import { ConfirmDialog, PageHeading } from '../../ui';
+import { paysAtStall } from '../../utils/orderStatus';
+import type { Order, OrderStatus } from '../../types';
+import { formatDayTitle, formatSlot } from '../../utils/format';
+import { futureOrderCount, indiaDay, orderDayKey, pagerDayKey, pastOpenOrderCount } from '../../utils/orderDay';
 import type { OrdersStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<OrdersStackParamList, 'OrdersList'>;
 
 export function OrdersScreen({ navigation }: Props) {
   const { vendor, token, logout, setVendor } = useAuth();
-  const { orders, loading, refreshing, error, refresh, advanceStatus } = useOrders();
+  const { orders, loading, refreshing, error, refresh, advanceStatus, handOver } = useOrders();
+  const [handoverId, setHandoverId] = useState<string | null>(null);
+  const handoverOrder = orders.find(item => item.id === handoverId);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const [tab, setTab] = useState<'menu' | 'orders'>('orders');
   const [offset, setOffset] = useState(0);
   const [actionError, setActionError] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const busyRef = useRef(false);
+  const listRef = useRef<FlatList<Order>>(null);
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const [rejecting, setRejecting] = useState<Order | null>(null);
+  const [noShowing, setNoShowing] = useState<Order | null>(null);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
@@ -47,14 +61,49 @@ export function OrdersScreen({ navigation }: Props) {
     }, [refresh]),
   );
 
-  const day = useMemo(() => {
-    const next = new Date();
-    next.setHours(0, 0, 0, 0);
-    next.setDate(next.getDate() + offset);
-    return next;
-  }, [offset]);
+  // Check for new orders every 10 s while the app is open (also while an order's details are open on top),
+  // and straight away when the app comes back to the foreground. Push notifications come later.
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (AppState.currentState === 'active') refresh(true, true);
+    }, POLL_MS);
+    const subscription = AppState.addEventListener('change', state => {
+      if (state === 'active') refresh(true, true);
+    });
+    return () => {
+      clearInterval(timer);
+      subscription.remove();
+    };
+  }, [refresh]);
+
+  const alert = useNewOrderAlert(orders, !loading);
+
+  /** From the new-order notice in the header: open the order's slot day and scroll to its card, outlined for a moment. */
+  function showInList(order: Order) {
+    const days = Math.round((Date.parse(orderDayKey(order)) - Date.parse(pagerDayKey(indiaDay(0)))) / 86_400_000);
+    setTab('orders');
+    setOffset(days);
+    setHighlightId(order.id);
+  }
+
+  const day = useMemo(() => indiaDay(offset), [offset]);
 
   const shown = useMemo(() => filterOrders(orders, day, 'ALL', ''), [orders, day]);
+  // Badge on the next-day arrow, so advance orders aren't missed.
+  const futureCount = useMemo(() => futureOrderCount(orders, pagerDayKey(day)), [orders, day]);
+  // Orders left open on earlier days (never completed or rejected), so none is forgotten.
+  const pastOpenCount = useMemo(() => pastOpenOrderCount(orders, pagerDayKey(day)), [orders, day]);
+
+  // Scroll to the order picked from the header notice once its day is showing; runs when the target or day changes,
+  // not on every 10 s refresh.
+  useEffect(() => {
+    if (!highlightId) return;
+    const index = shown.findIndex(order => order.id === highlightId);
+    if (index >= 0) setTimeout(() => listRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.1 }), 50);
+    const timer = setTimeout(() => setHighlightId(null), 2500);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [highlightId, offset]);
 
   async function toggleStore() {
     if (!token || !vendor) return;
@@ -86,14 +135,29 @@ export function OrdersScreen({ navigation }: Props) {
   }
 
   if (!vendor) return null;
+  // Until the team approves the stall, the second tab is its setup checklist (tracker S4.19).
+  const setup = vendor.review !== undefined && vendor.review !== 'APPROVED';
 
   return (
-    <Screen style={tab === 'orders' ? styles.canvas : undefined}>
+    <Screen>
       <StatusBar style="light" />
       <Header
-        title={vendor.name}
+        title={vendor.name || 'Your new stall'}
         onMenuPress={() => setMenuOpen(open => !open)}
-        right={<StoreSwitch open={vendor.status === 'OPEN'} onToggle={toggleStore} />}
+        right={setup ? undefined : <StoreSwitch open={vendor.status === 'OPEN'} onToggle={toggleStore} />}
+        notice={
+          alert.latest
+            ? {
+                title: `New order #${alert.latest.orderNumber}`,
+                detail: [alert.latest.customerName, formatSlot(alert.latest.scheduledFor, now), 'tap to view'].filter(Boolean).join(' · '),
+                onPress: () => {
+                  const order = alert.latest;
+                  alert.dismiss();
+                  if (order) showInList(order);
+                },
+              }
+            : undefined
+        }
       />
       {menuOpen ? (
         <>
@@ -104,6 +168,18 @@ export function OrdersScreen({ navigation }: Props) {
               setMenuOpen(false);
               navigation.navigate('Settings');
             }}
+            onBilling={() => {
+              setMenuOpen(false);
+              navigation.navigate('Billing');
+            }}
+            onShare={
+              setup
+                ? undefined
+                : () => {
+                    setMenuOpen(false);
+                    setSharing(true);
+                  }
+            }
             onLogout={() => {
               setMenuOpen(false);
               logout();
@@ -112,12 +188,17 @@ export function OrdersScreen({ navigation }: Props) {
         </>
       ) : null}
 
-      {tab === 'orders' ? (
+      {tab === 'orders' && setup ? (
+        <SetupPanel onOpenSettings={() => navigation.navigate('Settings')} onOpenMenu={() => setTab('menu')} onOpenBusiness={() => navigation.navigate('Business')} />
+      ) : tab === 'orders' ? (
         <View style={styles.body}>
+          <PageHeading overline="ORDERS · LIVE" title={offset === 0 ? "Today's orders" : 'Orders'} />
           <DatePager
             title={formatDayTitle(offset, day)}
             onPrev={() => setOffset(value => value - 1)}
             onNext={() => setOffset(value => value + 1)}
+            nextCount={futureCount}
+            prevCount={pastOpenCount}
           />
           {actionError ? <Text style={styles.actionError}>{actionError}</Text> : null}
           {loading && orders.length === 0 ? (
@@ -126,11 +207,13 @@ export function OrdersScreen({ navigation }: Props) {
             <ErrorState message={error} />
           ) : (
             <FlatList
+              ref={listRef}
+              onScrollToIndexFailed={info => listRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: true })}
               data={shown}
               keyExtractor={item => item.id}
               contentContainerStyle={styles.list}
               refreshControl={
-                <RefreshControl refreshing={refreshing} onRefresh={() => refresh(true)} tintColor="#243447" />
+                <RefreshControl refreshing={refreshing} onRefresh={() => refresh(true)} tintColor={colors.primary} />
               }
               ListEmptyComponent={
                 <EmptyState
@@ -142,9 +225,10 @@ export function OrdersScreen({ navigation }: Props) {
                   order={item}
                   busy={busyId === item.id}
                   now={now}
-                  onPress={() => navigation.navigate('OrderDetails', { orderId: item.id })}
-                  onAdvance={() => advance(item.id)}
-                  onReject={() => advance(item.id, 'REJECTED')}
+                  highlighted={highlightId === item.id}
+                  onAdvance={() => (item.status === 'READY' ? setHandoverId(item.id) : advance(item.id))}
+                  onReject={() => setRejecting(item)}
+                  onNoShow={() => setNoShowing(item)}
                 />
               )}
             />
@@ -153,15 +237,51 @@ export function OrdersScreen({ navigation }: Props) {
       ) : (
         <MenuPanel />
       )}
-      <BottomNav tab={tab} onChange={setTab} />
+      <BottomNav tab={tab} onChange={setTab} setup={setup} />
+      {handoverOrder ? (
+        <HandoverSheet
+          order={handoverOrder}
+          onClose={() => setHandoverId(null)}
+          onSubmit={async code => {
+            await handOver(handoverOrder, code);
+            setHandoverId(null);
+          }}
+        />
+      ) : null}
+      {rejecting ? (
+        <ConfirmDialog
+          title={`Reject order #${rejecting.orderNumber}?`}
+          message={paysAtStall(rejecting) ? "The customer hasn't paid, so nothing is refunded. This can't be undone." : "The customer is refunded in full. This can't be undone."}
+          confirmLabel="Reject order"
+          onCancel={() => setRejecting(null)}
+          onConfirm={() => {
+            const order = rejecting;
+            setRejecting(null);
+            advance(order.id, 'REJECTED');
+          }}
+        />
+      ) : null}
+      {noShowing ? (
+        <ConfirmDialog
+          title={`Mark order #${noShowing.orderNumber} as not collected?`}
+          message="Only if the customer didn't come and didn't pay. It counts against their number: after 2, they can't order to pay at the stall. This can't be undone."
+          confirmLabel="Not collected"
+          onCancel={() => setNoShowing(null)}
+          onConfirm={() => {
+            const order = noShowing;
+            setNoShowing(null);
+            advance(order.id, 'NO_SHOW');
+          }}
+        />
+      ) : null}
+      {sharing && token ? <ShareStoreSheet token={token} name={vendor.name} onClose={() => setSharing(false)} /> : null}
     </Screen>
   );
 }
 
+const POLL_MS = 10_000;
+
 const styles = StyleSheet.create({
-  canvas: {
-    backgroundColor: '#F4F6F8',
-  },
   backdrop: {
     ...StyleSheet.absoluteFill,
     top: 62,
@@ -169,12 +289,12 @@ const styles = StyleSheet.create({
   },
   body: {
     flex: 1,
-    padding: spacing.md,
+    padding: spacing.gutter,
     paddingBottom: 84,
   },
   actionError: {
-    color: '#d8424a',
-    fontSize: 12,
+    color: colors.danger,
+    fontSize: 13,
     fontWeight: '600',
     marginBottom: 8,
   },

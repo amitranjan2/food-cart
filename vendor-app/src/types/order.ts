@@ -5,7 +5,9 @@ export type OrderStatus =
   | 'READY'
   | 'COMPLETED'
   | 'REJECTED'
-  | 'CANCELLED';
+  | 'CANCELLED'
+  /** A pay-at-stall order the customer didn't collect. */
+  | 'NO_SHOW';
 
 export type OrderType = 'PICKUP' | 'DINE_IN';
 export type Portion = 'FULL' | 'HALF';
@@ -13,7 +15,8 @@ export type Portion = 'FULL' | 'HALF';
 export type OrderItem = {
   menuItemId?: string | null;
   name: string;
-  portion?: Portion;
+  portion?: string;
+  summary?: string | null;
   price: number;
   lineTotal: number;
   quantity: number;
@@ -25,9 +28,18 @@ export type Order = {
   vendorId: string;
   customerId: string;
   customerMobile?: string | null;
+  customerName?: string | null;
   type?: OrderType | string;
-  dineInNote?: string | null;
+  /** Start of the customer's 30-minute slot (ISO instant). */
+  scheduledFor?: string | null;
+  /** The code itself is never sent to the vendor; only whether and when the handover was verified. */
+  handover?: { attempts: number; lockedUntil?: string | null; verifiedAt?: string | null } | null;
+  /** CASH: the customer pays the stall on collection (total = items + GST). ONLINE: paid before the order arrived. */
   paymentMethod?: string | null;
+  /** Set when the customer's weekly order placed this one (not a walk-up decision, so the stall can plan for it). */
+  subscriptionId?: string | null;
+  /** Present on orders paid online. */
+  payment?: { status: string } | null;
   rejectionReason?: string | null;
   rejectionNote?: string | null;
   status: OrderStatus;

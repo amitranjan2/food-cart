@@ -2,8 +2,9 @@ import type { OrderStatus } from '../types';
 
 export type OrdersStackParamList = {
   OrdersList: undefined;
-  OrderDetails: { orderId: string };
   Settings: undefined;
+  Business: undefined;
+  Billing: undefined;
 };
 
 export type RootStackParamList = {

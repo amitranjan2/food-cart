@@ -65,6 +65,7 @@ function DishRow({
 
 export function Menu({
   items,
+  orderAgain = [],
   categories,
   quantities,
   onAdd,
@@ -74,6 +75,8 @@ export function Menu({
   fallbackImage,
 }: {
   items: MenuItem[];
+  /** Dishes the customer ordered here before; the row is hidden when empty. */
+  orderAgain?: MenuItem[];
   categories: MenuCategory[];
   quantities: Record<string, number>;
   onAdd: (item: MenuItem) => void;
@@ -86,15 +89,17 @@ export function Menu({
     return <p className="menu-empty">{searching ? 'No dishes match your search.' : 'Nothing on the menu yet.'}</p>;
   }
   const sections = sectionsFor(items, categories);
+  // The vendor stars these in the vendor app; no carousel when nothing is starred.
+  const specials = items.filter(item => item.special);
   return (
     <div id="menu-start">
       {!searching && (
         <>
-          <SpecialCarousel items={items} quantities={quantities} fallbackImage={fallbackImage} onAdd={onAdd} onQuantity={onQuantity} />
-          <section className="menu-section" aria-label="Order again">
-            <h2>ORDER AGAIN!</h2>
-            <DishRow items={items} variant="compact" quantities={quantities} fallbackImage={fallbackImage} onAdd={onAdd} onQuantity={onQuantity} className="card-row" label="Order again" />
-          </section>
+          {specials.length > 0 && <SpecialCarousel items={specials} quantities={quantities} fallbackImage={fallbackImage} onAdd={onAdd} onQuantity={onQuantity} />}
+          {orderAgain.length > 0 && <section className="menu-section" aria-label="Order again">
+            <h2>Order again</h2>
+            <DishRow items={orderAgain} variant="compact" quantities={quantities} fallbackImage={fallbackImage} onAdd={onAdd} onQuantity={onQuantity} className="card-row" label="Order again" />
+          </section>}
         </>
       )}
       {nav}

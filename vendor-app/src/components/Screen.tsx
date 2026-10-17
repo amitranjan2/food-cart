@@ -45,6 +45,6 @@ const styles = StyleSheet.create({
   framed: {
     borderLeftWidth: 1,
     borderRightWidth: 1,
-    borderColor: '#c6d1db',
+    borderColor: colors.line,
   },
 });

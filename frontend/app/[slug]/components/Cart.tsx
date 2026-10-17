@@ -1,89 +1,117 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { BillRows } from '../../components/BillRows';
+import type { Bill, PaymentMethod } from '../../lib/bill';
 import type { MenuItem } from '../../lib/api';
+import { FEATURES } from '../../lib/features';
+import type { OtpDelivery } from '../../lib/otpDelivery';
+import type { LoginMethods, WaLoginStart, WaLoginState } from '../../lib/whatsappLogin';
 import { formatRupee } from '../lib/customization';
 import { AddressFlow, addressLabel, type AddressStep, type SavedAddress } from './AddressFlow';
 import { MenuItemCard } from './MenuItemCard';
 
 export type CartLine = {
+  /** One dish with one set of choices; see lib/cartLines. */
+  key: string;
   item: MenuItem;
   quantity: number;
   unitPrice: number;
   summary?: string;
 };
 
-type Plan = 'once' | 'subscribe';
+type Plan = 'once' | 'weekly';
 type Fulfillment = 'pickup' | 'dinein' | 'delivery';
-type Frequency = 'weekly' | 'monthly';
+// The server accepts only PICKUP and DINE_IN until V2, so a DELIVERY order fails loudly instead of becoming a pickup.
+const ORDER_TYPES = { pickup: 'PICKUP', dinein: 'DINE_IN', delivery: 'DELIVERY' } as const;
+export type OrderType = (typeof ORDER_TYPES)[Fulfillment];
 
-// Placeholder charges until the vendor API exposes tax and delivery settings.
-const TAX_RATE = 0.05;
-const DELIVERY_FEE = 20;
-
+/** Ids are the server's day names; a weekly order is sent as these. */
 const DAYS = [
-  { id: 'mon', label: 'M' },
-  { id: 'tue', label: 'T' },
-  { id: 'wed', label: 'W' },
-  { id: 'thu', label: 'TH' },
-  { id: 'fri', label: 'F' },
-  { id: 'sat', label: 'S' },
-  { id: 'sun', label: 'SU' },
+  { id: 'MONDAY', label: 'Mon' },
+  { id: 'TUESDAY', label: 'Tue' },
+  { id: 'WEDNESDAY', label: 'Wed' },
+  { id: 'THURSDAY', label: 'Thu' },
+  { id: 'FRIDAY', label: 'Fri' },
+  { id: 'SATURDAY', label: 'Sat' },
+  { id: 'SUNDAY', label: 'Sun' },
 ];
 
-function nextHalfHour(from = new Date()) {
-  const next = new Date(from);
-  next.setSeconds(0, 0);
-  const minutes = next.getMinutes();
-  if (minutes === 0 || minutes === 30) return next;
-  if (minutes < 30) next.setMinutes(30);
-  else next.setHours(next.getHours() + 1, 0, 0, 0);
-  return next;
+/** Server slots are India wall-clock times ("2026-10-09T14:30"); they are shown as written, whatever the phone's time zone. */
+function slotDate(slot: string) {
+  const [day, time] = slot.split('T');
+  const [year, month, date] = day.split('-').map(Number);
+  const [hour, minute] = time.split(':').map(Number);
+  return new Date(year, month - 1, date, hour, minute);
 }
 
-function slotsThroughTomorrow(from = new Date()) {
-  const start = nextHalfHour(from);
-  const end = new Date(from);
-  end.setDate(end.getDate() + 1);
-  end.setHours(23, 30, 0, 0);
-  const slots: Date[] = [];
-  const cursor = new Date(start);
-  while (cursor.getTime() <= end.getTime()) {
-    slots.push(new Date(cursor));
-    cursor.setMinutes(cursor.getMinutes() + 30);
-  }
-  return slots;
+function slotKey(date: Date) {
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 function clockLabel(date: Date) {
   return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 }
 
-function slotLabel(date: Date, now = new Date()) {
-  const time = clockLabel(date);
-  if (date.toDateString() === now.toDateString()) return time;
-  const weekday = date.toLocaleDateString('en-US', { weekday: 'short' });
-  return `${weekday} ${time}`;
+/** Today's date in India ("2026-10-09"), plus offsetDays. Slots are India time, so "today" must be too. */
+function indiaDay(offsetDays = 0) {
+  return new Date(Date.now() + 330 * 60_000 + offsetDays * 86_400_000).toISOString().slice(0, 10);
+}
+
+function dayName(date: Date) {
+  const day = slotKey(date).slice(0, 10);
+  if (day === indiaDay()) return 'Today';
+  if (day === indiaDay(1)) return 'Tomorrow';
+  return dayHeading(date);
+}
+
+function slotLabel(date: Date) {
+  return `${dayName(date)}, ${clockLabel(date)}`;
 }
 
 function dayHeading(date: Date) {
   return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
-const DAILY_HALF_HOURS = Array.from({ length: 48 }, (_, index) => index * 30);
-
-function minutesFromDate(date: Date) {
-  return date.getHours() * 60 + date.getMinutes();
+/** "13:30" → "1:30 PM". */
+function timeLabel(time: string) {
+  const [hour, minute] = time.split(':').map(Number);
+  return clockLabel(new Date(2000, 0, 1, hour, minute));
 }
 
-function dateAtMinutes(minutes: number) {
-  const date = new Date();
-  date.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0);
-  return date;
-}
-
-function firstOnceSlotWithTime(minutes: number, from = new Date()) {
-  return slotsThroughTomorrow(from).find(slot => minutesFromDate(slot) === minutes);
+/** What to do after "Verify on WhatsApp": open WhatsApp (or scan on a laptop), press Send, come back. */
+function WhatsAppPanel({ start, state, mobile, onCancel }: { start: WaLoginStart; state: WaLoginState | null; mobile: string; onCancel: () => void }) {
+  return (
+    <div className="wa-login" role="group" aria-label="Verify on WhatsApp">
+      {state === 'EXPIRED' ? (
+        <p className="cart-otp-hint cart-otp-failed" role="alert">This took too long. Tap Start again to get a new message.</p>
+      ) : (
+        <>
+          <a className="wa-login-open" href={start.link} target="_blank" rel="noopener noreferrer">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M4 20l1.3-3.9A8 8 0 1 1 8 19z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+              <path d="M9 9.5c0 3 2.5 5.5 5.5 5.5l1-1.5-2-1-1 1a4 4 0 0 1-2-2l1-1-1-2z" fill="currentColor" />
+            </svg>
+            Open WhatsApp and press Send
+          </a>
+          <p className="wa-login-steps">
+            The message <b>{start.text}</b> is ready to send to {start.number}. Send it from <b>{mobile}</b>, then come back here.
+          </p>
+          <div className="wa-login-qr">
+            <img src={'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(start.qrSvg)} alt="QR code that opens the message in WhatsApp" />
+            <span>On a laptop? Scan this with your phone&apos;s camera.</span>
+          </div>
+          {state === 'WRONG_NUMBER' ? (
+            <p className="cart-otp-hint cart-otp-failed" role="alert">That message came from a different number. Send it from {mobile}, or change the number above.</p>
+          ) : (
+            <p className="wa-login-wait" aria-live="polite"><i aria-hidden="true" /> Waiting for your message…</p>
+          )}
+        </>
+      )}
+      <button type="button" className="cart-login-switch" onClick={onCancel}>Cancel</button>
+    </div>
+  );
 }
 
 function LinePhoto({ item, fallbackImage }: { item: MenuItem; fallbackImage?: string }) {
@@ -105,35 +133,188 @@ export function Cart({
   suggestions,
   quantities,
   total,
+  bill,
+  methods,
+  method,
+  onMethod,
+  slots,
+  hoursSet,
+  week,
+  weeklyTotal,
+  storeOpen = true,
+  mobile,
+  otp,
+  otpDelivery,
+  loginMethods = { otp: true, whatsappLogin: false },
+  waLogin,
+  onStartWhatsApp,
+  onCancelWhatsApp,
   fallbackImage,
   onBack,
   onQuantity,
+  onLineQuantity,
   onAdd,
+  onMobileChange,
+  onOtpChange,
+  onSendOtp,
+  onVerifyOtp,
+  verified,
+  customerName,
+  onSaveName,
+  onSignOut,
+  onPay,
+  onSubscribe,
+  paying,
+  payError,
 }: {
   lines: CartLine[];
   suggestions: MenuItem[];
   quantities: Record<string, number>;
   total: number;
+  /** The full bill for total (items + GST + platform charges); the Pay amount. */
+  bill: Bill;
+  /** The ways to pay right now (pay at the stall only, until online payment is set up). */
+  methods: PaymentMethod[];
+  method: PaymentMethod;
+  onMethod: (method: PaymentMethod) => void;
+  /** null while loading. */
+  slots: string[] | null;
+  hoursSet: boolean;
+  /** Slot starts ("HH:mm") the stall offers on each weekday (MONDAY…), for choosing a weekly order's time. */
+  week: Record<string, string[]>;
+  /** What each weekly order costs at the stall (items + GST). */
+  weeklyTotal: number;
+  /** False while the vendor has switched the stall off. */
+  storeOpen?: boolean;
   mobile: string;
   otp: string;
+  /** Whether WhatsApp delivered the last code; null until known. */
+  otpDelivery?: OtpDelivery | null;
+  /** Which ways to sign in work now; WhatsApp login comes first when it's on. */
+  loginMethods?: LoginMethods;
+  /** A started "Login with WhatsApp" and how it's going. */
+  waLogin?: { start: WaLoginStart; state: WaLoginState | null } | null;
+  onStartWhatsApp?: () => Promise<void>;
+  onCancelWhatsApp?: () => void;
   fallbackImage?: string;
   onBack: () => void;
+  /** For the suggestion cards (whole dish). */
   onQuantity: (item: MenuItem, quantity: number) => void;
+  /** For one cart line. */
+  onLineQuantity: (key: string, quantity: number) => void;
   onAdd: (item: MenuItem) => void;
   onMobileChange: (mobile: string) => void;
   onOtpChange: (otp: string) => void;
+  onSendOtp: () => Promise<void>;
+  /** Checks the OTP with the server. Pay is enabled only once this succeeds. */
+  onVerifyOtp: () => Promise<void>;
+  verified: boolean;
+  /** Saved name; empty until the customer saves one. */
+  customerName: string;
+  onSaveName: (name: string) => Promise<void>;
+  /** Forgets the verified customer so someone else can order. */
+  onSignOut: () => void;
+  onPay: (type: OrderType, slot: string) => void;
+  /** Starts a weekly order: on these days (MONDAY…) at this "HH:mm" time. */
+  onSubscribe: (type: OrderType, days: string[], time: string) => void;
+  paying?: boolean;
+  payError?: string;
 }) {
   const [plan, setPlan] = useState<Plan>('once');
   const [fulfillment, setFulfillment] = useState<Fulfillment>('pickup');
-  const [frequency, setFrequency] = useState<Frequency>('weekly');
-  const [weekdays, setWeekdays] = useState<string[]>([]);
-  const [onceOptions] = useState(() => slotsThroughTomorrow());
-  const [onceSlot, setOnceSlot] = useState(() => onceOptions[0] ?? nextHalfHour());
-  const [subscribeMinutes, setSubscribeMinutes] = useState(() => minutesFromDate(onceOptions[0] ?? nextHalfHour()));
+  const [weekDays, setWeekDays] = useState<string[]>([]);
+  const [weekTime, setWeekTime] = useState('');
+  const onceOptions = useMemo(() => (slots ?? []).map(slotDate), [slots]);
+  const [onceSlot, setOnceSlot] = useState<Date | null>(null);
+  // A weekly order's time must be one the stall offers on every chosen day.
+  const weekTimes = useMemo(() => {
+    const lists = weekDays.map(day => week[day] ?? []);
+    return lists.length ? lists.reduce((common, list) => common.filter(time => list.includes(time))) : [];
+  }, [weekDays, week]);
+  useEffect(() => {
+    setWeekTime(current => (weekTimes.includes(current) ? current : ''));
+  }, [weekTimes]);
+
+  // The customer must pick a slot; keep it only while the server still offers it.
+  useEffect(() => {
+    setOnceSlot(current => (current && onceOptions.some(option => option.getTime() === current.getTime()) ? current : null));
+  }, [onceOptions]);
   const [editing, setEditing] = useState(false);
+  const [slotDay, setSlotDay] = useState('');
   const [billOpen, setBillOpen] = useState(false);
   const [address, setAddress] = useState<SavedAddress | null>(null);
   const [addressStep, setAddressStep] = useState<AddressStep | null>(null);
+  const [otpSentTo, setOtpSentTo] = useState('');
+  const [sendingOtp, setSendingOtp] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [nameDraft, setNameDraft] = useState('');
+  const [savingName, setSavingName] = useState(false);
+  const [otpError, setOtpError] = useState('');
+  const [resendIn, setResendIn] = useState(0);
+  const otpSent = otpSentTo !== '' && otpSentTo === mobile;
+  /** The customer chose a 6-digit code instead of WhatsApp login (only when both are on). */
+  const [useCode, setUseCode] = useState(false);
+  const [startingWa, setStartingWa] = useState(false);
+  const waMode = loginMethods.whatsappLogin && !(useCode && loginMethods.otp);
+  const validMobile = /^[6-9]\d{9}$/.test(mobile);
+
+  async function startWhatsApp() {
+    if (!onStartWhatsApp) return;
+    setStartingWa(true);
+    setOtpError('');
+    try {
+      await onStartWhatsApp();
+    } catch (error) {
+      setOtpError(error instanceof Error ? error.message : 'Could not start WhatsApp login.');
+    } finally {
+      setStartingWa(false);
+    }
+  }
+
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const timer = window.setTimeout(() => setResendIn(value => value - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [resendIn]);
+
+  async function saveName() {
+    setSavingName(true);
+    setOtpError('');
+    try {
+      await onSaveName(nameDraft.trim());
+    } catch (error) {
+      setOtpError(error instanceof Error ? error.message : 'Could not save your name.');
+    } finally {
+      setSavingName(false);
+    }
+  }
+
+  async function verifyOtp() {
+    setVerifying(true);
+    setOtpError('');
+    try {
+      await onVerifyOtp();
+    } catch (error) {
+      setOtpError(error instanceof Error ? error.message : 'Could not verify the OTP.');
+    } finally {
+      setVerifying(false);
+    }
+  }
+
+  async function sendOtp() {
+    setSendingOtp(true);
+    setOtpError('');
+    try {
+      await onSendOtp();
+      setOtpSentTo(mobile);
+      onOtpChange('');
+      setResendIn(30);
+    } catch (error) {
+      setOtpError(error instanceof Error ? error.message : 'Could not send the OTP.');
+    } finally {
+      setSendingOtp(false);
+    }
+  }
 
   // The expanded bill freezes the cart behind it, like the menu and customizer do.
   useEffect(() => {
@@ -153,32 +334,34 @@ export function Cart({
   }
 
   function toggleDay(id: string) {
-    setWeekdays(current => current.includes(id) ? current.filter(day => day !== id) : [...current, id]);
+    setWeekDays(current => current.includes(id) ? current.filter(day => day !== id) : [...current, id]);
   }
 
   function selectPlan(next: Plan) {
     if (next === plan) return;
-    if (next === 'subscribe') setSubscribeMinutes(minutesFromDate(onceSlot));
-    else {
-      const match = firstOnceSlotWithTime(subscribeMinutes);
-      setOnceSlot(match ?? nextHalfHour());
-    }
     setEditing(false);
     setPlan(next);
   }
 
   const onceGroups = onceOptions.reduce<{ key: string; label: string; times: Date[] }[]>((list, time) => {
-    const key = time.toDateString();
+    const key = slotKey(time).slice(0, 10);
     const last = list[list.length - 1];
-    if (!last || last.key !== key) list.push({ key, label: dayHeading(time), times: [time] });
+    if (!last || last.key !== key) list.push({ key, label: dayName(time), times: [time] });
     else last.times.push(time);
     return list;
   }, []);
 
-  const slotPill = plan === 'once' ? slotLabel(onceSlot) : clockLabel(dateAtMinutes(subscribeMinutes));
-  const tax = Math.round(total * TAX_RATE);
-  const delivery = fulfillment === 'delivery' && lines.length > 0 ? DELIVERY_FEE : 0;
-  const grandTotal = total + tax + delivery;
+  const shownDay = onceGroups.find(group => group.key === slotDay) ?? onceGroups.find(group => onceSlot && group.key === slotKey(onceSlot).slice(0, 10)) ?? onceGroups[0];
+  const slotPill = plan === 'once'
+    ? onceSlot ? slotLabel(onceSlot) : slots === null ? '…' : onceOptions.length ? 'Select a time' : 'None'
+    : weekTime ? timeLabel(weekTime) : weekDays.length === 0 ? 'Pick days first' : weekTimes.length ? 'Select a time' : 'No common time';
+  const weeklyReady = plan === 'weekly' && weekDays.length > 0 && weekTime !== '';
+  const weeklySummary = weeklyReady
+    ? `Every ${DAYS.filter(day => weekDays.includes(day.id)).map(day => day.label).join(', ')} at ${timeLabel(weekTime)}`
+    : '';
+  const slotProblem = slots === null || onceOptions.length ? ''
+    : !storeOpen ? 'This stall isn’t taking orders right now. Check back when it opens.'
+    : hoursSet ? 'No time slots left today or tomorrow.' : 'This vendor hasn’t set opening hours yet, so orders can’t be placed.';
   const needsAddress = fulfillment === 'delivery' && !address;
 
   if (addressStep) {
@@ -211,32 +394,34 @@ export function Cart({
         </div>
       </header>
 
-      {lines.length === 0 ? (
-        <p className="menu-empty">Your cart is empty.</p>
-      ) : (
-        <ul className="cart-rows">
-          {lines.map(line => (
-            <li className="cart-row" key={line.item.id}>
-              <LinePhoto item={line.item} fallbackImage={fallbackImage} />
-              <div className="cart-row-copy">
-                <h3>{line.item.name}</h3>
-                {line.summary ? <p>{line.summary}</p> : null}
-                <b>{formatRupee(line.unitPrice * line.quantity)}</b>
-              </div>
-              <span className="qty">
-                <button type="button" aria-label={'Remove one ' + line.item.name} onClick={() => onQuantity(line.item, line.quantity - 1)}>−</button>
-                <span>{line.quantity}</span>
-                <button
-                  type="button"
-                  aria-label={'Add one ' + line.item.name}
-                  onClick={() => onQuantity(line.item, line.quantity + 1)}
-                  disabled={!line.item.available}
-                >+</button>
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
+      <div className="cart-items">
+        {lines.length === 0 ? (
+          <p className="menu-empty">Your cart is empty.</p>
+        ) : (
+          <ul className="cart-rows">
+            {lines.map(line => (
+              <li className="cart-row" key={line.key}>
+                <LinePhoto item={line.item} fallbackImage={fallbackImage} />
+                <div className="cart-row-copy">
+                  <h3>{line.item.name}</h3>
+                  {line.summary ? <p>{line.summary}</p> : null}
+                  <b>{formatRupee(line.unitPrice * line.quantity)}</b>
+                </div>
+                <span className="qty">
+                  <button type="button" aria-label={'Remove one ' + line.item.name + (line.summary ? ` (${line.summary})` : '')} onClick={() => onLineQuantity(line.key, line.quantity - 1)}>−</button>
+                  <span>{line.quantity}</span>
+                  <button
+                    type="button"
+                    aria-label={'Add one ' + line.item.name + (line.summary ? ` (${line.summary})` : '')}
+                    onClick={() => onLineQuantity(line.key, line.quantity + 1)}
+                    disabled={!line.item.available}
+                  >+</button>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       {suggestions.length > 0 && (
         <section className="menu-section cart-also" aria-label="You may also like">
@@ -257,85 +442,121 @@ export function Cart({
         </section>
       )}
 
-      <section className="plan-box">
-        <div className="plan-row" role="radiogroup" aria-label="Order type">
-          <button type="button" role="radio" aria-checked={plan === 'once'} className={plan === 'once' ? 'on' : undefined} onClick={() => selectPlan('once')}>One-Time</button>
-          <button type="button" role="radio" aria-checked={plan === 'subscribe'} className={plan === 'subscribe' ? 'on' : undefined} onClick={() => selectPlan('subscribe')}>Subscribe</button>
-        </div>
-        <div className="plan-rule" />
-        {plan === 'subscribe' && (
-          <>
-            <div className="day-line">
-              <span>Day(s)</span>
-              <div className="day-picks" role="group" aria-label="Days">
-                {DAYS.map(day => (
+      <section className="plan-box" aria-label="When">
+        {FEATURES.subscribe && methods.includes('CASH') && (
+          <div className="plan-row" role="radiogroup" aria-label="Order type">
+            <button type="button" role="radio" aria-checked={plan === 'once'} className={plan === 'once' ? 'on' : undefined} onClick={() => selectPlan('once')}>Just once</button>
+            <button type="button" role="radio" aria-checked={plan === 'weekly'} className={plan === 'weekly' ? 'on' : undefined} onClick={() => selectPlan('weekly')}>Every week</button>
+          </div>
+        )}
+        {plan === 'weekly' && (
+          <div className="day-line">
+            <span>Days</span>
+            <div className="day-picks" role="group" aria-label="Days">
+              {DAYS.map(day => {
+                const closed = (week[day.id] ?? []).length === 0;
+                return (
                   <button
                     key={day.id}
                     type="button"
                     role="checkbox"
-                    aria-checked={weekdays.includes(day.id)}
-                    className={weekdays.includes(day.id) ? 'on' : undefined}
+                    aria-checked={weekDays.includes(day.id)}
+                    className={weekDays.includes(day.id) ? 'on' : undefined}
+                    disabled={closed}
+                    title={closed ? 'Closed' : undefined}
                     onClick={() => toggleDay(day.id)}
                   >
                     {day.label}
                   </button>
-                ))}
-              </div>
+                );
+              })}
             </div>
-          </>
-        )}
-        <div className="slot-line">
-          <span>Slot</span>
-          <b>{slotPill}</b>
-          <button type="button" className="slot-edit" aria-expanded={editing} aria-label="Edit time slot" onClick={() => setEditing(value => !value)}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M4 20h4L18.5 9.5a1.4 1.4 0 0 0 0-2L16.5 5.5a1.4 1.4 0 0 0-2 0L4 16v4z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-              <path d="M13.5 6.5l4 4" stroke="currentColor" strokeWidth="1.8" />
-            </svg>
-          </button>
-        </div>
-        {editing && plan === 'once' && (
-          <div className="slot-picker">
-            {onceGroups.map(group => (
-              <div key={group.key}>
-                <p>{group.label}</p>
-                <div className="slot-grid">
-                  {group.times.map(time => (
-                    <button
-                      key={time.getTime()}
-                      type="button"
-                      className={onceSlot.getTime() === time.getTime() ? 'on' : undefined}
-                      onClick={() => {
-                        setOnceSlot(time);
-                        setEditing(false);
-                      }}
-                    >
-                      {clockLabel(time)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
           </div>
         )}
-        {editing && plan === 'subscribe' && (
+        <div className={'slot-head' + (FEATURES.subscribe && methods.includes('CASH') ? ' slot-head-spaced' : '')}>
+          <div className="slot-copy">
+            <span>{fulfillment === 'dinein' ? 'Dine-in time' : 'Pick-up time'}</span>
+            <b>{slotPill}</b>
+          </div>
+          <button
+            type="button"
+            className="slot-change"
+            disabled={plan === 'once' ? onceOptions.length === 0 : weekTimes.length === 0}
+            aria-expanded={editing}
+            onClick={() => {
+              setSlotDay('');
+              setEditing(value => !value);
+            }}
+          >
+            {editing ? 'Done' : (plan === 'once' ? onceSlot : weekTime) ? 'Change' : 'Select'}
+          </button>
+        </div>
+        {plan === 'weekly' && weekDays.length > 0 && weekTimes.length === 0 && (
+          <p className="plan-hint">These days don’t share an opening time. Pick days with the same hours, or order them separately.</p>
+        )}
+        {editing && plan === 'once' && shownDay && (
           <div className="slot-picker">
-            <div className="slot-grid slot-grid-day">
-              {DAILY_HALF_HOURS.map(minutes => (
+            {onceGroups.length > 1 && (
+              <div className="slot-days" role="tablist" aria-label="Day">
+                {onceGroups.map(group => (
+                  <button
+                    key={group.key}
+                    type="button"
+                    role="tab"
+                    aria-selected={group.key === shownDay.key}
+                    className={group.key === shownDay.key ? 'on' : undefined}
+                    onClick={() => setSlotDay(group.key)}
+                  >
+                    {group.label}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="slot-grid" role="radiogroup" aria-label={'Times for ' + shownDay.label}>
+              {shownDay.times.map(time => (
                 <button
-                  key={minutes}
+                  key={time.getTime()}
                   type="button"
-                  className={subscribeMinutes === minutes ? 'on' : undefined}
+                  role="radio"
+                  aria-checked={onceSlot?.getTime() === time.getTime()}
+                  className={onceSlot?.getTime() === time.getTime() ? 'on' : undefined}
                   onClick={() => {
-                    setSubscribeMinutes(minutes);
+                    setOnceSlot(time);
                     setEditing(false);
                   }}
                 >
-                  {clockLabel(dateAtMinutes(minutes))}
+                  {clockLabel(time)}
                 </button>
               ))}
             </div>
           </div>
+        )}
+        {editing && plan === 'weekly' && weekTimes.length > 0 && (
+          <div className="slot-picker">
+            <div className="slot-grid" role="radiogroup" aria-label="Weekly time">
+              {weekTimes.map(time => (
+                <button
+                  key={time}
+                  type="button"
+                  role="radio"
+                  aria-checked={weekTime === time}
+                  className={weekTime === time ? 'on' : undefined}
+                  onClick={() => {
+                    setWeekTime(time);
+                    setEditing(false);
+                  }}
+                >
+                  {timeLabel(time)}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {weeklySummary && (
+          <p className="plan-summary">
+            <b>{weeklySummary}</b>
+            About {formatRupee(weeklyTotal)} each time, at today’s prices. We place each order 12 hours before pick-up; skip any one until then.
+          </p>
         )}
       </section>
 
@@ -344,7 +565,7 @@ export function Cart({
           ['pickup', 'Pick Up'],
           ['dinein', 'Dine In'],
           ['delivery', 'Delivery'],
-        ] as const).map(([id, label]) => (
+        ] as const).filter(([id]) => id !== 'delivery' || FEATURES.delivery).map(([id, label]) => (
           <div className="mode-option" key={id}>
             <button
               type="button"
@@ -368,14 +589,32 @@ export function Cart({
         ))}
       </div>
 
-      {plan === 'subscribe' && (
-        <section className="plan-box freq-box">
-          <div className="plan-row" role="radiogroup" aria-label="Payment frequency">
-            <button type="button" role="radio" aria-checked={frequency === 'weekly'} className={frequency === 'weekly' ? 'on' : undefined} onClick={() => setFrequency('weekly')}>Weekly</button>
-            <button type="button" role="radio" aria-checked={frequency === 'monthly'} className={frequency === 'monthly' ? 'on' : undefined} onClick={() => setFrequency('monthly')}>Monthly</button>
+      <section className="plan-box pay-box" aria-label="Payment">
+        {methods.length > 1 && plan === 'once' ? (
+          <div className="plan-row" role="radiogroup" aria-label="How you pay">
+            {methods.map(id => (
+              <button type="button" role="radio" key={id} aria-checked={method === id} className={method === id ? 'on' : undefined} onClick={() => onMethod(id)}>
+                {id === 'ONLINE' ? 'Pay online' : 'Pay at the stall'}
+              </button>
+            ))}
           </div>
-        </section>
-      )}
+        ) : null}
+        {plan === 'weekly' || method === 'CASH' ? (
+          <div className="pay-card">
+            <i aria-hidden="true">₹</i>
+            <div>
+              <b>Pay at the stall</b>
+              <p className="pay-note">
+                {plan === 'weekly'
+                  ? `Pay about ${formatRupee(weeklyTotal)} each time you collect, in cash or by UPI to the stall. Weekly UPI autopay is coming later.`
+                  : `Pay ${formatRupee(bill.total)} when you collect, in cash or by UPI to the stall. Show your code after paying.`}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <p className="pay-note">Pay now online. The stall sees your order once the payment goes through.</p>
+        )}
+      </section>
 
       {needsAddress ? (
         <footer className="customizer-bar address-bar">
@@ -383,21 +622,142 @@ export function Cart({
         </footer>
       ) : (
       <>
+      <section className="cart-auth" aria-label="Confirm mobile">
+        {verified && customerName ? (
+          <div className="cart-identity" aria-label="Ordering as">
+            <div>
+              <b>{customerName}</b>
+              <span>{mobile}</span>
+            </div>
+            <button
+              type="button"
+              className="cart-identity-switch"
+              onClick={() => {
+                setOtpSentTo('');
+                setNameDraft('');
+                setOtpError('');
+                onSignOut();
+              }}
+            >
+              Not you?
+            </button>
+            <i aria-label="Verified">✓</i>
+          </div>
+        ) : (
+        <>
+        <div className="cart-otp-row">
+          <label className="cart-field">
+            <input
+              inputMode="numeric"
+              autoComplete="tel"
+              maxLength={10}
+              placeholder="Mobile number"
+              value={mobile}
+              onChange={event => {
+                onMobileChange(event.target.value.replace(/\D/g, '').slice(0, 10));
+                setOtpSentTo('');
+                // The 30 s resend gap is per number: a corrected number can get a code straight away.
+                setResendIn(0);
+                setOtpError('');
+              }}
+            />
+          </label>
+          {verified ? (
+            <span className="cart-otp-verified" aria-live="polite">✓ Verified</span>
+          ) : waMode ? (
+            <button type="button" className="cart-otp-send cart-wa-start" disabled={startingWa || !validMobile} onClick={startWhatsApp}>
+              {startingWa ? '…' : waLogin ? 'Start again' : 'Verify on WhatsApp'}
+            </button>
+          ) : otpSent && otp.length === 6 ? (
+            <button type="button" className="cart-otp-send" disabled={verifying} onClick={verifyOtp}>
+              {verifying ? '…' : 'Submit'}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="cart-otp-send"
+              disabled={sendingOtp || resendIn > 0 || !/^[6-9]\d{9}$/.test(mobile)}
+              onClick={sendOtp}
+            >
+              {sendingOtp ? '…' : resendIn > 0 ? `Resend ${resendIn}s` : otpSent ? 'Resend' : 'Send OTP'}
+            </button>
+          )}
+        </div>
+        {waMode && waLogin && !verified && (
+          <WhatsAppPanel start={waLogin.start} state={waLogin.state} mobile={mobile} onCancel={() => onCancelWhatsApp?.()} />
+        )}
+        {!verified && !waLogin && loginMethods.whatsappLogin && loginMethods.otp && (
+          <button
+            type="button"
+            className="cart-login-switch"
+            onClick={() => {
+              setUseCode(value => !value);
+              setOtpError('');
+            }}
+          >
+            {waMode ? 'Get a 6-digit code instead' : 'Verify on WhatsApp instead'}
+          </button>
+        )}
+        {!waMode && otpSent && !verified && (
+          <label className="cart-field">
+            <input
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              placeholder="6-digit code from WhatsApp"
+              value={otp}
+              onChange={event => {
+                onOtpChange(event.target.value.replace(/\D/g, '').slice(0, 6));
+                setOtpError('');
+              }}
+            />
+          </label>
+        )}
+        {!waMode && otpSent && !verified && (
+          otpDelivery?.state === 'FAILED' ? (
+            <p className="cart-otp-hint cart-otp-failed" role="alert">{otpDelivery.message ?? 'WhatsApp couldn’t deliver the code. Tap Resend.'}</p>
+          ) : otpDelivery?.state === 'DELIVERED' ? (
+            <p className="cart-otp-hint" aria-live="polite">Delivered on WhatsApp to {mobile}. Enter the 6-digit code.</p>
+          ) : (
+            <p className="cart-otp-hint" aria-live="polite">Code sent on WhatsApp to {mobile}. Didn&apos;t get it? Make sure this number is on WhatsApp.</p>
+          )
+        )}
+        {verified && (
+          <div className="cart-otp-row">
+            <label className="cart-field">
+              <input
+                autoComplete="name"
+                maxLength={60}
+                placeholder="Your name"
+                value={nameDraft}
+                onChange={event => {
+                  setNameDraft(event.target.value);
+                  setOtpError('');
+                }}
+              />
+            </label>
+            <button type="button" className="cart-otp-send" disabled={savingName || nameDraft.trim() === ''} onClick={saveName}>
+              {savingName ? '…' : 'Save'}
+            </button>
+          </div>
+        )}
+        </>
+        )}
+        {slotProblem || otpError || payError ? <p className="cart-pay-error">{slotProblem || otpError || payError}</p> : null}
+      </section>
       {billOpen && <div className="bill-backdrop" aria-hidden="true" onClick={() => setBillOpen(false)} />}
       <div className={'bill-dock' + (billOpen ? ' open' : '')}>
         <section className="bill-sheet" id="cart-bill" aria-label="Bill details" aria-hidden={!billOpen}>
           <h2>Bill Details</h2>
           {lines.map(line => (
-            <div className="bill-row sub" key={line.item.id}>
-              <span>{line.item.name} x{line.quantity}</span>
+            <div className="bill-row sub" key={line.key}>
+              <span>{line.item.name}{line.summary ? ` (${line.summary})` : ''} x{line.quantity}</span>
               <span>{formatRupee(line.unitPrice * line.quantity)}</span>
             </div>
           ))}
           <div className="bill-gap" />
-          <div className="bill-row"><span>Item Total</span><span>{formatRupee(total)}</span></div>
-          <div className="bill-row"><span>Tax</span><span>{formatRupee(tax)}</span></div>
-          {delivery > 0 && <div className="bill-row"><span>Delivery</span><span>{formatRupee(delivery)}</span></div>}
-          <div className="bill-row grand"><span>Total</span><span>{formatRupee(grandTotal)}</span></div>
+          {/* The server charges exactly this bill (BillRules); it rejects the order if the total differs. */}
+          <BillRows bill={bill} />
         </section>
         <footer className="customizer-bar cart-paybar">
           <button
@@ -411,9 +771,19 @@ export function Cart({
             <svg className={'bill-chevron' + (billOpen ? ' flipped' : '')} width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M6 15l6-6 6 6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            <strong aria-live="polite">{formatRupee(grandTotal)}</strong>
+            <strong aria-live="polite">{formatRupee(plan === 'weekly' ? weeklyTotal : bill.total)}</strong>
           </button>
-          <button type="button" className="customizer-add">Pay</button>
+          <button
+            type="button"
+            className="customizer-add"
+            disabled={paying || !verified || !customerName || (plan === 'once' ? !onceSlot : !weeklyReady)}
+            onClick={() => {
+              if (plan === 'weekly') onSubscribe(ORDER_TYPES[fulfillment], weekDays, weekTime);
+              else if (onceSlot) onPay(ORDER_TYPES[fulfillment], slotKey(onceSlot));
+            }}
+          >
+            {paying ? '…' : plan === 'weekly' ? 'Start weekly order' : method === 'CASH' ? 'Place order' : 'Pay'}
+          </button>
         </footer>
       </div>
       </>
