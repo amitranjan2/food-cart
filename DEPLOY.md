@@ -112,6 +112,31 @@ Plan: Vercel's free Hobby plan is for non-commercial use; a business pilot belon
 2. Environment variable `EXPO_PUBLIC_WEB_API_URL` = `https://api.suprmama.in`.
 3. Domains → `vendor.suprmama.in` → at Hostinger: `CNAME` `vendor` → `cname.vercel-dns.com`.
 
+### 6b. Vendor Android app (APK for pilot vendors)
+`vendor-app/eas.json` has two profiles; both talk to `https://api.suprmama.in`, so build after step 5 works.
+- **preview**: an `.apk` you share as a link or file (install allows "unknown apps" once). For the pilot.
+- **production**: an `.aab` for the Play Store, later.
+
+On your Mac, once:
+```
+npm install -g eas-cli
+eas login                      # free Expo account (expo.dev); use tech@suprmama.in
+cd vendor-app && eas init      # links the project; commit the projectId it adds to app.json
+```
+Each build (runs in Expo's cloud, about 10–20 minutes on the free plan; it asks to create the Android signing key the
+first time, say yes and let Expo keep it):
+```
+cd vendor-app && eas build -p android --profile preview
+```
+It prints a link and a QR code: open it on the phone, download, install. `autoIncrement` raises the version code each
+build, so a new APK installs over the old one. Notes:
+- Package name `in.suprmama.vendor` (fixed once on the Play Store). Permissions: location (stall pin), internet,
+  vibration only.
+- The APK can only reach an **https** API (Android blocks plain http), so not a laptop on Wi-Fi; to test before
+  deploying, put a tunnel's https address (`cloudflared tunnel --url http://localhost:8080`) in the profile's
+  `EXPO_PUBLIC_API_URL` for one build, and don't commit it.
+- Dish photos can only be uploaded from the vendor web app for now (`vendor.suprmama.in`); the phone app says so.
+
 ### 7. Smoke test
 1. `https://api.suprmama.in/api/health` → `{"status":"ok"}`.
 2. `API_BASE=https://api.suprmama.in ADMIN_TOKEN=… ops/create-vendor.sh "Test Stall" <your number>`.
