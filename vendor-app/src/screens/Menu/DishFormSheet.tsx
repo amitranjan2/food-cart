@@ -1,5 +1,6 @@
 import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
-import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { pickDishPhoto } from '../../utils/dishPhoto';
 import { addCatalogCategory, createMenuItem, updateMenuItem, uploadMenuImage } from '../../api/menu';
 import { CategoryPicker } from './CategoryPicker';
 import { isAuthFailure, mediaUrl } from '../../api/client';
@@ -101,11 +102,36 @@ export function DishFormSheet({ mode, item, categories, onClose, onSaved, onCate
   async function chooseImage() {
     if (!token) return;
     if (Platform.OS !== 'web' || typeof document === 'undefined') {
-      setMessage('Image upload is available in the browser for now.');
+      // Phones: the camera is usually quickest at the stall; the gallery for photos taken earlier.
+      Alert.alert(imageUrl ? 'Change dish photo' : 'Add a dish photo', undefined, [
+        { text: 'Take photo', onPress: () => void uploadPhoneImage('camera') },
+        { text: 'Choose from gallery', onPress: () => void uploadPhoneImage('library') },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
       return;
     }
     const file = await pickWebImage();
     if (!file) return;
+    await upload(file);
+  }
+
+  async function uploadPhoneImage(source: 'camera' | 'library') {
+    try {
+      const photo = await pickDishPhoto(source);
+      if (photo === 'denied') {
+        setMessage('Allow camera access in your phone settings to take a photo, or choose one from your gallery.');
+        return;
+      }
+      if (!photo) return;
+      // React Native uploads a file from its uri; the API checks the bytes, not this name or type.
+      await upload({ uri: photo.uri, name: 'dish.jpg', type: 'image/jpeg' } as unknown as Blob);
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : 'Could not open the photo');
+    }
+  }
+
+  async function upload(file: Blob) {
+    if (!token) return;
     try {
       setBusy(true);
       setMessage('');

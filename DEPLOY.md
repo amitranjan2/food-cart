@@ -130,12 +130,13 @@ cd vendor-app && eas build -p android --profile preview
 ```
 It prints a link and a QR code: open it on the phone, download, install. `autoIncrement` raises the version code each
 build, so a new APK installs over the old one. Notes:
-- Package name `in.suprmama.vendor` (fixed once on the Play Store). Permissions: location (stall pin), internet,
-  vibration only.
+- Package name `in.suprmama.vendor` (fixed once on the Play Store). Permissions: location (stall pin), camera (dish
+  photos), internet, vibration, and on Android 12 or older storage (the photo picker uses it there).
 - The APK can only reach an **https** API (Android blocks plain http), so not a laptop on Wi-Fi; to test before
   deploying, put a tunnel's https address (`cloudflared tunnel --url http://localhost:8080`) in the profile's
   `EXPO_PUBLIC_API_URL` for one build, and don't commit it.
-- Dish photos can only be uploaded from the vendor web app for now (`vendor.suprmama.in`); the phone app says so.
+- Dish photos on the phone: **Take photo** or **Choose from gallery**, cropped to the storefront's 4:3 and shrunk to a
+  ~1200 px JPEG before upload. Try both on a real phone with the first APK.
 
 ### 7. Smoke test
 1. `https://api.suprmama.in/api/health` → `{"status":"ok"}`.
