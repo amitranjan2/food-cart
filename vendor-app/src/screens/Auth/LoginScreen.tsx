@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { Linking, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Linking, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { SvgXml } from 'react-native-svg';
 import { StatusBar } from 'expo-status-bar';
-import { requestVendorOtp } from '../../api/auth';
+import { loginMethods, requestVendorOtp, startVendorWaLogin, type LoginMethods, type WaLoginStart } from '../../api/auth';
+import { useWhatsAppLogin } from '../../hooks/useWhatsAppLogin';
 import { Screen } from '../../components/Screen';
 import { useAuth } from '../../state/AuthContext';
 import { useOtpDelivery } from '../../hooks/useOtpDelivery';
@@ -21,8 +23,43 @@ function formatTimer(seconds: number) {
 }
 
 export function LoginScreen() {
-  const { login } = useAuth();
-  const [step, setStep] = useState<'mobile' | 'otp'>('mobile');
+  const { login, loginWithToken } = useAuth();
+  const [step, setStep] = useState<'mobile' | 'otp' | 'whatsapp'>('mobile');
+  /** Codes only until the API answers (the old behaviour). */
+  const [methods, setMethods] = useState<LoginMethods>({ otp: true, whatsappLogin: false });
+  /** The vendor chose a 6-digit code instead of WhatsApp login (only when both are on). */
+  const [useCode, setUseCode] = useState(false);
+  const [waStart, setWaStart] = useState<WaLoginStart | null>(null);
+  const waMode = methods.whatsappLogin && !(useCode && methods.otp);
+  const waState = useWhatsAppLogin(step === 'whatsapp' ? waStart : null, token => {
+    loginWithToken(token).catch(e => setError(e instanceof Error ? e.message : 'Signed in, but your stall could not be loaded.'));
+  });
+
+  useEffect(() => {
+    let active = true;
+    loginMethods().then(next => active && setMethods(next)).catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  async function startWhatsApp() {
+    if (!isValidMobile(mobile)) {
+      setError('This mobile number is invalid');
+      return;
+    }
+    try {
+      setError('');
+      setBusy(true);
+      const started = await startVendorWaLogin(mobile);
+      setWaStart(started);
+      setStep('whatsapp');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Something went wrong');
+    } finally {
+      setBusy(false);
+    }
+  }
   const [mobile, setMobile] = useState('');
   const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
@@ -120,13 +157,70 @@ export function LoginScreen() {
                 accessibilityLabel="Mobile number"
               />
               {error ? <Text style={styles.error}>{error}</Text> : null}
-              <Text style={typography.caption}>We send a login code on WhatsApp. New here? Use your number to open your stall.</Text>
-              <Button label="Continue" busy={busy} onPress={continueWithMobile} style={styles.action} />
+              <Text style={typography.caption}>
+                {waMode
+                  ? 'You confirm your number by sending us one WhatsApp message. New here? Use your number to open your stall.'
+                  : 'We send a login code on WhatsApp. New here? Use your number to open your stall.'}
+              </Text>
+              {waMode ? (
+                <Button label="Verify on WhatsApp" busy={busy} onPress={startWhatsApp} style={styles.action} />
+              ) : (
+                <Button label="Continue" busy={busy} onPress={continueWithMobile} style={styles.action} />
+              )}
+              {methods.whatsappLogin && methods.otp ? (
+                <Button
+                  label={waMode ? 'Get a 6-digit code instead' : 'Verify on WhatsApp instead'}
+                  variant="quiet"
+                  size="sm"
+                  onPress={() => { setUseCode(value => !value); setError(''); }}
+                />
+              ) : null}
               <Text style={[typography.caption, styles.center]}>
                 By continuing you agree to our{' '}
                 <Text style={styles.link} accessibilityRole="link" onPress={() => Linking.openURL(POLICY_URLS.vendorTerms)}>Vendor Terms</Text> and{' '}
                 <Text style={styles.link} accessibilityRole="link" onPress={() => Linking.openURL(POLICY_URLS.vendorPrivacy)}>Privacy Policy</Text>.
               </Text>
+            </Card>
+          </>
+        ) : step === 'whatsapp' && waStart ? (
+          <>
+            <Text style={typography.overline}>VENDOR APP</Text>
+            <Text style={styles.brand}>Send one message</Text>
+            <Text style={styles.subtitle}>
+              Open WhatsApp on the phone with {mobile} and press Send. You&apos;re signed in as soon as it arrives.
+            </Text>
+            <Card style={styles.card}>
+              {waState === 'EXPIRED' ? (
+                <View style={styles.failed} accessibilityRole="alert">
+                  <Text style={styles.failedText}>This took too long. Go back and tap Verify on WhatsApp again.</Text>
+                </View>
+              ) : (
+                <>
+                  <Button label="Open WhatsApp" onPress={() => Linking.openURL(waStart.link)} />
+                  <Text style={typography.caption}>
+                    The message <Text style={styles.strong}>{waStart.text}</Text> is ready to send to {waStart.number}.
+                  </Text>
+                  {/* On the web app (a laptop at the stall), scanning is easier than switching devices. */}
+                  {Platform.OS === 'web' ? (
+                    <View style={styles.qr}>
+                      <SvgXml xml={waStart.qrSvg} width={112} height={112} />
+                      <Text style={[typography.caption, styles.qrText]}>On a laptop? Scan this with your phone&apos;s camera.</Text>
+                    </View>
+                  ) : null}
+                  {waState === 'WRONG_NUMBER' ? (
+                    <View style={styles.failed} accessibilityRole="alert">
+                      <Text style={styles.failedText}>That message came from a different number. Send it from {mobile}, or change the number.</Text>
+                    </View>
+                  ) : (
+                    <Text style={[typography.caption, styles.center]} accessibilityLiveRegion="polite">Waiting for your message…</Text>
+                  )}
+                </>
+              )}
+              {error ? <Text style={[styles.error, styles.center]}>{error}</Text> : null}
+              <View style={styles.links}>
+                <Button label="Change number" variant="quiet" size="sm" onPress={() => { setStep('mobile'); setError(''); setWaStart(null); }} />
+                <Button label="Start again" variant="quiet" size="sm" disabled={busy} onPress={startWhatsApp} />
+              </View>
             </Card>
           </>
         ) : (
@@ -214,6 +308,21 @@ const styles = StyleSheet.create({
     color: colors.danger,
     fontSize: 13,
     fontWeight: '600',
+  },
+  strong: {
+    fontWeight: '800',
+    color: colors.text,
+  },
+  qr: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 10,
+    borderRadius: radius.md,
+    backgroundColor: colors.tint,
+  },
+  qrText: {
+    flex: 1,
   },
   failed: {
     backgroundColor: colors.dangerBg,

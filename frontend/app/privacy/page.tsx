@@ -20,7 +20,7 @@ export default function Privacy() {
 
       <h2>What we collect</h2>
       <ul>
-        <li><b>Mobile number</b>: to sign you in with a one-time code sent on WhatsApp, and to let the vendor call you about your order. For each code we keep whether WhatsApp delivered it (sent, delivered, read or failed) for 30 days, to fix login problems; never the code itself.</li>
+        <li><b>Mobile number</b>: to sign you in with a one-time code sent on WhatsApp, and to let the vendor call you about your order. For each code we keep whether WhatsApp delivered it (sent, delivered, read or failed) for 30 days, to fix login problems; never the code itself. If you sign in by sending us a WhatsApp message, WhatsApp shares your number and that message with us; we use them only to sign you in and keep the login request for an hour.</li>
         <li><b>Name</b>: shown to the vendor so they can hand your order to you.</li>
         <li><b>Orders</b>: the vendor, dishes and options, Pick Up or Dine In, time slot, amount, how you paid (online or at the stall), status and handover details.</li>
         <li><b>Weekly orders</b>: the vendor, dishes and options, days and time you chose, weeks you skipped, and whether it is active or paused, until you cancel it.</li>

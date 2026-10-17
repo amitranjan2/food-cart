@@ -34,6 +34,7 @@ import { applyTheme, themeStyle } from '../lib/theme';
 import { billOf, type PaymentMethod } from '../lib/bill';
 import { usePricing } from '../lib/useRates';
 import { useOtpDelivery } from '../lib/otpDelivery';
+import { useLoginMethods, useWhatsAppLogin, type WaLoginStart } from '../lib/whatsappLogin';
 
 /** Most dishes shown in the cart's "You may also like" row. */
 const SUGGESTION_LIMIT = 12;
@@ -68,6 +69,13 @@ export default function Store({ params }: { params: { slug: string } }) {
   const [testCheckout, setTestCheckout] = useState<{ amount: number; resolve: (outcome: CheckoutOutcome) => void } | null>(null);
   const liveOrders = useLiveOrders(customerToken);
   const otpDelivery = useOtpDelivery(customerToken ? '' : otpRef);
+  const loginMethods = useLoginMethods();
+  /** A started "Login with WhatsApp", until it signs in or the number changes. */
+  const [waStart, setWaStart] = useState<WaLoginStart | null>(null);
+  const waState = useWhatsAppLogin(customerToken ? null : waStart, token => {
+    setWaStart(null);
+    signedIn(token).catch(() => setPayError('Signed in, but your details could not be loaded. Please refresh.'));
+  });
   const homeScroll = useRef(0);
   const router = useRouter();
   const [query, setQuery] = useState('');
@@ -182,6 +190,7 @@ export default function Store({ params }: { params: { slug: string } }) {
   function changeMobile(next: string) {
     setMobile(next);
     setOtpRef('');
+    setWaStart(null);
     setCustomerToken('');
     setCustomerName('');
     storeSession('');
@@ -195,6 +204,7 @@ export default function Store({ params }: { params: { slug: string } }) {
     setCustomerName('');
     setMobile('');
     setOtp('');
+    setWaStart(null);
   }
 
   async function verifyOtp() {
@@ -202,12 +212,21 @@ export default function Store({ params }: { params: { slug: string } }) {
       method: 'POST',
       body: JSON.stringify({ mobile, otp }),
     });
-    // Returning customers already have a name and skip that step.
-    const profile = await request<{ name: string | null }>('/api/customers/me', {}, session.token);
+    await signedIn(session.token);
+  }
+
+  /** After a code or a WhatsApp login: keep the session. Returning customers already have a name and skip that step. */
+  async function signedIn(token: string) {
+    const profile = await request<{ mobile: string; name: string | null }>('/api/customers/me', {}, token);
     setCustomerName(profile.name ?? '');
-    setCustomerToken(session.token);
-    storeSession(session.token);
-    syncSavedVendors(session.token);
+    setCustomerToken(token);
+    storeSession(token);
+    syncSavedVendors(token);
+  }
+
+  async function startWhatsApp() {
+    setWaStart(null);
+    setWaStart(await request<WaLoginStart>('/api/auth/customer/wa-login', { method: 'POST', body: JSON.stringify({ mobile }) }));
   }
 
   async function saveName(name: string) {
@@ -497,6 +516,10 @@ export default function Store({ params }: { params: { slug: string } }) {
             mobile={mobile}
             otp={otp}
             otpDelivery={otpDelivery}
+            loginMethods={loginMethods}
+            waLogin={waStart ? { start: waStart, state: waState } : null}
+            onStartWhatsApp={startWhatsApp}
+            onCancelWhatsApp={() => setWaStart(null)}
             fallbackImage={store.coverImageUrl}
             onBack={() => setOpen(false)}
             onQuantity={changeQuantity}

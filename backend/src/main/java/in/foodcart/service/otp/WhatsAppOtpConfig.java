@@ -39,7 +39,13 @@ public class WhatsAppOtpConfig {
     }
     List<String> missing = new ArrayList<>();
     if (phoneNumberId.isBlank()) missing.add("WHATSAPP_PHONE_NUMBER_ID");
-    if (!testMode && template.isBlank()) missing.add("WHATSAPP_OTP_TEMPLATE");
+    // No template yet (Meta withholds authentication templates below the 2,000 limit): codes are off and the apps use
+    // Login with WhatsApp. Once the template is approved, setting WHATSAPP_OTP_TEMPLATE turns codes back on.
+    if (!testMode && template.isBlank()) {
+      if (apiVersion.isBlank()) missing.add("WHATSAPP_API_VERSION");
+      if (!missing.isEmpty()) throw new IllegalStateException("WHATSAPP_TOKEN is set but these are missing: " + String.join(", ", missing));
+      return new UnavailableOtpSender();
+    }
     if (!testMode && language.isBlank()) missing.add("WHATSAPP_OTP_LANGUAGE");
     if (apiVersion.isBlank()) missing.add("WHATSAPP_API_VERSION");
     // Fail at startup, not on a customer's first login.

@@ -153,4 +153,12 @@ class WhatsAppOtpSenderTest {
         "http://127.0.0.1:" + meta.getAddress().getPort(), Duration.ofSeconds(2), (id, mobile, purpose) -> { throw new RuntimeException("db down"); })
         .send("9876543210", "482913"));
   }
+
+  @Test
+  void withoutATemplateCodesAreOffAndPointToWhatsAppLogin() {
+    OtpSender off = new WhatsAppOtpConfig().whatsAppOtpSender("token", "1", "", "", "v26.0", "https://graph.facebook.com", false, env("prod"), null);
+    assertFalse(off.available());
+    IllegalStateException e = assertThrows(IllegalStateException.class, () -> off.send("9876543210", "123456"));
+    assertEquals(UnavailableOtpSender.USE_WHATSAPP, e.getMessage());
+  }
 }

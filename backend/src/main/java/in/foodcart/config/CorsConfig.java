@@ -14,7 +14,7 @@ public class CorsConfig implements WebMvcConfigurer {
   private final AuthRateLimits authLimits;
   public CorsConfig(AuthRateLimits authLimits) { this.authLimits = authLimits; }
   @Override public void addInterceptors(InterceptorRegistry registry) {
-    registry.addInterceptor(authLimits).addPathPatterns("/api/auth/*/request-otp", "/api/auth/*/verify-otp");
+    registry.addInterceptor(authLimits).addPathPatterns("/api/auth/*/request-otp", "/api/auth/*/verify-otp", "/api/auth/*/wa-login");
   }
   @Override public void addCorsMappings(CorsRegistry registry) {
     // Only the configured origins; the local profile lists the dev servers (application-local.yml).

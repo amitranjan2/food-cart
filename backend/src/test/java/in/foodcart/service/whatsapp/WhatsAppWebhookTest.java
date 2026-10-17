@@ -74,4 +74,22 @@ class WhatsAppWebhookTest {
     assertEquals(0, webhook.handle("not json"));
     verifyNoInteractions(delivery);
   }
+
+  @Test
+  void loginMessagesAreMatchedAndAnsweredOthersIgnored() {
+    WhatsAppLogin logins = mock(WhatsAppLogin.class);
+    WhatsAppText text = mock(WhatsAppText.class);
+    when(logins.inbound("919876543210", "Login SM-ACDEFG", "wamid.in1")).thenReturn(WhatsAppLogin.SIGNED_IN);
+    WhatsAppWebhook full = new WhatsAppWebhook(SECRET, "verify-me", delivery, logins, text);
+    full.handle("""
+        {"entry":[{"changes":[{"field":"messages","value":{"messages":[
+          {"from":"919876543210","id":"wamid.in1","type":"text","text":{"body":"Login SM-ACDEFG"}},
+          {"from":"919800000000","id":"wamid.in2","type":"text","text":{"body":"is the stall open?"}},
+          {"from":"919800000001","id":"wamid.in3","type":"image","image":{"id":"x"}}
+        ]}}]}]}
+        """);
+    verify(text).reply("919876543210", WhatsAppLogin.SIGNED_IN);
+    verify(logins, never()).inbound(eq("919800000001"), any(), any());
+    verifyNoMoreInteractions(text);
+  }
 }

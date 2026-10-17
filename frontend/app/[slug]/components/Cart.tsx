@@ -6,6 +6,7 @@ import type { Bill, PaymentMethod } from '../../lib/bill';
 import type { MenuItem } from '../../lib/api';
 import { FEATURES } from '../../lib/features';
 import type { OtpDelivery } from '../../lib/otpDelivery';
+import type { LoginMethods, WaLoginStart, WaLoginState } from '../../lib/whatsappLogin';
 import { formatRupee } from '../lib/customization';
 import { AddressFlow, addressLabel, type AddressStep, type SavedAddress } from './AddressFlow';
 import { MenuItemCard } from './MenuItemCard';
@@ -79,6 +80,40 @@ function timeLabel(time: string) {
   return clockLabel(new Date(2000, 0, 1, hour, minute));
 }
 
+/** What to do after "Verify on WhatsApp": open WhatsApp (or scan on a laptop), press Send, come back. */
+function WhatsAppPanel({ start, state, mobile, onCancel }: { start: WaLoginStart; state: WaLoginState | null; mobile: string; onCancel: () => void }) {
+  return (
+    <div className="wa-login" role="group" aria-label="Verify on WhatsApp">
+      {state === 'EXPIRED' ? (
+        <p className="cart-otp-hint cart-otp-failed" role="alert">This took too long. Tap Start again to get a new message.</p>
+      ) : (
+        <>
+          <a className="wa-login-open" href={start.link} target="_blank" rel="noopener noreferrer">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M4 20l1.3-3.9A8 8 0 1 1 8 19z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+              <path d="M9 9.5c0 3 2.5 5.5 5.5 5.5l1-1.5-2-1-1 1a4 4 0 0 1-2-2l1-1-1-2z" fill="currentColor" />
+            </svg>
+            Open WhatsApp and press Send
+          </a>
+          <p className="wa-login-steps">
+            The message <b>{start.text}</b> is ready to send to {start.number}. Send it from <b>{mobile}</b>, then come back here.
+          </p>
+          <div className="wa-login-qr">
+            <img src={'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(start.qrSvg)} alt="QR code that opens the message in WhatsApp" />
+            <span>On a laptop? Scan this with your phone&apos;s camera.</span>
+          </div>
+          {state === 'WRONG_NUMBER' ? (
+            <p className="cart-otp-hint cart-otp-failed" role="alert">That message came from a different number. Send it from {mobile}, or change the number above.</p>
+          ) : (
+            <p className="wa-login-wait" aria-live="polite"><i aria-hidden="true" /> Waiting for your message…</p>
+          )}
+        </>
+      )}
+      <button type="button" className="cart-login-switch" onClick={onCancel}>Cancel</button>
+    </div>
+  );
+}
+
 function LinePhoto({ item, fallbackImage }: { item: MenuItem; fallbackImage?: string }) {
   const [broken, setBroken] = useState(false);
   const photo = item.imageUrl || fallbackImage;
@@ -110,6 +145,10 @@ export function Cart({
   mobile,
   otp,
   otpDelivery,
+  loginMethods = { otp: true, whatsappLogin: false },
+  waLogin,
+  onStartWhatsApp,
+  onCancelWhatsApp,
   fallbackImage,
   onBack,
   onQuantity,
@@ -151,6 +190,12 @@ export function Cart({
   otp: string;
   /** Whether WhatsApp delivered the last code; null until known. */
   otpDelivery?: OtpDelivery | null;
+  /** Which ways to sign in work now; WhatsApp login comes first when it's on. */
+  loginMethods?: LoginMethods;
+  /** A started "Login with WhatsApp" and how it's going. */
+  waLogin?: { start: WaLoginStart; state: WaLoginState | null } | null;
+  onStartWhatsApp?: () => Promise<void>;
+  onCancelWhatsApp?: () => void;
   fallbackImage?: string;
   onBack: () => void;
   /** For the suggestion cards (whole dish). */
@@ -207,6 +252,24 @@ export function Cart({
   const [otpError, setOtpError] = useState('');
   const [resendIn, setResendIn] = useState(0);
   const otpSent = otpSentTo !== '' && otpSentTo === mobile;
+  /** The customer chose a 6-digit code instead of WhatsApp login (only when both are on). */
+  const [useCode, setUseCode] = useState(false);
+  const [startingWa, setStartingWa] = useState(false);
+  const waMode = loginMethods.whatsappLogin && !(useCode && loginMethods.otp);
+  const validMobile = /^[6-9]\d{9}$/.test(mobile);
+
+  async function startWhatsApp() {
+    if (!onStartWhatsApp) return;
+    setStartingWa(true);
+    setOtpError('');
+    try {
+      await onStartWhatsApp();
+    } catch (error) {
+      setOtpError(error instanceof Error ? error.message : 'Could not start WhatsApp login.');
+    } finally {
+      setStartingWa(false);
+    }
+  }
 
   useEffect(() => {
     if (resendIn <= 0) return;
@@ -601,6 +664,10 @@ export function Cart({
           </label>
           {verified ? (
             <span className="cart-otp-verified" aria-live="polite">✓ Verified</span>
+          ) : waMode ? (
+            <button type="button" className="cart-otp-send cart-wa-start" disabled={startingWa || !validMobile} onClick={startWhatsApp}>
+              {startingWa ? '…' : waLogin ? 'Start again' : 'Verify on WhatsApp'}
+            </button>
           ) : otpSent && otp.length === 6 ? (
             <button type="button" className="cart-otp-send" disabled={verifying} onClick={verifyOtp}>
               {verifying ? '…' : 'Submit'}
@@ -616,7 +683,22 @@ export function Cart({
             </button>
           )}
         </div>
-        {otpSent && !verified && (
+        {waMode && waLogin && !verified && (
+          <WhatsAppPanel start={waLogin.start} state={waLogin.state} mobile={mobile} onCancel={() => onCancelWhatsApp?.()} />
+        )}
+        {!verified && !waLogin && loginMethods.whatsappLogin && loginMethods.otp && (
+          <button
+            type="button"
+            className="cart-login-switch"
+            onClick={() => {
+              setUseCode(value => !value);
+              setOtpError('');
+            }}
+          >
+            {waMode ? 'Get a 6-digit code instead' : 'Verify on WhatsApp instead'}
+          </button>
+        )}
+        {!waMode && otpSent && !verified && (
           <label className="cart-field">
             <input
               inputMode="numeric"
@@ -631,7 +713,7 @@ export function Cart({
             />
           </label>
         )}
-        {otpSent && !verified && (
+        {!waMode && otpSent && !verified && (
           otpDelivery?.state === 'FAILED' ? (
             <p className="cart-otp-hint cart-otp-failed" role="alert">{otpDelivery.message ?? 'WhatsApp couldn’t deliver the code. Tap Resend.'}</p>
           ) : otpDelivery?.state === 'DELIVERED' ? (

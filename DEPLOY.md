@@ -84,7 +84,9 @@ Plan: Vercel's free Hobby plan is for non-commercial use; a business pilot belon
    | `TRUST_PROXY` | `true` (Railway sits in front of the API) |
    | `ADMIN_TOKEN` | 32+ random characters (`openssl rand -base64 32`) |
    | `NOMINATIM_CONTACT` | `tech@suprmama.in` |
-   | `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_OTP_TEMPLATE` (`suprmama_otp`), `WHATSAPP_OTP_LANGUAGE`, `WHATSAPP_API_VERSION` | from N3 (`1374337695763992`, `en`, `v26.0`). Never set `WHATSAPP_TEST_MODE` here: the API refuses to start with it |
+   | `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_API_VERSION` | from N3 (`1374337695763992`, `v26.0`). Never set `WHATSAPP_TEST_MODE` here: the API refuses to start with it |
+   | `WHATSAPP_BUSINESS_NUMBER` | `919205760890`: turns on **Login with WhatsApp** (customers and vendors send one message to sign in), together with the two webhook variables below. This is how everyone signs in until Meta allows the OTP template |
+   | `WHATSAPP_OTP_TEMPLATE`, `WHATSAPP_OTP_LANGUAGE` | leave **unset** until `suprmama_otp` is approved (Meta needs the 2,000/day messaging limit first); then `suprmama_otp` and `en` turn 6-digit codes on as a second way in |
    | `WHATSAPP_APP_SECRET`, `WHATSAPP_WEBHOOK_VERIFY_TOKEN` | delivery webhook (step 5b): the app secret from developers.facebook.com → Supr-Mama → App settings → Basic → App secret; the verify token is any 32+ random characters you make up (`openssl rand -hex 32`) |
    | `PAYMENT_GATEWAY` | `none` at launch (pay at the stall only); later `razorpay` or `cashfree` + its keys (S2.3) |
    | `PAYMENT_CASH` | leave unset (`true`); `false` only to stop pay at the stall once online payment exists |

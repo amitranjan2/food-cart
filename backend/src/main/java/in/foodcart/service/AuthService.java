@@ -42,6 +42,12 @@ public class AuthService {
   public String customer(String mobile, String code) {
     validMobile(mobile);
     otp.verify("CUSTOMER", mobile, code);
+    return customerSignedIn(mobile);
+  }
+
+  /** A session for a number already proven to be the caller's (by OTP, or by WhatsApp itself: WhatsAppLogin). */
+  public String customerSignedIn(String mobile) {
+    validMobile(mobile);
     CustomerEntity c = customers.findByMobile(mobile).orElseGet(() -> {
       CustomerEntity x = new CustomerEntity();
       x.mobile = mobile;
@@ -53,7 +59,13 @@ public class AuthService {
   public String vendor(String mobile, String code) {
     validMobile(mobile);
     otp.verify("VENDOR", mobile, code);
-    // The draft stall is made only after the code checks out, so nobody can create stalls for numbers they don't hold.
+    return vendorSignedIn(mobile);
+  }
+
+  /** A session for a number already proven to be the caller's (by OTP, or by WhatsApp itself: WhatsAppLogin). */
+  public String vendorSignedIn(String mobile) {
+    validMobile(mobile);
+    // The draft stall is made only after the number is proven, so nobody can create stalls for numbers they don't hold.
     VendorEntity v = vendors.findByMobile(mobile).orElseGet(() -> onboarding.draftFor(mobile));
     return session(v.id, "VENDOR");
   }
@@ -71,7 +83,7 @@ public class AuthService {
     return s.actorId;
   }
 
-  private void validMobile(String mobile) {
+  public static void validMobile(String mobile) {
     if (mobile == null || !mobile.matches("[6-9][0-9]{9}")) throw new IllegalArgumentException("Enter a valid 10-digit mobile number.");
   }
 

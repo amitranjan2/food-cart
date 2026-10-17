@@ -8,4 +8,9 @@ public interface OtpSender {
   default String fixedCode() {
     return null;
   }
+
+  /** False when codes can't be sent at all (no approved template yet), so the apps offer Login with WhatsApp instead. */
+  default boolean available() {
+    return true;
+  }
 }

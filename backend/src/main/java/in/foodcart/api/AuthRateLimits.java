@@ -42,7 +42,8 @@ public class AuthRateLimits implements HandlerInterceptor {
   public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
     if (!"POST".equals(request.getMethod())) return true;
     String path = request.getRequestURI();
-    FixedWindowLimiter limiter = path.endsWith("/request-otp") ? requests : path.endsWith("/verify-otp") ? verifies : null;
+    // Starting a WhatsApp login costs like asking for a code, so it shares the same per-IP allowance.
+    FixedWindowLimiter limiter = path.endsWith("/request-otp") || path.endsWith("/wa-login") ? requests : path.endsWith("/verify-otp") ? verifies : null;
     if (limiter == null) return true;
     long retryAfter = limiter.hit(clientIp(request), clock.instant());
     if (retryAfter == 0) return true;

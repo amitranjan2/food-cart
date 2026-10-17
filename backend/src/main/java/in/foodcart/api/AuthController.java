@@ -2,6 +2,9 @@ package in.foodcart.api;
 
 import in.foodcart.service.AuthService;
 import in.foodcart.service.otp.OtpDelivery;
+import in.foodcart.service.otp.OtpSender;
+import in.foodcart.service.whatsapp.WhatsAppLogin;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -11,10 +14,33 @@ import java.util.Map;
 public class AuthController {
   private final AuthService auth;
   private final OtpDelivery delivery;
+  private final WhatsAppLogin whatsapp;
+  private final ObjectProvider<OtpSender> otpSender;
 
-  public AuthController(AuthService a, OtpDelivery d) {
+  public AuthController(AuthService a, OtpDelivery d, WhatsAppLogin w, ObjectProvider<OtpSender> s) {
     auth = a;
     delivery = d;
+    whatsapp = w;
+    otpSender = s;
+  }
+
+  /** Which ways to sign in work right now, so the apps show only those. */
+  @GetMapping("/methods")
+  Map<String, Object> methods() {
+    OtpSender sender = otpSender.getIfAvailable();
+    return Map.of("otp", sender != null && sender.available(), "whatsappLogin", whatsapp.enabled());
+  }
+
+  /** Starts "Login with WhatsApp": returns the code to send, a wa.me link and a QR code, and the secret to poll with. */
+  @PostMapping("/{role}/wa-login")
+  Map<String, Object> waLogin(@PathVariable String role, @RequestBody RequestOtp body) {
+    return whatsapp.start(role, body.mobile());
+  }
+
+  /** WAITING, WRONG_NUMBER, EXPIRED, or SIGNED_IN with the session token (given once). */
+  @GetMapping("/wa-login/{secret}")
+  Map<String, Object> waLoginState(@PathVariable String secret) {
+    return whatsapp.poll(secret);
   }
 
   record RequestOtp(String mobile) {}
